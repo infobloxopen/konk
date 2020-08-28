@@ -28,26 +28,68 @@ spec:
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
-        - name: {{ .Chart.Name }}
+        - name: apiserver
           securityContext:
-            {{- toYaml .Values.securityContext | nindent 12 }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+            {{- toYaml .Values.apiserver.securityContext | nindent 12 }}
+          image: "{{ .Values.apiserver.image.repository }}:{{ .Values.apiserver.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.apiserver.image.pullPolicy }}
           command:
             - /usr/local/bin/kube-apiserver
           args:
-            - --etcd-servers=https://127.0.0.1:4001 # TODO: provision etcd
+            - --etcd-cafile=/etc/kubernetes/pki/apiserver/etcd/ca.pem
+            - --etcd-certfile=/etc/kubernetes/pki/apiserver/etcd/cert.pem
+            - --etcd-keyfile=/etc/kubernetes/pki/apiserver/etcd/key.pem
+            - --etcd-servers=https://127.0.0.1:2379
             # TODO: mount certs
           ports:
             - name: https
               containerPort: 443
               protocol: TCP
-          livenessProbe:
-            httpGet:
-              path: /
-              port: https
           resources:
-            {{- toYaml .Values.resources | nindent 12 }}
+            {{- toYaml .Values.apiserver.resources | nindent 12 }}
+          volumeMounts:
+          - mountPath: /etc/kubernetes/pki/apiserver/etcd
+            name: etcd-client-certs
+            readOnly: true
+        - name: etcd
+          securityContext:
+            {{- toYaml .Values.etcd.securityContext | nindent 12 }}
+          image: "{{ .Values.etcd.image.repository }}:{{ .Values.etcd.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.etcd.image.pullPolicy }}
+          command:
+            - etcd
+            - --advertise-client-urls=https://127.0.0.1:2379
+            - --cert-file=/var/lib/minikube/certs/etcd/server.crt
+            - --client-cert-auth=true
+            - --data-dir=/var/lib/minikube/etcd
+            - --key-file=/var/lib/minikube/certs/etcd/server.key
+            - --listen-client-urls=https://127.0.0.1:2379
+            - --listen-metrics-urls=http://127.0.0.1:2381
+            - --name=minikube
+            - --snapshot-count=10000
+            - --trusted-ca-file=/var/lib/minikube/certs/etcd/ca.crt
+          livenessProbe:
+            failureThreshold: 8
+            httpGet:
+              host: 127.0.0.1
+              path: /health
+              port: 2381
+              scheme: HTTP
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 15
+          resources:
+            {{- toYaml .Values.etcd.resources | nindent 12 }}
+          volumeMounts:
+          - mountPath: /etc/kubernetes/pki/apiserver/etcd
+            name: etcd-client-certs
+            readOnly: true
+      volumes:
+      - name: etcd-client-certs
+        secret:
+          defaultMode: 256
+          secretName: {{ include "konk.fullname" . }}-etcd-cert
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
