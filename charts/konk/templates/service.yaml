@@ -1,9 +1,9 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "apiserver.fullname" . }}
+  name: {{ include "konk.fullname" . }}
   labels:
-    {{- include "apiserver.labels" . | nindent 4 }}
+    {{- include "konk.labels" . | nindent 4 }}
 spec:
   type: {{ .Values.service.type }}
   ports:
@@ -12,4 +12,4 @@ spec:
       protocol: TCP
       name: https
   selector:
-    {{- include "apiserver.selectorLabels" . | nindent 4 }}
+    {{- include "konk.selectorLabels" . | nindent 4 }}
