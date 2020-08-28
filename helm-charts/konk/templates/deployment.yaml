@@ -44,7 +44,12 @@ spec:
             - --etcd-cafile=/etc/kubernetes/pki/apiserver/etcd-ca.crt
             - --etcd-certfile=/etc/kubernetes/pki/apiserver/apiserver-etcd-client.crt
             - --etcd-keyfile=/etc/kubernetes/pki/apiserver/apiserver-etcd-client.key
-            - --etcd-servers=https://127.0.0.1:2379
+            - --etcd-servers=
+            {{- if .Values.etcd.subchart -}}
+            https://{{ .Release.Name }}-etcd-headless:2379 # TODO: resolve port from values
+            {{- else -}}
+            https://127.0.0.1:2379
+            {{- end }}
             {{- range $api := .Values.apiserver.disabledAPIs }}
             - --runtime-config={{ $api }}=false
             {{- end }}
@@ -93,6 +98,7 @@ spec:
           - mountPath: /etc/kubernetes/pki/apiserver
             name: apiserver-certs
             readOnly: true
+        {{- if not .Values.etcd.subchart }}
         - name: etcd
           securityContext:
             {{- toYaml .Values.etcd.securityContext | nindent 12 }}
@@ -124,6 +130,7 @@ spec:
           - mountPath: /etc/kubernetes/pki/apiserver/etcd
             name: etcd-client-certs
             readOnly: true
+        {{- end }}
       volumes:
       - name: proxy-client
         secret:
