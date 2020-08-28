@@ -36,6 +36,9 @@ spec:
           command:
             - /usr/local/bin/kube-apiserver
           args:
+            - --etcd-cafile=/etc/kubernetes/pki/apiserver/etcd/ca.pem
+            - --etcd-certfile=/etc/kubernetes/pki/apiserver/etcd/cert.pem
+            - --etcd-keyfile=/etc/kubernetes/pki/apiserver/etcd/key.pem
             - --etcd-servers=https://127.0.0.1:4001 # TODO: provision etcd
             # TODO: mount certs
           ports:
@@ -48,6 +51,15 @@ spec:
               port: https
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+          - mountPath: /etc/kubernetes/pki/apiserver/etcd
+            name: etcd-client-certs
+            readOnly: true
+      volumes:
+      - name: etcd-client-certs
+        secret:
+          defaultMode: 256
+          secretName: {{ include "konk.fullname" . }}-etcd-cert
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
