@@ -54,20 +54,18 @@ spec:
         - name: etcd
           securityContext:
             {{- toYaml .Values.etcd.securityContext | nindent 12 }}
-          image: "{{ .Values.etcd.image.repository }}:{{ .Values.etcd.image.tag | default .Chart.AppVersion }}"
+          image: "{{ .Values.etcd.image.repository }}:{{ .Values.etcd.image.tag }}"
           imagePullPolicy: {{ .Values.etcd.image.pullPolicy }}
           command:
             - etcd
             - --advertise-client-urls=https://127.0.0.1:2379
-            - --cert-file=/var/lib/minikube/certs/etcd/server.crt
+            - --cert-file=/etc/kubernetes/pki/apiserver/etcd/cert.pem
             - --client-cert-auth=true
-            - --data-dir=/var/lib/minikube/etcd
-            - --key-file=/var/lib/minikube/certs/etcd/server.key
+            - --key-file=/etc/kubernetes/pki/apiserver/etcd/key.pem
             - --listen-client-urls=https://127.0.0.1:2379
             - --listen-metrics-urls=http://127.0.0.1:2381
-            - --name=minikube
-            - --snapshot-count=10000
-            - --trusted-ca-file=/var/lib/minikube/certs/etcd/ca.crt
+            - --name={{ .Chart.Name }}
+            - --trusted-ca-file=/etc/kubernetes/pki/apiserver/etcd/ca.pem
           livenessProbe:
             failureThreshold: 8
             httpGet:
