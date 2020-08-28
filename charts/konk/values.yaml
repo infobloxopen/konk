@@ -33,7 +33,6 @@ etcd:
   image:
     repository: k8s.gcr.io/etcd
     pullPolicy: IfNotPresent
-    # Overrides the image tag whose default is the chart appVersion.
     tag: "3.4.9-1" # keep image versions in sync with `kubeadm config images list`
   resources: {}
     # We usually recommend not to specify default resources and to leave this as a conscious
