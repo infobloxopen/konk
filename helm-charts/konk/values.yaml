@@ -132,3 +132,17 @@ nodeSelector: {}
 tolerations: []
 
 affinity: {}
+
+etcd:
+  subchart: true
+  auth:
+    rbac:
+      enabled: false
+    client:
+      secureTransport: true
+      existingSecret: # must override this with RELEASE_NAME-CHART_NAME-etcd-cert
+  # these probes don't work with self-signed certs because probe.sh doesn't set the cacert path in the $AUTH_OPTIONS
+  livenessProbe:
+    enabled: false
+  readinessProbe:
+    enabled: false

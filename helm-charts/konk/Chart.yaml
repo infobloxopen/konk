@@ -4,3 +4,8 @@ description: Deploys an instance of konk (kubernetes on kubernetes), typically r
 name: konk
 type: application
 version: 0.1.0
+dependencies:
+  - name: etcd
+    version: 4.10.1
+    repository: https://charts.bitnami.com/bitnami
+    condition: etcd.subchart
