@@ -1,0 +1,7 @@
+# kubernetes v1.19.0
+apiserver:
+  image:
+    tag: v1.19.0
+etcd:
+  image:
+    tag: 3.4.9-1
