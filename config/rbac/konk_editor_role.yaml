@@ -1,0 +1,24 @@
+# permissions for end users to edit konks.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: konk-editor-role
+rules:
+- apiGroups:
+  - infoblox.com
+  resources:
+  - konks
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - infoblox.com
+  resources:
+  - konks/status
+  verbs:
+  - get

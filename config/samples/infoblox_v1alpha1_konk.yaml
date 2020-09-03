@@ -1,0 +1,51 @@
+apiVersion: infoblox.com/v1alpha1
+kind: Konk
+metadata:
+  name: konk-sample
+spec:
+  # Default values copied from <project_dir>/helm-charts/konk/values.yaml
+  affinity: {}
+  apiserver:
+    image:
+      pullPolicy: IfNotPresent
+      repository: k8s.gcr.io/kube-apiserver
+      tag: ""
+    resources: {}
+    securityContext: {}
+  autoscaling:
+    enabled: false
+    maxReplicas: 100
+    minReplicas: 1
+    targetCPUUtilizationPercentage: 80
+  etcd:
+    image:
+      pullPolicy: IfNotPresent
+      repository: k8s.gcr.io/etcd
+      tag: 3.4.9-1
+    resources: {}
+    securityContext: {}
+  fullnameOverride: ""
+  imagePullSecrets: []
+  ingress:
+    annotations:
+      nginx.ingress.kubernetes.io/backend-protocol: HTTPS
+    enabled: false
+    hosts:
+    - host: chart-example.local
+      paths: []
+    tls: []
+  nameOverride: ""
+  nodeSelector: {}
+  podAnnotations: {}
+  podSecurityContext: {}
+  replicaCount: 1
+  service:
+    port: 443
+    type: ClusterIP
+  serviceAccount:
+    annotations: {}
+    create: true
+    name: ""
+  tolerations: []
+  
+  
