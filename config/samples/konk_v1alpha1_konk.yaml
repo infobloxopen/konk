@@ -1,4 +1,4 @@
-apiVersion: infoblox.com/v1alpha1
+apiVersion: konk.infoblox.com/v1alpha1
 kind: Konk
 metadata:
   name: konk-sample

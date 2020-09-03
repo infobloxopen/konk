@@ -1,8 +1,8 @@
-domain: com
+domain: infoblox.com
 layout: helm.sdk.operatorframework.io/v1
 projectName: konk
 resources:
-- group: infoblox
+- group: konk
   kind: Konk
   version: v1alpha1
 version: 3-alpha

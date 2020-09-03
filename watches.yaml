@@ -1,5 +1,5 @@
 # Use the 'create api' subcommand to add watches to this file.
-- group: infoblox.com
+- group: konk.infoblox.com
   version: v1alpha1
   kind: Konk
   chart: helm-charts/konk

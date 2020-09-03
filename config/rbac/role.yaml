@@ -29,10 +29,10 @@ rules:
   - create
 
 ##
-## Rules for infoblox.com/v1alpha1, Kind: Konk
+## Rules for konk.infoblox.com/v1alpha1, Kind: Konk
 ##
 - apiGroups:
-  - infoblox.com
+  - konk.infoblox.com
   resources:
   - konks
   - konks/status
