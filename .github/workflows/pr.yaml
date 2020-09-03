@@ -1,0 +1,17 @@
+name: PR
+on: pull_request
+jobs:
+  build:
+    env:
+      SRC: src/github.com/${{github.repository}}
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          path: src/github.com/${{ github.repository }}
+      - name: Helm Lint
+        working-directory: ${{ github.workspace }}/src/github.com/${{ github.repository }}
+        run: |
+          make helm-lint HELM="docker run --rm -i -v $PWD:/apps infoblox/helm:3.2.4-5b243a2"
