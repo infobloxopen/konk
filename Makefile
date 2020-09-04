@@ -1,6 +1,7 @@
 CHART_DIR	:= charts
 HELM		?= docker run --rm -i \
 			--entrypoint="" \
+			--network host \
 			-e KUBECONFIG=/apps/.kube/$(notdir $(KUBECONFIG)) \
 			-v $(dir $(KUBECONFIG)):/apps/.kube/ \
 			-v $(PWD):/apps \
