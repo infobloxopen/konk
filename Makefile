@@ -1,7 +1,14 @@
 CHART_DIR	:= charts
-HELM		?= docker run --rm -i -v $(PWD):/apps infoblox/helm:3.2.4-5b243a2
+HELM		?= docker run --rm -i \
+			--entrypoint="" \
+			-e KUBECONFIG=/apps/.kube/$(notdir $(KUBECONFIG)) \
+			-v $(dir $(KUBECONFIG)):/apps/.kube/ \
+			-v $(PWD):/apps \
+			infoblox/helm:3.2.4-5b243a2 \
+			helm
 K8S_RELEASE	?= v1.19.0
 KUBEADM		?= docker run --rm -it --entrypoint="" kindest/node:$(K8S_RELEASE) kubeadm
+KUBECONFIG	?= ${HOME}/.kube/config
 RELEASE_NAME	?= $(USER)
 
 .PHONY: charts/konk/image-tag-values.yaml
