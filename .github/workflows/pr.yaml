@@ -11,11 +11,12 @@ jobs:
         uses: actions/checkout@v2
         with:
           path: src/github.com/${{ github.repository }}
-      - uses: helm/kind-action@v1.0.0
       - name: Helm Lint
         working-directory: ${{ github.workspace }}/src/github.com/${{ github.repository }}
         run: |
+          mkdir -p ~/.kube
           make helm-lint
+      - uses: helm/kind-action@v1.0.0
       - name: Test
         working-directory: ${{ github.workspace }}/src/github.com/${{ github.repository }}
         run: |
