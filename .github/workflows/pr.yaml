@@ -15,7 +15,7 @@ jobs:
         working-directory: ${{ github.workspace }}/src/github.com/${{ github.repository }}
         run: |
           make helm-lint
-      - uses: engineerd/setup-kind@v0.4.0
+      - uses: engineerd/setup-kind@master
       - name: Test
         working-directory: ${{ github.workspace }}/src/github.com/${{ github.repository }}
         run: |
