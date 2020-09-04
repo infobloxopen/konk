@@ -14,4 +14,10 @@ jobs:
       - name: Helm Lint
         working-directory: ${{ github.workspace }}/src/github.com/${{ github.repository }}
         run: |
-          make helm-lint HELM="docker run --rm -i -v $PWD:/apps infoblox/helm:3.2.4-5b243a2"
+          make helm-lint
+      - uses: engineerd/setup-kind@v0.4.0
+      - name: Test
+        working-directory: ${{ github.workspace }}/src/github.com/${{ github.repository }}
+        run: |
+          kubectl cluster-info
+          make deploy-konk test-konk

@@ -1,5 +1,5 @@
 CHART_DIR	:= charts
-HELM		?= helm # point to helm 3
+HELM		?= docker run --rm -i -v $(PWD):/apps infoblox/helm:3.2.4-5b243a2
 K8S_RELEASE	?= v1.19.0
 KUBEADM		?= docker run --rm -it --entrypoint="" kindest/node:$(K8S_RELEASE) kubeadm
 RELEASE_NAME	?= $(USER)
@@ -18,6 +18,9 @@ helm-lint-%:
 
 deploy-%:
 	$(HELM) upgrade -i $(RELEASE_NAME)-$* $(CHART_DIR)/$*
+
+test-%:
+	$(HELM) test $(RELEASE_NAME)-$*
 
 teardown-%:
 	$(HELM) delete $(RELEASE_NAME)-$*
