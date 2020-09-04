@@ -26,7 +26,7 @@ helm-lint-%:
 	$(HELM) lint $(CHART_DIR)/$*
 
 deploy-%:
-	$(HELM) upgrade -i $(RELEASE_NAME)-$* $(CHART_DIR)/$*
+	$(HELM) upgrade -i --wait $(RELEASE_NAME)-$* $(CHART_DIR)/$*
 
 test-%:
 	$(HELM) test $(RELEASE_NAME)-$* \

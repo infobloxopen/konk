@@ -28,6 +28,22 @@ spec:
       serviceAccountName: {{ include "konk.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      initContainers:
+        - name: kind
+          securityContext:
+            {{- toYaml .Values.kind.securityContext | nindent 12 }}
+          image: "{{ .Values.kind.image.repository }}:{{ .Values.kind.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.kind.image.pullPolicy }}
+          command:
+            - bash
+          args:
+            - /scripts/provision.sh
+          resources:
+            {{- toYaml .Values.kind.resources | nindent 12 }}
+          volumeMounts:
+          - mountPath: /scripts/
+            name: scripts
+            readOnly: true
       containers:
         - name: apiserver
           securityContext:
@@ -94,6 +110,10 @@ spec:
         secret:
           defaultMode: 256
           secretName: {{ include "konk.fullname" . }}-apiserver-cert
+      - name: scripts
+        configMap:
+          name: {{ include "konk.fullname" . }}-scripts
+          defaultMode: 0777
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
