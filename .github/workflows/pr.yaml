@@ -22,5 +22,5 @@ jobs:
         run: |
           kubectl cluster-info
           make deploy-konk
-          kubectl wait --for=condition=ready pod -l app.kubernetes.io/component=apiserver,app.kubernetes.io/instance=$USER-konk
+          kubectl wait --timeout=2m --for=condition=ready pod -l app.kubernetes.io/component=apiserver,app.kubernetes.io/instance=$USER-konk
           make test-konk
