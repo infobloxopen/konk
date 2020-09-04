@@ -37,19 +37,20 @@ spec:
           command:
             - /usr/local/bin/kube-apiserver
           args:
-            - --etcd-cafile=/etc/kubernetes/pki/apiserver/etcd/ca.crt
-            - --etcd-certfile=/etc/kubernetes/pki/apiserver/etcd/apiserver-etcd-client.crt
-            - --etcd-keyfile=/etc/kubernetes/pki/apiserver/etcd/apiserver-etcd-client.key
+            - --client-ca-file=/etc/kubernetes/pki/apiserver/ca.crt
+            - --etcd-cafile=/etc/kubernetes/pki/apiserver/etcd-ca.crt
+            - --etcd-certfile=/etc/kubernetes/pki/apiserver/apiserver-etcd-client.crt
+            - --etcd-keyfile=/etc/kubernetes/pki/apiserver/apiserver-etcd-client.key
             - --etcd-servers=https://127.0.0.1:2379
             # TODO: mount certs
           ports:
             - name: https
-              containerPort: 443
+              containerPort: 6443
               protocol: TCP
           resources:
             {{- toYaml .Values.apiserver.resources | nindent 12 }}
           volumeMounts:
-          - mountPath: /etc/kubernetes/pki/apiserver/etcd
+          - mountPath: /etc/kubernetes/pki/apiserver
             name: apiserver-certs
             readOnly: true
         - name: etcd
