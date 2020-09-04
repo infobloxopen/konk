@@ -1,7 +1,8 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: {{ include "konk.fullname" . }}-kind-pod
+  name: {{ include "konk.fullname" . }}-init
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "konk.labels" . | nindent 4 }}
 spec:
@@ -10,25 +11,21 @@ spec:
   - name: kind
     securityContext:
       {{- toYaml .Values.kind.securityContext | nindent 6 }}
-    image: "{{ .Values.kind.image.repository }}:{{ .Values.kind.image.tag }}"
+    image: "{{ .Values.kind.image.repository }}:{{ .Values.kind.image.tag | default .Chart.AppVersion }}"
     imagePullPolicy: {{ .Values.kind.image.pullPolicy }}
     command:
       - bash
     args:
-      - /kind/start.sh
-    ports:
-      - name: https
-        containerPort: 443
-        protocol: TCP
+      - /scripts/provision.sh
     resources:
       {{- toYaml .Values.kind.resources | nindent 6 }}
     volumeMounts:
-    - mountPath: /kind/
-      name: certs-configmap
+    - mountPath: /scripts/
+      name: scripts
       readOnly: true
   volumes:
-  - name: certs-configmap
+  - name: scripts
     configMap:
-      name: {{ include "konk.fullname" . }}-configmap
+      name: {{ include "konk.fullname" . }}-scripts
       defaultMode: 0777
   restartPolicy: OnFailure
