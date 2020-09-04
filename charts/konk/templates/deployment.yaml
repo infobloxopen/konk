@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "konk.fullname" . }}
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "konk.labels" . | nindent 4 }}
 spec:
@@ -36,9 +37,9 @@ spec:
           command:
             - /usr/local/bin/kube-apiserver
           args:
-            - --etcd-cafile=/etc/kubernetes/pki/apiserver/etcd/ca.pem
-            - --etcd-certfile=/etc/kubernetes/pki/apiserver/etcd/cert.pem
-            - --etcd-keyfile=/etc/kubernetes/pki/apiserver/etcd/key.pem
+            - --etcd-cafile=/etc/kubernetes/pki/apiserver/etcd/ca.crt
+            - --etcd-certfile=/etc/kubernetes/pki/apiserver/etcd/apiserver-etcd-client.crt
+            - --etcd-keyfile=/etc/kubernetes/pki/apiserver/etcd/apiserver-etcd-client.key
             - --etcd-servers=https://127.0.0.1:2379
             # TODO: mount certs
           ports:
@@ -49,7 +50,7 @@ spec:
             {{- toYaml .Values.apiserver.resources | nindent 12 }}
           volumeMounts:
           - mountPath: /etc/kubernetes/pki/apiserver/etcd
-            name: etcd-client-certs
+            name: apiserver-certs
             readOnly: true
         - name: etcd
           securityContext:
@@ -59,13 +60,13 @@ spec:
           command:
             - etcd
             - --advertise-client-urls=https://127.0.0.1:2379
-            - --cert-file=/etc/kubernetes/pki/apiserver/etcd/cert.pem
+            - --cert-file=/etc/kubernetes/pki/apiserver/etcd/server.crt
             - --client-cert-auth=true
-            - --key-file=/etc/kubernetes/pki/apiserver/etcd/key.pem
+            - --key-file=/etc/kubernetes/pki/apiserver/etcd/server.key
             - --listen-client-urls=https://127.0.0.1:2379
             - --listen-metrics-urls=http://127.0.0.1:2381
             - --name={{ .Chart.Name }}
-            - --trusted-ca-file=/etc/kubernetes/pki/apiserver/etcd/ca.pem
+            - --trusted-ca-file=/etc/kubernetes/pki/apiserver/etcd/ca.crt
           livenessProbe:
             failureThreshold: 8
             httpGet:
@@ -88,6 +89,10 @@ spec:
         secret:
           defaultMode: 256
           secretName: {{ include "konk.fullname" . }}-etcd-cert
+      - name: apiserver-certs
+        secret:
+          defaultMode: 256
+          secretName: {{ include "konk.fullname" . }}-apiserver-cert
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "konk.fullname" . }}-scripts
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "konk.labels" . | nindent 4 }}
+data:
+{{ tpl (.Files.Glob "scripts/provision.sh").AsConfig . | indent 2 }}
