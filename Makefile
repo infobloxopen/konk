@@ -4,6 +4,7 @@ HELM		?= docker run --rm -i \
 			-e KUBECONFIG=/apps/.kube/$(notdir $(KUBECONFIG)) \
 			-v $(dir $(KUBECONFIG)):/apps/.kube/ \
 			-v $(PWD):/apps \
+			-u $(shell id -u):$(shell id -g) \
 			infoblox/helm:3.2.4-5b243a2 \
 			helm
 K8S_RELEASE	?= v1.19.0
