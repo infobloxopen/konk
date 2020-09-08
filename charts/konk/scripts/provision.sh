@@ -23,4 +23,7 @@ then
     --from-file=/etc/kubernetes/admin.conf
 fi
 
+echo
+date
+echo done.
 sleep 300
