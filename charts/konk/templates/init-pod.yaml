@@ -17,6 +17,13 @@ spec:
       - bash
     args:
       - /scripts/provision.sh
+    env:
+      - name: NAMESPACE
+        valueFrom:
+          fieldRef:
+            fieldPath: metadata.namespace
+      - name: FULLNAME
+        value: {{ include "konk.fullname" . }}
     resources:
       {{- toYaml .Values.kind.resources | nindent 6 }}
     volumeMounts:

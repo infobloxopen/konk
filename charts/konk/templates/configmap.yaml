@@ -6,4 +6,4 @@ metadata:
   labels:
     {{- include "konk.labels" . | nindent 4 }}
 data:
-{{ tpl (.Files.Glob "scripts/provision.sh").AsConfig . | indent 2 }}
+{{ (.Files.Glob "scripts/provision.sh").AsConfig | indent 2 }}
