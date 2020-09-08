@@ -22,3 +22,5 @@ then
   kubectl -n {{ .Release.Namespace }} create secret generic {{ include "konk.fullname" . }}-kubeconfig \
     --from-file=/etc/kubernetes/admin.conf
 fi
+
+sleep 300
