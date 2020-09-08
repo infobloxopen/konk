@@ -28,6 +28,7 @@ apiserver:
     # readOnlyRootFilesystem: true
     # runAsNonRoot: true
     # runAsUser: 1000
+  startupProbe: true
 
 etcd:
   image:

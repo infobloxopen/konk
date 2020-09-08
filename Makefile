@@ -1,7 +1,16 @@
 CHART_DIR	:= charts
-HELM		?= helm # point to helm 3
+HELM		?= docker run --rm -i \
+			--entrypoint="" \
+			--network host \
+			-e KUBECONFIG=/apps/.kube/$(notdir $(KUBECONFIG)) \
+			-v $(dir $(KUBECONFIG)):/apps/.kube/ \
+			-v $(PWD):/apps \
+			-u $(shell id -u):$(shell id -g) \
+			infoblox/helm:3.2.4-5b243a2 \
+			helm
 K8S_RELEASE	?= v1.19.0
 KUBEADM		?= docker run --rm -it --entrypoint="" kindest/node:$(K8S_RELEASE) kubeadm
+KUBECONFIG	?= ${HOME}/.kube/config
 RELEASE_NAME	?= $(USER)
 
 .PHONY: charts/konk/image-tag-values.yaml
@@ -18,6 +27,10 @@ helm-lint-%:
 
 deploy-%:
 	$(HELM) upgrade -i $(RELEASE_NAME)-$* $(CHART_DIR)/$*
+
+test-%:
+	$(HELM) test $(RELEASE_NAME)-$* \
+	|| { kubectl logs $(RELEASE_NAME)-$*-test-connection; exit 1; }
 
 teardown-%:
 	$(HELM) delete $(RELEASE_NAME)-$*

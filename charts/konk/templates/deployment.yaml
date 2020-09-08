@@ -20,6 +20,7 @@ spec:
     {{- end }}
       labels:
         {{- include "konk.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: apiserver
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
@@ -37,19 +38,37 @@ spec:
           command:
             - /usr/local/bin/kube-apiserver
           args:
-            - --etcd-cafile=/etc/kubernetes/pki/apiserver/etcd/ca.crt
-            - --etcd-certfile=/etc/kubernetes/pki/apiserver/etcd/apiserver-etcd-client.crt
-            - --etcd-keyfile=/etc/kubernetes/pki/apiserver/etcd/apiserver-etcd-client.key
+            - --authorization-mode=Node,RBAC
+            - --client-ca-file=/etc/kubernetes/pki/apiserver/ca.crt
+            - --etcd-cafile=/etc/kubernetes/pki/apiserver/etcd-ca.crt
+            - --etcd-certfile=/etc/kubernetes/pki/apiserver/apiserver-etcd-client.crt
+            - --etcd-keyfile=/etc/kubernetes/pki/apiserver/apiserver-etcd-client.key
             - --etcd-servers=https://127.0.0.1:2379
-            # TODO: mount certs
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: https
+              scheme: HTTPS
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: https
+              scheme: HTTPS
+          {{- if .Values.apiserver.startupProbe }}
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: https
+              scheme: HTTPS
+          {{- end }}
           ports:
             - name: https
-              containerPort: 443
+              containerPort: 6443
               protocol: TCP
           resources:
             {{- toYaml .Values.apiserver.resources | nindent 12 }}
           volumeMounts:
-          - mountPath: /etc/kubernetes/pki/apiserver/etcd
+          - mountPath: /etc/kubernetes/pki/apiserver
             name: apiserver-certs
             readOnly: true
         - name: etcd

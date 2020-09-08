@@ -8,8 +8,27 @@ metadata:
     "helm.sh/hook": test-success
 spec:
   containers:
-    - name: wget
-      image: busybox
-      command: ['wget']
-      args: ['{{ include "konk.fullname" . }}:{{ .Values.service.port }}']
+  - name: kind
+    image: "{{ .Values.kind.image.repository }}:{{ .Values.kind.image.tag | default .Chart.AppVersion }}"
+    imagePullPolicy: {{ .Values.kind.image.pullPolicy }}
+    command:
+      - kubectl
+    args:
+      - --server=https://{{ include "konk.fullname" . }}:{{ .Values.service.port }}
+      - --insecure-skip-tls-verify=true
+      - get
+      - ns
+    env:
+      - name: KUBECONFIG
+        value: /kubeconfig/admin.conf
+    resources:
+      {{- toYaml .Values.kind.resources | nindent 6 }}
+    volumeMounts:
+    - mountPath: /kubeconfig/
+      name: kubeconfig
+      readOnly: true
+  volumes:
+  - name: kubeconfig
+    secret:
+      secretName: {{ include "konk.fullname" . }}-kubeconfig
   restartPolicy: Never
