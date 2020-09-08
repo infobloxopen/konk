@@ -21,6 +21,4 @@ jobs:
         working-directory: ${{ github.workspace }}/src/github.com/${{ github.repository }}
         run: |
           kubectl cluster-info
-          make deploy-konk
-          kubectl wait --timeout=3m --for=condition=ready pod -l app.kubernetes.io/component=apiserver,app.kubernetes.io/instance=$USER-konk
-          make test-konk
+          make deploy-konk test-konk
