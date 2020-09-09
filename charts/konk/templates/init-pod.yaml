@@ -24,6 +24,10 @@ spec:
             fieldPath: metadata.namespace
       - name: FULLNAME
         value: {{ include "konk.fullname" . }}
+      - name: LABELS
+        value: {{ (include "konk.selectorLabels" .) | replace ": " "=" | replace "\n" " " }}
+      - name: RELEASE
+        value: {{ .Release.Name }}
     resources:
       {{- toYaml .Values.kind.resources | nindent 6 }}
     volumeMounts:
