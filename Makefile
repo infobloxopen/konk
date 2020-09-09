@@ -29,8 +29,7 @@ deploy-%:
 	$(HELM) upgrade -i $(RELEASE_NAME)-$* $(CHART_DIR)/$*
 
 test-%:
-	$(HELM) test $(RELEASE_NAME)-$* \
-	|| { kubectl logs $(RELEASE_NAME)-$*-test-connection; exit 1; }
+	$(HELM) test --logs $(RELEASE_NAME)-$*
 
 teardown-%:
 	$(HELM) delete $(RELEASE_NAME)-$*

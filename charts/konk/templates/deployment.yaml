@@ -44,6 +44,9 @@ spec:
             - --etcd-certfile=/etc/kubernetes/pki/apiserver/apiserver-etcd-client.crt
             - --etcd-keyfile=/etc/kubernetes/pki/apiserver/apiserver-etcd-client.key
             - --etcd-servers=https://127.0.0.1:2379
+            {{- range $api := .Values.apiserver.disabledAPIs }}
+            - --runtime-config={{ $api }}=false
+            {{- end }}
           livenessProbe:
             httpGet:
               path: /healthz
