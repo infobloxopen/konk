@@ -14,8 +14,6 @@ spec:
     command:
       - kubectl
     args:
-      - --server=https://{{ include "konk.fullname" . }}:{{ .Values.service.port }}
-      - --insecure-skip-tls-verify=true
       - get
       - apiservices
     env:

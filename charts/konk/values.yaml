@@ -111,7 +111,7 @@ podSecurityContext: {}
 
 service:
   type: ClusterIP
-  port: 443
+  port: 6443
 
 ingress:
   enabled: false
