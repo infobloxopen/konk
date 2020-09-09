@@ -17,7 +17,7 @@ spec:
       - --server=https://{{ include "konk.fullname" . }}:{{ .Values.service.port }}
       - --insecure-skip-tls-verify=true
       - get
-      - ns
+      - apiservices
     env:
       - name: KUBECONFIG
         value: /kubeconfig/admin.conf
