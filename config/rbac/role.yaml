@@ -49,6 +49,8 @@ rules:
   apiGroups:
   - ""
   resources:
+  - "configmaps"
+  - "pods"
   - "secrets"
   - "serviceaccounts"
   - "services"
@@ -58,5 +60,12 @@ rules:
   - "apps"
   resources:
   - "deployments"
+- verbs:
+  - "*"
+  apiGroups:
+  - "rbac.authorization.k8s.io"
+  resources:
+  - "roles"
+  - "rolebindings"
 
 # +kubebuilder:scaffold:rules
