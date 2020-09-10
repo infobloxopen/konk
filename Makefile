@@ -1,4 +1,5 @@
 CHART_DIR	:= helm-charts
+GIT_VERSION	:= $(shell git describe --dirty=-unsupported --always --long --tags)
 HELM		?= docker run --rm -i \
 			--entrypoint="" \
 			--network host \
@@ -27,8 +28,10 @@ helm-lint: helm-lint-$(notdir $(CHART_DIR)/*)
 helm-lint-%:
 	$(HELM) lint $(CHART_DIR)/$*
 
+%-konk-operator: HELM_FLAGS += --set=image.tag=$(GIT_VERSION)
+
 deploy-%:
-	$(HELM) upgrade -i $(RELEASE_NAME)-$* $(CHART_DIR)/$*
+	$(HELM) upgrade -i $(RELEASE_NAME)-$* $(CHART_DIR)/$* $(HELM_FLAGS)
 
 test-%:
 	$(HELM) test --logs $(RELEASE_NAME)-$*
@@ -53,7 +56,7 @@ endif
 BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
 
 # Image URL to use all building/pushing image targets
-IMG ?= infoblox/konk:$(shell git describe --dirty=-unsupported --always --long --tags)
+IMG ?= infoblox/konk:$(GIT_VERSION)
 
 all: docker-build
 

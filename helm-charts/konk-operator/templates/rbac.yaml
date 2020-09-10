@@ -1,0 +1,19 @@
+{{- range $path, $_ :=  .Files.Glob  "rbac/[!kustomization]*.yaml" }}
+{{- $.Files.Get $path }}
+---
+{{- end }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "konk-operator.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "konk-operator.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: manager-role
+subjects:
+- kind: ServiceAccount
+  name: {{ include "konk-operator.serviceAccountName" . }}
+  namespace: {{ .Release.Namespace }}
