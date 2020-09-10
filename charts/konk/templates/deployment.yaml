@@ -47,6 +47,8 @@ spec:
             {{- range $api := .Values.apiserver.disabledAPIs }}
             - --runtime-config={{ $api }}=false
             {{- end }}
+            - --tls-cert-file=/etc/kubernetes/pki/apiserver/apiserver.crt
+            - --tls-private-key-file=/etc/kubernetes/pki/apiserver/apiserver.key
           livenessProbe:
             httpGet:
               path: /healthz
