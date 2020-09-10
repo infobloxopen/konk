@@ -38,8 +38,6 @@ test-%:
 
 teardown-%:
 	$(HELM) delete $(RELEASE_NAME)-$*
-	# TODO: add support for k8s or helm to clean up these secrets
-	kubectl delete secrets -l app.kubernetes.io/instance=$(RELEASE_NAME)-$*
 
 
 # Current Operator version
