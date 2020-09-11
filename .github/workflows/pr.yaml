@@ -6,6 +6,7 @@ jobs:
       SRC: src/github.com/${{github.repository}}
     name: Build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -17,10 +18,29 @@ jobs:
           mkdir -p ~/.kube
           make helm-lint
       - uses: helm/kind-action@v1.0.0
-      - name: Test
+      - name: Test konk chart
         working-directory: ${{ github.workspace }}/src/github.com/${{ github.repository }}
         run: |
           kubectl cluster-info
           make deploy-konk
           kubectl wait --timeout=3m --for=condition=ready pod -l app.kubernetes.io/component=apiserver,app.kubernetes.io/instance=$USER-konk
           make test-konk
+      - name: Test konk-operator
+        working-directory: ${{ github.workspace }}/src/github.com/${{ github.repository }}
+        timeout-minutes: 5
+        run: |
+          make docker-build
+          VERSION=$(git describe --always --long --tags)
+          kind load docker-image infoblox/konk:$VERSION --name chart-testing
+          make deploy-konk-operator HELM_FLAGS="--wait --set=image.tag=$VERSION"
+          cat <<EOF | kubectl create -f -
+          apiVersion: konk.infoblox.com/v1alpha1
+          kind: Konk
+          metadata:
+            name: test-konk
+          spec: {}
+          EOF
+          until kubectl wait --timeout=3m --for=condition=ready pod -l app.kubernetes.io/component=apiserver,app.kubernetes.io/instance=test-konk
+          do
+            sleep 1
+          done
