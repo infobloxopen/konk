@@ -8,8 +8,10 @@ metadata:
 rules:
   - apiGroups:
     - ""
+    - apps
     resources:
     - secrets
+    - deployments
     verbs:
     - create
     - get

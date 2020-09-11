@@ -29,3 +29,10 @@ then
     --from-file=/etc/kubernetes/admin.conf
   kubectl -n $NAMESPACE label secret $FULLNAME-kubeconfig $LABELS
 fi
+
+kubectl -n $NAMESPACE wait --timeout=3m --for=condition=available deployment -l app.kubernetes.io/instance=$FULLNAME
+
+DEPLOYMENT_UID=$(kubectl get deploy -n $NAMESPACE $FULLNAME -o yaml | grep uid | cut -c 8-)
+kubectl patch -n $NAMESPACE secret $FULLNAME-apiserver-cert -p '{"metadata":{"ownerReferences":[{"apiVersion":"apps/v1", "kind":"Deployment", "name":"'${FULLNAME}'", "uid":"'${DEPLOYMENT_UID}'"}]}}'
+kubectl patch -n $NAMESPACE secret $FULLNAME-etcd-cert -p '{"metadata":{"ownerReferences":[{"apiVersion":"apps/v1", "kind":"Deployment", "name":"'${FULLNAME}'", "uid":"'${DEPLOYMENT_UID}'"}]}}'
+kubectl patch -n $NAMESPACE secret $FULLNAME-kubeconfig -p '{"metadata":{"ownerReferences":[{"apiVersion":"apps/v1", "kind":"Deployment", "name":"'${FULLNAME}'", "uid":"'${DEPLOYMENT_UID}'"}]}}'
