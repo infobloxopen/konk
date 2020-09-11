@@ -1,5 +1,5 @@
 {{- range $path, $_ :=  .Files.Glob  "rbac/[!kustomization]*.yaml" }}
-{{- $.Files.Get $path }}
+{{ $.Files.Get $path }}
 ---
 {{- end }}
 apiVersion: rbac.authorization.k8s.io/v1
