@@ -30,7 +30,7 @@ then
   kubectl -n $NAMESPACE label secret $FULLNAME-kubeconfig $LABELS
 fi
 
-kubectl -n $NAMESPACE wait --timeout=3m --for=condition=available deployment -l app.kubernetes.io/instance=$FULLNAME
+kubectl -n $NAMESPACE wait --timeout=3m --for=condition=progressing deployment -l app.kubernetes.io/instance=$FULLNAME
 
 DEPLOYMENT_UID=$(kubectl get deploy -n $NAMESPACE $FULLNAME -o jsonpath='{.metadata.uid}')
 for name in apiserver-cert etcd-cert kubeconfig
