@@ -28,7 +28,7 @@ helm-lint: helm-lint-$(notdir $(CHART_DIR)/*)
 helm-lint-%:
 	$(HELM) lint $(CHART_DIR)/$*
 
-%-konk-operator: HELM_FLAGS += --set=image.tag=$(GIT_VERSION)
+%-konk-operator: HELM_FLAGS += --set=image.tag=$(GIT_VERSION) --crds.create=true
 
 deploy-%:
 	$(HELM) upgrade -i $(RELEASE_NAME)-$* $(CHART_DIR)/$* $(HELM_FLAGS)
@@ -132,3 +132,8 @@ bundle: kustomize
 .PHONY: bundle-build
 bundle-build:
 	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
+
+# TODO Replace with controller_gen
+manifests: $(KUSTOMIZE)
+	$(KUSTOMIZE) build config/crd/ > .tmp.konk
+	mv .tmp.konk config/crd/bases/konk.infoblox.com_konks.yaml
