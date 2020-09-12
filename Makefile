@@ -30,7 +30,7 @@ helm-lint-%:
 
 %-konk-operator: HELM_FLAGS += --set=image.tag=$(GIT_VERSION) --crds.create=true
 
-deploy-%:
+deploy-%: package
 	$(HELM) upgrade -i $(RELEASE_NAME)-$* $(CHART_DIR)/$* $(HELM_FLAGS)
 
 test-%:
@@ -105,6 +105,17 @@ KUSTOMIZE=$(realpath ./bin/kustomize)
 else
 KUSTOMIZE=$(shell which kustomize)
 endif
+
+konk-operator-${GIT_VERSION}.tgz:
+	mkdir -p helm-charts/konk-operator/crds
+	cp -vR config/crd/bases/* helm-charts/konk-operator/crds/
+	cp -vR config/rbac helm-charts/konk-operator/
+	${HELM} package helm-charts/konk-operator --version ${GIT_VERSION} --app-version ${GIT_VERSION}
+
+konk-${GIT_VERSION}.tgz:
+	${HELM} package helm-charts/konk --version ${GIT_VERSION}
+
+package: konk-operator-${GIT_VERSION}.tgz konk-${GIT_VERSION}.tgz
 
 helm-operator:
 ifeq (, $(shell which helm-operator 2>/dev/null))
