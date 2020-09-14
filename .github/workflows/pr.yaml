@@ -27,7 +27,7 @@ jobs:
           make docker-build
           VERSION=$(git describe --always --long --tags)
           kind load docker-image infoblox/konk:$VERSION --name chart-testing
-          make deploy-konk-operator HELM_FLAGS="--wait --set=image.tag=$VERSION"
+          make deploy-konk-operator HELM_FLAGS="--wait --set=image.tag=$VERSION --set=image.pullPolicy=IfNotPresent"
           kubectl create -f examples/konk.yaml
           until kubectl wait --timeout=3m --for=condition=ready pod -l app.kubernetes.io/component=apiserver,app.kubernetes.io/instance=example-konk
           do
