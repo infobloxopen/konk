@@ -1,5 +1,5 @@
 CHART_DIR	:= helm-charts
-GIT_VERSION	:= $(shell git describe --dirty=-unsupported --always --long --tags)
+GIT_VERSION	?= $(shell git describe --dirty=-unsupported --always --long --tags)
 HELM		?= docker run --rm -i \
 			--entrypoint="" \
 			--network host \
