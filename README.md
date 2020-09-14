@@ -31,7 +31,8 @@ konk-operator is generated with operator-sdk and implements a helm operator for 
 
 [examples/konk.yaml](examples/konk.yaml) is a simple manifest for a konk resource.
 
-    kubectl apply -f ./examples/konk.yaml
+    % kubectl apply -f https://raw.githubusercontent.com/infobloxopen/konk/master/examples/konk.yaml
+    konk.konk.infoblox.com/example-konk created
 
 ### Observe your new konk
 
