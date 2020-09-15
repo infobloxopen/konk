@@ -28,7 +28,7 @@ helm-lint: helm-lint-$(notdir $(CHART_DIR)/*)
 helm-lint-%:
 	$(HELM) lint $(CHART_DIR)/$*
 
-%-konk-operator: HELM_FLAGS += --set=image.tag=$(GIT_VERSION) --crds.create=true
+%-konk-operator: HELM_FLAGS ?= --set=image.tag=$(GIT_VERSION) --set=image.pullPolicy=IfNotPresent
 
 deploy-%: package
 	$(HELM) upgrade -i $(RELEASE_NAME)-$* $(CHART_DIR)/$* $(HELM_FLAGS)
