@@ -1,0 +1,16 @@
+{{- if .Values.dashboards.create }}
+apiVersion: integreatly.org/v1alpha1
+kind: GrafanaDashboard
+metadata:
+  name: {{ include "konk-operator.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: grafana
+    {{- include "konk-operator.labels" . | nindent 4 }}
+spec:
+  datasources:
+    - inputName: "DS_PROMETHEUS"
+      datasourceName: "Prometheus"
+  json: |-
+    {{- .Files.Get "dashboards/konk-operator.json" | nindent 4  }}
+{{- end }}

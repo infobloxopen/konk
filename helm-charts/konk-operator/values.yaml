@@ -56,3 +56,6 @@ affinity: {}
 
 crds:
   create: false
+
+dashboards:
+  create: false
