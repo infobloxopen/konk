@@ -54,6 +54,7 @@ spec:
               path: /healthz
               port: https
               scheme: HTTPS
+            initialDelaySeconds: 60
           readinessProbe:
             httpGet:
               path: /healthz
@@ -88,13 +89,12 @@ spec:
             - --client-cert-auth=true
             - --key-file=/etc/kubernetes/pki/apiserver/etcd/server.key
             - --listen-client-urls=https://127.0.0.1:2379
-            - --listen-metrics-urls=http://127.0.0.1:2381
+            - --listen-metrics-urls=http://0.0.0.0:2381
             - --name={{ .Chart.Name }}
             - --trusted-ca-file=/etc/kubernetes/pki/apiserver/etcd/ca.crt
           livenessProbe:
             failureThreshold: 8
             httpGet:
-              host: 127.0.0.1
               path: /health
               port: 2381
               scheme: HTTP
