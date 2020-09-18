@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "konk.fullname" . }}-init
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "konk.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "konk.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: init
+  template:
+    metadata:
+      labels:
+        {{- include "konk.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: init
+    spec:
+      serviceAccountName: {{ include "konk.serviceAccountName" . }}
+      initContainers:
+      - name: kind
+        securityContext:
+          {{- toYaml .Values.kind.securityContext | nindent 10 }}
+        image: "{{ .Values.kind.image.repository }}:{{ .Values.kind.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.kind.image.pullPolicy }}
+        command:
+          - bash
+        args:
+          - /scripts/provision.sh
+        env:
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: FULLNAME
+            value: {{ include "konk.fullname" . }}
+          - name: LABELS
+            value: {{ (include "konk.selectorLabels" .) | replace ": " "=" | replace "\n" " " }}
+          - name: RELEASE
+            value: {{ .Release.Name }}
+        resources:
+          {{- toYaml .Values.kind.resources | nindent 10 }}
+        volumeMounts:
+        - mountPath: /scripts/
+          name: scripts
+          readOnly: true
+      containers:
+      - name: done
+        securityContext:
+          {{- toYaml .Values.kind.securityContext | nindent 10 }}
+        image: "{{ .Values.kind.image.repository }}:{{ .Values.kind.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.kind.image.pullPolicy }}
+        command:
+          - sleep
+          - infinity
+      volumes:
+      - name: scripts
+        configMap:
+          name: {{ include "konk.fullname" . }}-scripts
+          defaultMode: 0777
