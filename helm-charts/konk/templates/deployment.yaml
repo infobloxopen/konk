@@ -12,6 +12,7 @@ spec:
   selector:
     matchLabels:
       {{- include "konk.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: apiserver
   template:
     metadata:
     {{- with .Values.podAnnotations }}

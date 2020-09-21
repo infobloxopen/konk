@@ -14,3 +14,4 @@ spec:
       name: https
   selector:
     {{- include "konk.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: apiserver
