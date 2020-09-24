@@ -1,0 +1,12 @@
+apiVersion: cert-manager.io/v1alpha2
+kind: Certificate
+metadata:
+  name: {{ include "konk.fullname" . }}-certificate
+  namespace: {{ .Release.Namespace }}
+spec:
+  secretName: {{ include "konk.fullname" . }}-generated-cert
+  dnsNames:
+  - {{ include "konk.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local
+  issuerRef:
+    name: {{ include "konk.fullname" . }}-ca-issuer
+    kind: Issuer
