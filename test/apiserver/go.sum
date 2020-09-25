@@ -881,6 +881,7 @@ modernc.org/golex v1.0.0/go.mod h1:b/QX9oBD/LhixY6NDh+IdGv17hgB+51fET1i2kPSmvk=
 modernc.org/mathutil v1.0.0/go.mod h1:wU0vUrJsVWBZ4P6e7xtFJEhFSNsfRLJ8H458uRjg03k=
 modernc.org/strutil v1.0.0/go.mod h1:lstksw84oURvj9y3tn8lGvRxyRC1S2+g5uuIzNfIOBs=
 modernc.org/xc v1.0.0/go.mod h1:mRNCo0bvLjGhHO9WsyuKVU4q0ceiDDDoEeWDJHrNx8I=
+sigs.k8s.io/apiserver-builder-alpha v1.18.0/go.mod h1:yak3ZHPx0KnL/sE+VIv6ITKdWjANuvHWW/IqTS6nwIw=
 sigs.k8s.io/apiserver-builder-alpha/cmd v0.0.0-20200312135238-2826bdd843c3 h1:hzLvSanBwPtBYtZkstE23MpPNeu0degD4khbpcPuBTc=
 sigs.k8s.io/apiserver-builder-alpha/cmd v0.0.0-20200312135238-2826bdd843c3/go.mod h1:q+8rVw1AGhwuCnolFvqfjhhsZSbEAHzJGYIAoB7eqpE=
 sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.0.7 h1:uuHDyjllyzRyCIvvn0OBjiRB0SgBZGqHNYAmjR7fO50=

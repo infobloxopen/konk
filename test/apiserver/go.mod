@@ -23,17 +23,18 @@ require (
 	k8s.io/apimachinery v0.18.4
 	k8s.io/apiserver v0.18.4
 	k8s.io/client-go v0.18.4
-	k8s.io/gengo v0.0.0-20190822140433-26a664648505
+	k8s.io/code-generator v0.18.4
+	k8s.io/gengo v0.0.0-20200114144118-36b2048a9120
 	k8s.io/klog v1.0.0
 	k8s.io/kube-aggregator v0.18.4
-    k8s.io/code-generator v0.18.4
-	k8s.io/kube-openapi v0.0.0-20191107075043-30be4d16710a
-	k8s.io/utils v0.0.0-20191114184206-e782cd3c129f
+	k8s.io/kube-openapi v0.0.0-20200410145947-61e04a5be9a6
+	k8s.io/utils v0.0.0-20200324210504-a9aa75ae1b89
+	sigs.k8s.io/apiserver-builder-alpha v1.18.0
 	sigs.k8s.io/controller-runtime v0.6.0
 	sigs.k8s.io/controller-tools v0.1.12 // indirect
 	sigs.k8s.io/kubebuilder v1.0.8
+	sigs.k8s.io/structured-merge-diff v0.0.0-20190525122527-15d366b2352e // indirect
 	sigs.k8s.io/testing_frameworks v0.1.1
-	sigs.k8s.io/apiserver-builder-alpha v1.18.0
 )
 
 replace sigs.k8s.io/controller-tools => sigs.k8s.io/controller-tools v0.1.12
