@@ -28,6 +28,13 @@ helm-lint: helm-lint-$(notdir $(CHART_DIR)/*)
 helm-lint-%:
 	$(HELM) lint $(CHART_DIR)/$*
 
+deploy-cert-manager:
+	kubectl create namespace cert-manager
+	$(HELM) repo add jetstack https://charts.jetstack.io
+	$(HELM) install cert-manager --namespace cert-manager jetstack/cert-manager --version v1.0.1 \
+		--set installCRDs=true \
+		--set extraArgs[0]="--enable-certificate-owner-ref=true"
+
 %-konk-operator: HELM_FLAGS ?= --set=image.tag=$(GIT_VERSION) --set=image.pullPolicy=IfNotPresent
 
 deploy-%: package
