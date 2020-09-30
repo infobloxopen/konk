@@ -6,7 +6,8 @@ HELM		?= docker run --rm -i \
 			-e KUBECONFIG=/apps/.kube/$(notdir $(KUBECONFIG)) \
 			-v $(dir $(KUBECONFIG)):/apps/.kube/ \
 			-v $(PWD):/apps \
-			-u $(shell id -u):$(shell id -g) \
+			-v $(PWD)/repositories.yaml:/tmp/.config/helm/repositories.yaml \
+			-v $(PWD)/jetstack-index.yaml:/tmp/.cache/helm/repository/jetstack-index.yaml \
 			infoblox/helm:3.2.4-5b243a2 \
 			helm
 K8S_RELEASE	?= v1.19.0
@@ -30,7 +31,6 @@ helm-lint-%:
 
 deploy-cert-manager:
 	kubectl create namespace cert-manager
-	$(HELM) repo add jetstack https://charts.jetstack.io
 	$(HELM) install cert-manager --namespace cert-manager jetstack/cert-manager --version v1.0.1 \
 		--set installCRDs=true \
 		--set extraArgs[0]="--enable-certificate-owner-ref=true"
