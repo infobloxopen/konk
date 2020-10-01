@@ -68,7 +68,9 @@ rules:
   - "roles"
   - "rolebindings"
 - verbs:
-  - "*"
+  - get
+  - create
+  - list
   apiGroups:
   - "cert-manager.io"
   resources:
