@@ -3,6 +3,8 @@ kind: Issuer
 metadata:
   name: {{ include "konk.fullname" . }}-ca-issuer
   namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "konk.labels" . | nindent 4 }}
 spec:
   ca:
     secretName: {{ include "konk.fullname" . }}-ca
