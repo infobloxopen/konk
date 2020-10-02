@@ -30,8 +30,8 @@ helm-lint-%:
 	$(HELM) lint $(CHART_DIR)/$*
 
 deploy-cert-manager:
-	kubectl create namespace cert-manager
 	$(HELM) upgrade -i --wait cert-manager --namespace cert-manager jetstack/cert-manager --version v1.0.1 \
+		--create-namespace \
 		--set installCRDs=true \
 		--set extraArgs[0]="--enable-certificate-owner-ref=true"
 
