@@ -1,0 +1,14 @@
+apiVersion: cert-manager.io/v1alpha2
+kind: Certificate
+metadata:
+  name: {{ include "konk.fullname" . }}-ingress-client
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "konk.labels" . | nindent 4 }}
+spec:
+  secretName: {{ include "konk.fullname" . }}-generated-cert
+  dnsNames:
+  - {{ include "konk.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local
+  issuerRef:
+    name: {{ include "konk.fullname" . }}-ca-issuer
+    kind: Issuer

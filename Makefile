@@ -6,7 +6,8 @@ HELM		?= docker run --rm -i \
 			-e KUBECONFIG=/apps/.kube/$(notdir $(KUBECONFIG)) \
 			-v $(dir $(KUBECONFIG)):/apps/.kube/ \
 			-v $(PWD):/apps \
-			-u $(shell id -u):$(shell id -g) \
+			-v $(PWD)/repositories.yaml:/tmp/.config/helm/repositories.yaml \
+			-v $(PWD)/jetstack-index.yaml:/tmp/.cache/helm/repository/jetstack-index.yaml \
 			infoblox/helm:3.2.4-5b243a2 \
 			helm
 K8S_RELEASE	?= v1.19.0
@@ -27,6 +28,12 @@ helm-lint: helm-lint-$(notdir $(CHART_DIR)/*)
 
 helm-lint-%:
 	$(HELM) lint $(CHART_DIR)/$*
+
+deploy-cert-manager:
+	$(HELM) upgrade -i --wait cert-manager --namespace cert-manager jetstack/cert-manager --version v1.0.1 \
+		--create-namespace \
+		--set installCRDs=true \
+		--set extraArgs[0]="--enable-certificate-owner-ref=true"
 
 %-konk-operator: HELM_FLAGS ?= --set=image.tag=$(GIT_VERSION) --set=image.pullPolicy=IfNotPresent
 

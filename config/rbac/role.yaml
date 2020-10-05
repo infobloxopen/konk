@@ -67,5 +67,14 @@ rules:
   resources:
   - "roles"
   - "rolebindings"
+- verbs:
+  - get
+  - create
+  - list
+  apiGroups:
+  - "cert-manager.io"
+  resources:
+  - "issuers"
+  - "certificates"
 
 # +kubebuilder:scaffold:rules

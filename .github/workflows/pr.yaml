@@ -18,6 +18,7 @@ jobs:
       - name: Test konk chart
         run: |
           kubectl cluster-info
+          make deploy-cert-manager
           make deploy-konk
           make test-konk
       - name: Test konk-operator
