@@ -1,29 +1,26 @@
 CHART_DIR	:= helm-charts
 GIT_VERSION	?= $(shell git describe --dirty=-unsupported --always --long --tags)
 DOCKER_NAME	?= cm
-HELM		?= docker run --rm -i \
-			--entrypoint="" \
-			--network host \
-			-e KUBECONFIG=/apps/.kube/$(notdir $(KUBECONFIG)) \
-			-v $(dir $(KUBECONFIG)):/apps/.kube/ \
-			-v $(PWD):/apps \
-			infoblox/helm:3.2.4-5b243a2 \
-			helm
-HELM_RA         ?= docker run -i \
-                        --entrypoint="" \
-                        --network host \
-			--name $(DOCKER_NAME) \
-                        infoblox/helm:3.2.4-5b243a2 \
-                        helm
-HELM_CM         ?= docker run --rm -i \
-                        --entrypoint="" \
+HELM_IMAGE	?= infoblox/helm:3.2.4-5b243a2
+DOCKER_FLAGS	?= --entrypoint="" \
                         --network host \
                         -e KUBECONFIG=/apps/.kube/$(notdir $(KUBECONFIG)) \
                         -v $(dir $(KUBECONFIG)):/apps/.kube/ \
-                        -v $(PWD):/apps \
+                        -v $(PWD):/apps
+HELM		?= docker run --rm -i \
+			$(DOCKER_FLAGS) \
+			$(HELM_IMAGE) \
+			helm
+HELM_RA         ?= docker run -i \
+                        $(DOCKER_FLAGS) \
+                        --name $(DOCKER_NAME) \
+                        $(HELM_IMAGE) \
+                        helm
+HELM_CM         ?= docker run --rm -i \
+                        $(DOCKER_FLAGS) \
                         -v $(PWD)/repositories.yaml:/tmp/.config/helm/repositories.yaml \
                         -v $(PWD)/jetstack-index.yaml:/tmp/.cache/helm/repository/jetstack-index.yaml \
-                        infoblox/helm:3.2.4-5b243a2 \
+                        $(HELM_IMAGE) \
                         helm
 K8S_RELEASE	?= v1.19.0
 KUBEADM		?= docker run --rm -it --entrypoint="" kindest/node:$(K8S_RELEASE) kubeadm
