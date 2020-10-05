@@ -1,0 +1,4 @@
+
+version: "1"
+domain: example.infoblox.com
+repo: github.com/infobloxopen/konk/test/apiserver
