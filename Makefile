@@ -1,6 +1,5 @@
 CHART_DIR	:= helm-charts
 GIT_VERSION	?= $(shell git describe --dirty=-unsupported --always --long --tags)
-DOCKER_NAME	?= cm
 HELM_IMAGE	?= infoblox/helm:3.2.4-5b243a2
 DOCKER_FLAGS	?= --entrypoint="" \
                         --network host \
@@ -11,17 +10,10 @@ HELM		?= docker run --rm -i \
 			$(DOCKER_FLAGS) \
 			$(HELM_IMAGE) \
 			helm
-HELM_RA         ?= docker run -i \
-                        $(DOCKER_FLAGS) \
-                        --name $(DOCKER_NAME) \
-                        $(HELM_IMAGE) \
-                        helm
 HELM_CM         ?= docker run --rm -i \
                         $(DOCKER_FLAGS) \
-                        -v $(PWD)/repositories.yaml:/tmp/.config/helm/repositories.yaml \
-                        -v $(PWD)/jetstack-index.yaml:/tmp/.cache/helm/repository/jetstack-index.yaml \
                         $(HELM_IMAGE) \
-                        helm
+			/bin/bash -c
 K8S_RELEASE	?= v1.19.0
 KUBEADM		?= docker run --rm -it --entrypoint="" kindest/node:$(K8S_RELEASE) kubeadm
 KUBECONFIG	?= ${HOME}/.kube/config
@@ -41,17 +33,12 @@ helm-lint: helm-lint-$(notdir $(CHART_DIR)/*)
 helm-lint-%:
 	$(HELM) lint $(CHART_DIR)/$*
 
+# Run this only if your cluster does not have cert-manager already deployed
 deploy-cert-manager:
-	$(HELM_RA) repo add jetstack https://charts.jetstack.io
-	docker cp $(DOCKER_NAME):/tmp/.config/helm/repositories.yaml .
-	docker cp $(DOCKER_NAME):/tmp/.cache/helm/repository/jetstack-index.yaml .
-	docker rm $(DOCKER_NAME)
-	$(HELM_CM) upgrade -i --wait cert-manager --namespace cert-manager jetstack/cert-manager --version v1.0.1 \
+	$(HELM_CM) "helm repo add jetstack https://charts.jetstack.io && helm upgrade -i --wait cert-manager --namespace cert-manager jetstack/cert-manager --version v1.0.1 \
 		--create-namespace \
 		--set installCRDs=true \
-		--set extraArgs[0]="--enable-certificate-owner-ref=true"
-	rm repositories.yaml
-	rm jetstack-index.yaml
+		--set extraArgs[0]="--enable-certificate-owner-ref=true""
 
 %-konk-operator: HELM_FLAGS ?= --set=image.tag=$(GIT_VERSION) --set=image.pullPolicy=IfNotPresent
 
