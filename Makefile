@@ -1,15 +1,30 @@
 CHART_DIR	:= helm-charts
 GIT_VERSION	?= $(shell git describe --dirty=-unsupported --always --long --tags)
+DOCKER_NAME	?= cm
 HELM		?= docker run --rm -i \
 			--entrypoint="" \
 			--network host \
 			-e KUBECONFIG=/apps/.kube/$(notdir $(KUBECONFIG)) \
 			-v $(dir $(KUBECONFIG)):/apps/.kube/ \
 			-v $(PWD):/apps \
-			-v $(PWD)/repositories.yaml:/tmp/.config/helm/repositories.yaml \
-			-v $(PWD)/jetstack-index.yaml:/tmp/.cache/helm/repository/jetstack-index.yaml \
 			infoblox/helm:3.2.4-5b243a2 \
 			helm
+HELM_RA         ?= docker run -i \
+                        --entrypoint="" \
+                        --network host \
+			--name $(DOCKER_NAME) \
+                        infoblox/helm:3.2.4-5b243a2 \
+                        helm
+HELM_CM         ?= docker run --rm -i \
+                        --entrypoint="" \
+                        --network host \
+                        -e KUBECONFIG=/apps/.kube/$(notdir $(KUBECONFIG)) \
+                        -v $(dir $(KUBECONFIG)):/apps/.kube/ \
+                        -v $(PWD):/apps \
+                        -v $(PWD)/repositories.yaml:/tmp/.config/helm/repositories.yaml \
+                        -v $(PWD)/jetstack-index.yaml:/tmp/.cache/helm/repository/jetstack-index.yaml \
+                        infoblox/helm:3.2.4-5b243a2 \
+                        helm
 K8S_RELEASE	?= v1.19.0
 KUBEADM		?= docker run --rm -it --entrypoint="" kindest/node:$(K8S_RELEASE) kubeadm
 KUBECONFIG	?= ${HOME}/.kube/config
@@ -30,10 +45,16 @@ helm-lint-%:
 	$(HELM) lint $(CHART_DIR)/$*
 
 deploy-cert-manager:
-	$(HELM) upgrade -i --wait cert-manager --namespace cert-manager jetstack/cert-manager --version v1.0.1 \
+	$(HELM_RA) repo add jetstack https://charts.jetstack.io
+	docker cp $(DOCKER_NAME):/tmp/.config/helm/repositories.yaml .
+	docker cp $(DOCKER_NAME):/tmp/.cache/helm/repository/jetstack-index.yaml .
+	docker rm $(DOCKER_NAME)
+	$(HELM_CM) upgrade -i --wait cert-manager --namespace cert-manager jetstack/cert-manager --version v1.0.1 \
 		--create-namespace \
 		--set installCRDs=true \
 		--set extraArgs[0]="--enable-certificate-owner-ref=true"
+	rm repositories.yaml
+	rm jetstack-index.yaml
 
 %-konk-operator: HELM_FLAGS ?= --set=image.tag=$(GIT_VERSION) --set=image.pullPolicy=IfNotPresent
 
