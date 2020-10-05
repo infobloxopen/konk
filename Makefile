@@ -1,15 +1,17 @@
 CHART_DIR	:= helm-charts
 GIT_VERSION	?= $(shell git describe --dirty=-unsupported --always --long --tags)
-HELM		?= docker run --rm -i \
+HELM_IMAGE	?= infoblox/helm:3.2.4-5b243a2
+DOCKER_RUNNER	?= docker run --rm -i \
 			--entrypoint="" \
 			--network host \
 			-e KUBECONFIG=/apps/.kube/$(notdir $(KUBECONFIG)) \
 			-v $(dir $(KUBECONFIG)):/apps/.kube/ \
 			-v $(PWD):/apps \
-			-v $(PWD)/repositories.yaml:/tmp/.config/helm/repositories.yaml \
-			-v $(PWD)/jetstack-index.yaml:/tmp/.cache/helm/repository/jetstack-index.yaml \
-			infoblox/helm:3.2.4-5b243a2 \
+			$(HELM_IMAGE)
+HELM		?= $(DOCKER_RUNNER) \
 			helm
+HELM_CMD	?= $(DOCKER_RUNNER) \
+			/bin/bash -c
 K8S_RELEASE	?= v1.19.0
 KUBEADM		?= docker run --rm -it --entrypoint="" kindest/node:$(K8S_RELEASE) kubeadm
 KUBECONFIG	?= ${HOME}/.kube/config
@@ -29,11 +31,12 @@ helm-lint: helm-lint-$(notdir $(CHART_DIR)/*)
 helm-lint-%:
 	$(HELM) lint $(CHART_DIR)/$*
 
+# Run this only if your cluster does not have cert-manager already deployed
 deploy-cert-manager:
-	$(HELM) upgrade -i --wait cert-manager --namespace cert-manager jetstack/cert-manager --version v1.0.1 \
+	$(HELM_CMD) "helm repo add jetstack https://charts.jetstack.io && helm upgrade -i --wait cert-manager --namespace cert-manager jetstack/cert-manager --version v1.0.1 \
 		--create-namespace \
 		--set installCRDs=true \
-		--set extraArgs[0]="--enable-certificate-owner-ref=true"
+		--set extraArgs[0]="--enable-certificate-owner-ref=true""
 
 %-konk-operator: HELM_FLAGS ?= --set=image.tag=$(GIT_VERSION) --set=image.pullPolicy=IfNotPresent
 
