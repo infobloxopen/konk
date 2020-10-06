@@ -31,3 +31,8 @@ jobs:
           do
             sleep 1
           done
+
+      - name: Deploy Test APIServer
+        timeout-minutes: 5
+        run: |
+          make kind-apiserver
