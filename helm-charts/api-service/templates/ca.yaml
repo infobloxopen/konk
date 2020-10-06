@@ -1,0 +1,35 @@
+apiVersion: {{ include "api-service.certManagerApiVersion" . }}
+kind: Issuer
+metadata:
+  name: {{ include "api-service.fullname" . }}-self-signed
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "api-service.labels" . | nindent 4 }}
+spec:
+  selfSigned: {}
+---
+apiVersion: {{ include "api-service.certManagerApiVersion" . }}
+kind: Certificate
+metadata:
+  name: {{ include "api-service.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "api-service.labels" . | nindent 4 }}
+spec:
+  secretName: {{ include "api-service.fullname" . }}
+  duration: 17520h #2y
+  issuerRef:
+    name: {{ include "api-service.fullname" . }}-self-signed
+  commonName: "api-service.infoblox"
+  isCA: true
+---
+apiVersion: {{ include "api-service.certManagerApiVersion" . }}
+kind: Issuer
+metadata:
+  name: {{ include "api-service.fullname" . }}-ca
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "api-service.labels" . | nindent 4 }}
+spec:
+  ca:
+    secretName: {{ include "api-service.fullname" . }}

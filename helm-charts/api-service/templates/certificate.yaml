@@ -1,0 +1,15 @@
+apiVersion: {{ include "api-service.certManagerApiVersion" . }}
+kind: Certificate
+metadata:
+  name: {{ include "api-service.fullname" . }}-server
+  labels:
+    {{- include "api-service.labels" . | nindent 4 }}
+spec:
+  secretName: {{ include "api-service.fullname" . }}-server
+  duration: 8760h # 1y
+  issuerRef:
+    name: {{ include "api-service.fullname" . }}-ca
+  dnsNames:
+  - {{ include "api-service.fullname" . }}
+  - {{ include "api-service.fullname" . }}.{{ .Release.Namespace }}
+  - {{ include "api-service.fullname" . }}.{{ .Release.Namespace }}.svc
