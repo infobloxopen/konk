@@ -22,7 +22,7 @@ KIND_NAME   	?= konk
 NODE_VERSION    ?= v1.19.0
 NODE_IMAGE      ?= kindest/node:${NODE_VERSION}
 KIND_VERSION    ?= v0.8.1
-KIND 			:= bin/kind
+KIND 			:= $(PWD)/bin/kind
 
 default: all
 
@@ -175,7 +175,7 @@ bin/kind-${KIND_VERSION}:
 	curl -Lo bin/kind-${KIND_VERSION} https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-$(shell uname)-amd64
 	chmod +x bin/kind-${KIND_VERSION}
 
-bin/kind: bin/kind-${KIND_VERSION}
+$(PWD)/bin/kind: bin/kind-${KIND_VERSION}
 	ln -sf $(PWD)/$< bin/kind
 
 kind: $(KIND)
@@ -186,3 +186,9 @@ kind-destroy: $(KIND)
 
 kind-load-konk: $(KIND) docker-build
 	$(KIND) load docker-image ${IMG} --name ${KIND_NAME}
+
+kind-apiserver: $(KIND)
+	# TODO: convert this to `make -C test/apiserver deploy`
+	# to infra and konk
+	$(MAKE) -C test/apiserver image \
+		KIND=$(KIND) KIND_NAME=${KIND_NAME}
