@@ -23,6 +23,12 @@ This chart will deploy konk.
 
 konk-operator is generated with operator-sdk and implements a helm operator for the konk chart. Once deployed, `Konk` resources can be created in the cluster and the operator will deploy a konk instance for each of them.
 
+### Optional, stand up KIND
+
+    make kind kind-load-konk
+    # Teardown cluster
+    make kind-destroy
+
 ### Install
 
     helm install my-konk-operator ./helm-charts/konk-operator

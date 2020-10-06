@@ -17,6 +17,13 @@ KUBEADM		?= docker run --rm -it --entrypoint="" kindest/node:$(K8S_RELEASE) kube
 KUBECONFIG	?= ${HOME}/.kube/config
 RELEASE_NAME	?= $(USER)
 
+# KIND env variables
+KIND_NAME   	?= konk
+NODE_VERSION    ?= v1.19.0
+NODE_IMAGE      ?= kindest/node:${NODE_VERSION}
+KIND_VERSION    ?= v0.8.1
+KIND 			:= bin/kind
+
 default: all
 
 .PHONY: $(CHART_DIR)/konk/image-tag-values.yaml
@@ -38,7 +45,7 @@ deploy-cert-manager:
 		--set installCRDs=true \
 		--set extraArgs[0]="--enable-certificate-owner-ref=true""
 
-%-konk-operator: HELM_FLAGS ?= --set=image.tag=$(GIT_VERSION) --set=image.pullPolicy=IfNotPresent
+%-konk-operator: HELM_FLAGS ?=--set=image.tag=$(GIT_VERSION) --set=image.pullPolicy=IfNotPresent
 
 deploy-%: package
 	$(HELM) upgrade -i --wait $(RELEASE_NAME)-$* $(CHART_DIR)/$* $(HELM_FLAGS)
@@ -89,9 +96,12 @@ deploy: kustomize
 undeploy: kustomize
 	$(KUSTOMIZE) build config/default | kubectl delete -f -
 
-# Build the docker image
-docker-build:
+.image-${GIT_VERSION}:
 	docker build . -t ${IMG}
+	touch $@
+
+# Build the docker image
+docker-build: .image-${GIT_VERSION}
 
 # Push the docker image
 docker-push:
@@ -158,3 +168,21 @@ bundle-build:
 manifests: $(KUSTOMIZE)
 	$(KUSTOMIZE) build config/crd/ > .tmp.konk
 	mv .tmp.konk config/crd/bases/konk.infoblox.com_konks.yaml
+
+# kind
+bin/kind-${KIND_VERSION}:
+	mkdir -p bin
+	curl -Lo bin/kind-${KIND_VERSION} https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-$(shell uname)-amd64
+	chmod +x bin/kind-${KIND_VERSION}
+
+bin/kind: bin/kind-${KIND_VERSION}
+	ln -sf $(PWD)/$< bin/kind
+
+kind: $(KIND)
+	$(KIND) create cluster -v 1 --name ${KIND_NAME}
+
+kind-destroy: $(KIND)
+	$(KIND) delete cluster --name ${KIND_NAME}
+
+kind-load-konk: $(KIND) docker-build
+	$(KIND) load docker-image ${IMG} --name ${KIND_NAME}
