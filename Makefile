@@ -26,7 +26,7 @@ $(CHART_DIR)/konk/image-tag-values.yaml:
 helm-lint: helm-lint-$(notdir $(CHART_DIR)/*)
 
 helm-lint-%:
-	$(HELM) lint $(CHART_DIR)/$*
+	$(HELM) lint $(CHART_DIR)/$* --set=isLint=true
 
 %-konk-operator: HELM_FLAGS ?= --set=image.tag=$(GIT_VERSION) --set=image.pullPolicy=IfNotPresent
 

@@ -75,6 +75,8 @@ cert-manager.io/v1alpha3
 cert-manager.io/v1alpha2
 {{- else if (.Capabilities.APIVersions.Has "certmanager.k8s.io/v1alpha1") -}}
 certmanager.k8s.io/v1alpha1
+{{- else if .Values.isLint -}}
+dummy
 {{- else  -}}
 {{- fail "cert-manager CRD does not appear to be installed" }}
 {{- end -}}
