@@ -35,4 +35,6 @@ jobs:
       - name: Deploy Test APIServer
         timeout-minutes: 5
         run: |
-          make kind-apiserver
+          # apiserver-boot does not work with go mod non-gopath paths
+          # https://github.com/kubernetes-sigs/apiserver-builder-alpha/issues/519
+          # PATH=$PATH:$(PWD)/bin make kind-apiserver
