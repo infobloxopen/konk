@@ -187,8 +187,6 @@ kind-destroy: $(KIND)
 kind-load-konk: $(KIND) docker-build
 	$(KIND) load docker-image ${IMG} --name ${KIND_NAME}
 
-kind-apiserver: $(KIND)
-	# TODO: convert this to `make -C test/apiserver deploy`
-	# to infra and konk
-	$(MAKE) -C test/apiserver image \
+kind-load-apiserver: $(KIND)
+	$(MAKE) -C test/apiserver image kind-load \
 		KIND=$(KIND) KIND_NAME=${KIND_NAME}

@@ -5,14 +5,16 @@ IMAGE      := $(IMAGE_REPO):$(IMAGE_TAG)
 APISERVER_BOOT_VERSION := v1.18.0
 APISERVER_BOOT := bin/apiserver-boot
 
+GO_ENV ?= GO_ENABLED=0 GOOS=linux GOARCH=amd64
+
 apiserver.tgz:
 	curl -L --output $@ https://github.com/kubernetes-sigs/apiserver-builder-alpha/releases/download/${APISERVER_BOOT_VERSION}/apiserver-builder-alpha-${APISERVER_BOOT_VERSION}-linux-amd64.tar.gz
 
 bin/apiserver-boot: apiserver.tgz
 	tar -xvf apiserver.tgz
 
-image: APISERVER_FLAGS ?= --generate=false
-image: $(APISERVER_BOOT)
+image-apiserver-boot: APISERVER_FLAGS ?= --generate=false
+image-apiserver-boot: $(APISERVER_BOOT)
 	$(APISERVER_BOOT) build container --image ${IMAGE} ${APISERVER_FLAGS}
 
 config/apiserver.yaml: $(APISERVER_BOOT) image
@@ -36,3 +38,14 @@ kind-load: image
 	$(KIND) load docker-image ${IMAGE} --name ${KIND_NAME}
 
 kind-deploy-infra: kind-load deploy-%
+
+image: build
+	docker build -t ${IMAGE} -f Dockerfile bin/
+
+build: bin/apiserver bin/controller-manager
+
+bin/controller-manager:
+	${GO_ENV} go build -o $@ ./cmd/manager
+
+bin/apiserver:
+	${GO_ENV} go build -o $@ ./cmd/apiserver
