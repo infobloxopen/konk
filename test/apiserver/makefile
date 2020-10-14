@@ -1,5 +1,5 @@
 IMAGE_TAG  ?= $(shell git describe --tags --always)
-IMAGE_REPO ?= infobloxopen/konk-apiserver-test
+IMAGE_REPO ?= infoblox/konk-apiserver-example
 IMAGE      := $(IMAGE_REPO):$(IMAGE_TAG)
 
 APISERVER_BOOT_VERSION := v1.18.0
@@ -13,10 +13,14 @@ apiserver.tgz:
 bin/apiserver-boot: apiserver.tgz
 	tar -xvf apiserver.tgz
 
+generate: $(APISERVER_BOOT)
+	GO111MODULE=off $(APISERVER_BOOT) build generated
+
 image-apiserver-boot: APISERVER_FLAGS ?= --generate=false
 image-apiserver-boot: $(APISERVER_BOOT)
-	$(APISERVER_BOOT) build container --image ${IMAGE} ${APISERVER_FLAGS}
+	GO111MODULE=off $(APISERVER_BOOT) build container --image ${IMAGE} ${APISERVER_FLAGS}
 
+# Must be run against latest apiserver-boot to include RBAC
 config/apiserver.yaml: $(APISERVER_BOOT) image
 	$(APISERVER_BOOT) build config --name contact --namespace default --image ${IMAGE}
 
@@ -39,13 +43,22 @@ kind-load: image
 
 kind-deploy-infra: kind-load deploy-%
 
-image: build
+.image-${IMAGE_TAG}: build
 	docker build -t ${IMAGE} -f Dockerfile bin/
+	touch $@
+
+image: .image-${IMAGE_TAG}
 
 build: bin/apiserver bin/controller-manager
 
+# go list can build the dependency needed here
+.PHONY: bin/controller-manager
 bin/controller-manager:
 	${GO_ENV} go build -o $@ ./cmd/manager
 
+.PHONY: bin/apiserver
 bin/apiserver:
 	${GO_ENV} go build -o $@ ./cmd/apiserver
+
+run:
+	apiserver-boot run in-cluster --image ${IMAGE} --generate=false --name=contact --namespace=default

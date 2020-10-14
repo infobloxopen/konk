@@ -10,14 +10,14 @@ import (
 
 	"github.com/infobloxopen/konk/test/apiserver/pkg/apis"
 	"github.com/infobloxopen/konk/test/apiserver/pkg/openapi"
-	_ "github.com/infobloxopen/konk/test/apiserver/plugin/admission/install"
+	// _ "github.com/infobloxopen/konk/test/apiserver/plugin/admission/install"
 )
 
 func main() {
 	version := "v0"
 
 	err := server.StartApiServerWithOptions(&server.StartOptions{
-		EtcdPath:    "/registry/example.infoblox.com",
+		EtcdPath:    "/registry/infoblox.com",
 		Apis:        apis.GetAllApiBuilders(),
 		Openapidefs: openapi.GetOpenAPIDefinitions,
 		Title:       "Api",

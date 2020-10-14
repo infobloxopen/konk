@@ -1,6 +1,6 @@
 note: Contact Example
 sample: |
-  apiVersion: contact.example.infoblox.com/v1alpha1
+  apiVersion: example.infoblox.com/v1alpha1
   kind: Contact
   metadata:
     name: contact-example

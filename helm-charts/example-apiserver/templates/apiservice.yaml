@@ -1,0 +1,36 @@
+{{- $aaServiceName := (include "example-apiserver.fullname" .) -}}
+{{- $aaServiceNameWithNS := ( printf "%s.%s" $aaServiceName .Release.Namespace ) -}}
+{{- $aaServiceFullName := ( printf "%s.svc" $aaServiceNameWithNS ) -}}
+{{- $aaAltNames := list $aaServiceName $aaServiceNameWithNS $aaServiceFullName -}}
+{{- $aaCA := genCA $aaServiceName 365 }}
+{{- $aaCert := genSignedCert $aaServiceFullName nil $aaAltNames 365 $aaCA }}
+
+# TODO: Move this to KONK deployed
+apiVersion: apiregistration.k8s.io/v1
+kind: APIService
+metadata:
+  name: v1alpha1.example.infoblox.com
+  labels:
+    api: contact
+    apiserver: "true"
+spec:
+  version: v1alpha1
+  group: example.infoblox.com
+  groupPriorityMinimum: 2000
+  service:
+    name: {{ include "example-apiserver.fullname" . }}
+    namespace: {{ .Release.Namespace }}
+  versionPriority: 10
+  caBundle: {{ b64enc $aaCA.Cert }}
+---
+apiVersion: v1
+kind: Secret
+type: kubernetes.io/tls
+metadata:
+  name: {{ include "example-apiserver.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "example-apiserver.labels" . | nindent 4 }}
+data:
+  tls.crt: {{ b64enc $aaCert.Cert }}
+  tls.key: {{ b64enc $aaCert.Key }}

@@ -132,8 +132,8 @@ konk-operator-${GIT_VERSION}.tgz:
 	cp -vR config/rbac helm-charts/konk-operator/
 	${HELM} package helm-charts/konk-operator --version ${GIT_VERSION} --app-version ${GIT_VERSION}
 
-konk-${GIT_VERSION}.tgz:
-	${HELM} package helm-charts/konk --version ${GIT_VERSION}
+%-${GIT_VERSION}.tgz:
+	${HELM} package helm-charts/$* --version ${GIT_VERSION}
 
 package: konk-operator-${GIT_VERSION}.tgz konk-${GIT_VERSION}.tgz
 
@@ -188,5 +188,10 @@ kind-load-konk: $(KIND) docker-build
 	$(KIND) load docker-image ${IMG} --name ${KIND_NAME}
 
 kind-load-apiserver: $(KIND)
-	$(MAKE) -C test/apiserver image kind-load \
-		KIND=$(KIND) KIND_NAME=${KIND_NAME}
+	$(MAKE) -C test/apiserver generate image kind-load \
+		KIND=$(KIND) KIND_NAME=${KIND_NAME} \
+		IMAGE_TAG=${GIT_VERSION}
+
+deploy-example-apiserver: HELM_FLAGS ?=--set=image.tag=$(GIT_VERSION) --set=image.pullPolicy=IfNotPresent
+deploy-example-apiserver:
+	$(HELM) upgrade -i --wait $(RELEASE_NAME)-example-apiserver $(CHART_DIR)/example-apiserver $(HELM_FLAGS)

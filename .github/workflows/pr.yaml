@@ -5,11 +5,20 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: ./src/github.com/${{ github.repository }}
+    env:
+      GOPATH: ${{ github.workspace }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
+        with:
+          path: ./src/github.com/${{ github.repository }}
       - name: Fetch tags
-        run: git fetch --prune --unshallow
+        run: |
+          pwd
+          git fetch --prune --unshallow
       - name: Helm Lint
         run: |
           mkdir -p ~/.kube
@@ -32,10 +41,14 @@ jobs:
             sleep 1
           done
 
+      - name: Setup Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.15.x
+
       - name: Deploy Test APIServer
         timeout-minutes: 5
         run: |
-          # apiserver-boot does not work with go mod
-          # non-gopath paths
-          # https://github.com/kubernetes-sigs/apiserver-builder-alpha/issues/519
           make kind-load-apiserver KIND_NAME="chart-testing"
+          # Server does not work
+          # make deploy-example-apiserver KIND_NAME="chart-testing"
