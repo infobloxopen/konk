@@ -18,14 +18,23 @@ spec:
         app.kubernetes.io/component: apiservice
     spec:
       serviceAccountName: {{ include "api-service.serviceAccountName" . }}
-      initContainers:
+      containers:
       - name: kind
         securityContext:
           {{- toYaml .Values.kind.securityContext | nindent 10 }}
         image: "{{ .Values.kind.image.repository }}:{{ .Values.kind.image.tag | default .Chart.AppVersion }}"
         imagePullPolicy: {{ .Values.kind.image.pullPolicy }}
-        command:
-          - bash
+        command: ["/bin/bash", "-c"]
+        args: ["/mounts/deploy-api-service.sh; while true; do sleep 30; done;"]
+        env:
+          - name: SERVICENAME
+            value: {{ .Values.service.name }}
+          - name: NAMESPACE
+            value: {{ .Release.Namespace }}
+          - name: FULLNAME
+            value: {{ include "api-service.fullname" . }}-kubectl
+          - name: KUBECONFIG
+            value: /etc/kubernetes/admin.conf
         resources:
           {{- toYaml .Values.kind.resources | nindent 10 }}
         volumeMounts:
@@ -35,15 +44,11 @@ spec:
         - name: ca-cert
           mountPath: "certs"
           readOnly: true
-      containers:
-      - name: done
-        securityContext:
-          {{- toYaml .Values.kind.securityContext | nindent 10 }}
-        image: "{{ .Values.kind.image.repository }}:{{ .Values.kind.image.tag | default .Chart.AppVersion }}"
-        imagePullPolicy: {{ .Values.kind.image.pullPolicy }}
-        command:
-          - sleep
-          - infinity
+        - name: mounts
+          mountPath: "mounts"
+          readOnly: true
+        - name: gen
+          mountPath: "gen"
       volumes:
       - name: kubeconfig
         secret:
@@ -51,3 +56,9 @@ spec:
       - name: ca-cert
         secret:
           secretName: {{ include "api-service.fullname" . }}-server
+      - name: mounts
+        configMap:
+          name: {{ include "api-service.fullname" . }}-mounts
+          defaultMode: 0777
+      - name: gen
+        emptyDir: {}
