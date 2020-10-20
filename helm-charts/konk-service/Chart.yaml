@@ -1,6 +1,6 @@
 apiVersion: v2
-name: api-service
-description: generates certificates for an api-service
+name: konk-service
+description: generates certificates for an konk-service
 
 # A chart can be either an 'application' or a 'library' chart.
 #

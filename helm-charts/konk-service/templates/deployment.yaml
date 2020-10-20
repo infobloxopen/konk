@@ -1,23 +1,23 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "api-service.fullname" . }}-kubectl
+  name: {{ include "konk-service.fullname" . }}-kubectl
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "api-service.labels" . | nindent 4 }}
+    {{- include "konk-service.labels" . | nindent 4 }}
 spec:
   replicas: 1
   selector:
     matchLabels:
-      {{- include "api-service.selectorLabels" . | nindent 6 }}
+      {{- include "konk-service.selectorLabels" . | nindent 6 }}
       app.kubernetes.io/component: apiservice
   template:
     metadata:
       labels:
-        {{- include "api-service.selectorLabels" . | nindent 8 }}
+        {{- include "konk-service.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: apiservice
     spec:
-      serviceAccountName: {{ include "api-service.serviceAccountName" . }}
+      serviceAccountName: {{ include "konk-service.serviceAccountName" . }}
       containers:
       - name: kind
         securityContext:
@@ -31,8 +31,6 @@ spec:
             value: {{ .Values.service.name }}
           - name: NAMESPACE
             value: {{ .Release.Namespace }}
-          - name: FULLNAME
-            value: {{ include "api-service.fullname" . }}-kubectl
           - name: KUBECONFIG
             value: /etc/kubernetes/admin.conf
         resources:
@@ -55,10 +53,10 @@ spec:
           secretName: {{ .Values.konk.name }}-kubeconfig
       - name: ca-cert
         secret:
-          secretName: {{ include "api-service.fullname" . }}-server
+          secretName: {{ include "konk-service.fullname" . }}-server
       - name: mounts
         configMap:
-          name: {{ include "api-service.fullname" . }}-mounts
+          name: {{ include "konk-service.fullname" . }}-mounts
           defaultMode: 0777
       - name: gen
         emptyDir: {}
