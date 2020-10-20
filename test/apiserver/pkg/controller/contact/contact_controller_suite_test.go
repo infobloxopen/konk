@@ -24,7 +24,7 @@ func TestMain(m *testing.M) {
 		stdlog.Fatal(err)
 		return
 	}
-	if err := env.StartLocalAggregatedAPIServer("contact.example.infoblox.com", "v1alpha1"); err != nil {
+	if err := env.StartLocalAggregatedAPIServer("example.infoblox.com", "v1alpha1"); err != nil {
 		stdlog.Fatal(err)
 		return
 	}

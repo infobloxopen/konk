@@ -1,3 +1,17 @@
 /config/*.yaml
 /apiserver.tgz
 /bin/*
+.image-*
+
+config/certificates/
+bin/
+default.etcd/
+kubeconfig
+apiserver.local.config/
+#pkg/client/*_generated
+#pkg/openapi/openapi_generated.go
+.crt
+.key
+vendor/**
+Gopkg.*
+violations.report

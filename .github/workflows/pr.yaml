@@ -1,25 +1,38 @@
 name: PR
 on: pull_request
 jobs:
-  build:
-    name: Build
+  end2end:
+    name: End To End
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: ./src/github.com/${{ github.repository }}
+    env:
+      GOPATH: ${{ github.workspace }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
+        with:
+          path: ./src/github.com/${{ github.repository }}
       - name: Fetch tags
-        run: git fetch --prune --unshallow
+        run: |
+          pwd
+          git fetch --prune --unshallow
       - name: Helm Lint
         run: |
           mkdir -p ~/.kube
           make helm-lint
       - uses: helm/kind-action@v1.0.0
-      - name: Test charts
+      - name: Deploy charts
+        timeout-minutes: 5
         run: |
           kubectl cluster-info
           make deploy-cert-manager
           make deploy-konk
+      - name: Test charts
+        timeout-minutes: 5
+        run: |
           make test-konk
       - name: Test konk-operator
         timeout-minutes: 5
@@ -31,11 +44,16 @@ jobs:
           do
             sleep 1
           done
-
+      - name: Setup Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.15.x
       - name: Deploy Test APIServer
         timeout-minutes: 5
         run: |
-          # apiserver-boot does not work with go mod
-          # non-gopath paths
-          # https://github.com/kubernetes-sigs/apiserver-builder-alpha/issues/519
-          make kind-load-apiserver KIND_NAME="chart-testing"
+          make kind-load-apiserver deploy-example-apiserver KIND_NAME="chart-testing"
+      - name: Print failure
+        timeout-minutes: 1
+        if: ${{ failure() }}
+        run: |
+          git diff

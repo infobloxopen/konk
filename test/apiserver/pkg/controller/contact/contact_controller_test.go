@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	contactv1alpha1 "github.com/infobloxopen/konk/test/apiserver/pkg/apis/contact/v1alpha1"
+	examplev1alpha1 "github.com/infobloxopen/konk/test/apiserver/pkg/apis/example/v1alpha1"
 	"github.com/onsi/gomega"
 	"golang.org/x/net/context"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -23,7 +23,7 @@ const timeout = time.Second * 5
 
 func TestReconcile(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	instance := &contactv1alpha1.Contact{ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "default"}}
+	instance := &examplev1alpha1.Contact{ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "default"}}
 
 	// Setup the Manager and Controller.  Wrap the Controller Reconcile function so it writes each request to a
 	// channel when it is finished.

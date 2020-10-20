@@ -5,7 +5,7 @@ package externalversions
 import (
 	"fmt"
 
-	v1alpha1 "github.com/infobloxopen/konk/test/apiserver/pkg/apis/contact/v1alpha1"
+	v1alpha1 "github.com/infobloxopen/konk/test/apiserver/pkg/apis/example/v1alpha1"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"
 )
@@ -36,9 +36,9 @@ func (f *genericInformer) Lister() cache.GenericLister {
 // TODO extend this to unknown resources with a client pool
 func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource) (GenericInformer, error) {
 	switch resource {
-	// Group=contact.example.infoblox.com, Version=v1alpha1
+	// Group=example.infoblox.com, Version=v1alpha1
 	case v1alpha1.SchemeGroupVersion.WithResource("contacts"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Contact().V1alpha1().Contacts().Informer()}, nil
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Example().V1alpha1().Contacts().Informer()}, nil
 
 	}
 

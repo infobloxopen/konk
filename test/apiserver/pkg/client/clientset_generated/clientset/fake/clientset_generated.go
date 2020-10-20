@@ -4,8 +4,8 @@ package fake
 
 import (
 	clientset "github.com/infobloxopen/konk/test/apiserver/pkg/client/clientset_generated/clientset"
-	contactv1alpha1 "github.com/infobloxopen/konk/test/apiserver/pkg/client/clientset_generated/clientset/typed/contact/v1alpha1"
-	fakecontactv1alpha1 "github.com/infobloxopen/konk/test/apiserver/pkg/client/clientset_generated/clientset/typed/contact/v1alpha1/fake"
+	examplev1alpha1 "github.com/infobloxopen/konk/test/apiserver/pkg/client/clientset_generated/clientset/typed/example/v1alpha1"
+	fakeexamplev1alpha1 "github.com/infobloxopen/konk/test/apiserver/pkg/client/clientset_generated/clientset/typed/example/v1alpha1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
@@ -60,7 +60,7 @@ func (c *Clientset) Tracker() testing.ObjectTracker {
 
 var _ clientset.Interface = &Clientset{}
 
-// ContactV1alpha1 retrieves the ContactV1alpha1Client
-func (c *Clientset) ContactV1alpha1() contactv1alpha1.ContactV1alpha1Interface {
-	return &fakecontactv1alpha1.FakeContactV1alpha1{Fake: &c.Fake}
+// ExampleV1alpha1 retrieves the ExampleV1alpha1Client
+func (c *Clientset) ExampleV1alpha1() examplev1alpha1.ExampleV1alpha1Interface {
+	return &fakeexamplev1alpha1.FakeExampleV1alpha1{Fake: &c.Fake}
 }

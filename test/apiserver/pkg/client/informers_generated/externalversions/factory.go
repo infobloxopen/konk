@@ -8,7 +8,7 @@ import (
 	time "time"
 
 	clientset "github.com/infobloxopen/konk/test/apiserver/pkg/client/clientset_generated/clientset"
-	contact "github.com/infobloxopen/konk/test/apiserver/pkg/client/informers_generated/externalversions/contact"
+	example "github.com/infobloxopen/konk/test/apiserver/pkg/client/informers_generated/externalversions/example"
 	internalinterfaces "github.com/infobloxopen/konk/test/apiserver/pkg/client/informers_generated/externalversions/internalinterfaces"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
@@ -156,9 +156,9 @@ type SharedInformerFactory interface {
 	ForResource(resource schema.GroupVersionResource) (GenericInformer, error)
 	WaitForCacheSync(stopCh <-chan struct{}) map[reflect.Type]bool
 
-	Contact() contact.Interface
+	Example() example.Interface
 }
 
-func (f *sharedInformerFactory) Contact() contact.Interface {
-	return contact.New(f, f.namespace, f.tweakListOptions)
+func (f *sharedInformerFactory) Example() example.Interface {
+	return example.New(f, f.namespace, f.tweakListOptions)
 }

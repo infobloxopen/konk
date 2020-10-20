@@ -1,0 +1,116 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "example-apiserver.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "example-apiserver.labels" . | nindent 4 }}
+rules:
+  - apiGroups:
+      - ""
+    resourceNames:
+      - extension-apiserver-authentication
+    resources:
+      - configmaps
+    verbs:
+      - get
+      - list
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "example-apiserver.fullname" . }}-auth-reader
+  labels:
+    {{- include "example-apiserver.labels" . | nindent 4 }}
+  namespace: kube-system
+rules:
+  - apiGroups:
+      - ""
+    resourceNames:
+      - extension-apiserver-authentication
+    resources:
+      - configmaps
+    verbs:
+      - get
+      - list
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "example-apiserver.fullname" . }}-auth-reader
+  labels:
+    {{- include "example-apiserver.labels" . | nindent 4 }}
+  namespace: kube-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "example-apiserver.fullname" . }}-auth-reader
+subjects:
+  - kind: ServiceAccount
+    namespace: {{ .Release.Namespace }}
+    name: {{ include "example-apiserver.serviceAccountName" . }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "example-apiserver.fullname" . }}-auth-delegator
+  labels:
+    {{- include "example-apiserver.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:auth-delegator
+subjects:
+  - kind: ServiceAccount
+    namespace: {{ .Release.Namespace }}
+    name: {{ include "example-apiserver.serviceAccountName" . }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "example-apiserver.fullname" . }}-controller
+  labels:
+    {{- include "example-apiserver.labels" . | nindent 4 }}
+rules:
+  - apiGroups:
+      - 'example.infoblox.com'
+    resources:
+      - '*'
+    verbs:
+      - '*'
+  - apiGroups:
+      - ''
+    resources:
+      - 'configmaps'
+      - 'namespaces'
+    verbs:
+      - 'get'
+      - 'list'
+      - 'watch'
+  - apiGroups:
+      - 'admissionregistration.k8s.io'
+    resources:
+      - '*'
+    verbs:
+      - 'list'
+      - 'watch'
+  - nonResourceURLs:
+      - '*'
+    verbs:
+      - '*'
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "example-apiserver.fullname" . }}-controller
+  labels:
+    {{- include "example-apiserver.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "example-apiserver.fullname" . }}-controller
+subjects:
+  - kind: ServiceAccount
+    namespace: {{ .Release.Namespace }}
+    name: {{ include "example-apiserver.serviceAccountName" . }}

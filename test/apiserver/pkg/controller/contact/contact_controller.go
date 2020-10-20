@@ -3,7 +3,7 @@ package contact
 import (
 	"context"
 
-	contactv1alpha1 "github.com/infobloxopen/konk/test/apiserver/pkg/apis/contact/v1alpha1"
+	examplev1alpha1 "github.com/infobloxopen/konk/test/apiserver/pkg/apis/example/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -39,7 +39,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	}
 
 	// Watch for changes to Contact
-	err = c.Watch(&source.Kind{Type: &contactv1alpha1.Contact{}}, &handler.EnqueueRequestForObject{})
+	err = c.Watch(&source.Kind{Type: &examplev1alpha1.Contact{}}, &handler.EnqueueRequestForObject{})
 	if err != nil {
 		return err
 	}
@@ -48,7 +48,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	// Uncomment watch a Deployment created by Contact - change this for objects you create
 	// err = c.Watch(&source.Kind{Type: &appsv1.Deployment{}}, &handler.EnqueueRequestForOwner{
 	//	IsController: true,
-	//	OwnerType:    &contactv1alpha1.Contact{},
+	//	OwnerType:    &examplev1alpha1.Contact{},
 	// })
 	// if err != nil {
 	//	return err
@@ -69,11 +69,11 @@ type ReconcileContact struct {
 // and what is in the Contact.Spec
 // TODO(user): Modify this Reconcile function to implement your Controller logic.  The scaffolding writes
 // a Deployment as an example
-// +kubebuilder:rbac:groups=contact.example.infoblox.com,resources=contacts,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=contact.example.infoblox.com,resources=contacts/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=example.infoblox.com,resources=contacts,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=example.infoblox.com,resources=contacts/status,verbs=get;update;patch
 func (r *ReconcileContact) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	// Fetch the Contact instance
-	instance := &contactv1alpha1.Contact{}
+	instance := &examplev1alpha1.Contact{}
 	err := r.Get(context.TODO(), request.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {

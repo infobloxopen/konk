@@ -3,16 +3,16 @@
 package apis
 
 import (
-	"github.com/infobloxopen/konk/test/apiserver/pkg/apis/contact"
-	_ "github.com/infobloxopen/konk/test/apiserver/pkg/apis/contact/install" // Install the contact group
-	contactv1alpha1 "github.com/infobloxopen/konk/test/apiserver/pkg/apis/contact/v1alpha1"
+	"github.com/infobloxopen/konk/test/apiserver/pkg/apis/example"
+	_ "github.com/infobloxopen/konk/test/apiserver/pkg/apis/example/install" // Install the example group
+	examplev1alpha1 "github.com/infobloxopen/konk/test/apiserver/pkg/apis/example/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/apiserver-builder-alpha/pkg/builders"
 )
 
 var (
 	localSchemeBuilder = runtime.SchemeBuilder{
-		contactv1alpha1.AddToScheme,
+		examplev1alpha1.AddToScheme,
 	}
 	AddToScheme = localSchemeBuilder.AddToScheme
 )
@@ -21,19 +21,19 @@ var (
 // so they can be registered with the apiserver
 func GetAllApiBuilders() []*builders.APIGroupBuilder {
 	return []*builders.APIGroupBuilder{
-		GetContactAPIBuilder(),
+		GetExampleAPIBuilder(),
 	}
 }
 
-var contactApiGroup = builders.NewApiGroupBuilder(
-	"contact.example.infoblox.com",
-	"github.com/infobloxopen/konk/test/apiserver/pkg/apis/contact").
-	WithUnVersionedApi(contact.ApiVersion).
+var exampleApiGroup = builders.NewApiGroupBuilder(
+	"example.infoblox.com",
+	"github.com/infobloxopen/konk/test/apiserver/pkg/apis/example").
+	WithUnVersionedApi(example.ApiVersion).
 	WithVersionedApis(
-		contactv1alpha1.ApiVersion,
+		examplev1alpha1.ApiVersion,
 	).
 	WithRootScopedKinds()
 
-func GetContactAPIBuilder() *builders.APIGroupBuilder {
-	return contactApiGroup
+func GetExampleAPIBuilder() *builders.APIGroupBuilder {
+	return exampleApiGroup
 }
