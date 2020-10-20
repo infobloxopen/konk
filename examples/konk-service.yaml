@@ -1,0 +1,10 @@
+apiVersion: konk.infoblox.com/v1alpha1
+kind: KonkService
+metadata:
+  name: example-konkservice
+  namespace: ab
+spec:
+  konk:
+    name: abalavenkata-konk
+  service:
+    name: test

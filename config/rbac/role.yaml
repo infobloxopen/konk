@@ -77,4 +77,64 @@ rules:
   - "issuers"
   - "certificates"
 
+##
+## Rules for konk.infoblox.com/v1alpha1, Kind: KonkService
+##
+- apiGroups:
+  - konk.infoblox.com
+  resources:
+  - konkservices
+  - konkservices/status
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - services
+  - services/finalizers
+  - endpoints
+  - persistentvolumeclaims
+  - events
+  - configmaps
+  - secrets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  - daemonsets
+  - replicasets
+  - statefulsets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- verbs:
+  - get
+  - create
+  - list
+  apiGroups:
+  - "cert-manager.io"
+  resources:
+  - "issuers"
+  - "certificates"
+
 # +kubebuilder:scaffold:rules

@@ -41,8 +41,10 @@ kind:
 
 konk:
   # The value below should be overriden by the konk-name
-  name: test-konk
+  name: runner-konk
 
 service:
   # The value below should be overriden by service-name
   name: test
+
+crds: {}

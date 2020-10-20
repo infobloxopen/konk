@@ -7,4 +7,5 @@ commonAnnotations:
   helm.sh/hook-delete-policy: before-hook-creation
 resources:
 - bases/konk.infoblox.com_konks.yaml
+- bases/konk.infoblox.com_konkservices.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
