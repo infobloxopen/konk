@@ -188,7 +188,7 @@ kind-load-konk: $(KIND) docker-build
 	$(KIND) load docker-image ${IMG} --name ${KIND_NAME}
 
 kind-load-apiserver: $(KIND)
-	$(MAKE) -C test/apiserver generate image kind-load \
+	$(MAKE) -C test/apiserver image kind-load \
 		KIND=$(KIND) KIND_NAME=${KIND_NAME} \
 		IMAGE_TAG=${GIT_VERSION}
 

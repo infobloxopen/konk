@@ -12,6 +12,7 @@ apiserver.tgz:
 
 bin/apiserver-boot: apiserver.tgz
 	tar -xvf apiserver.tgz
+	bin/apiserver-boot version
 
 generate: $(APISERVER_BOOT)
 	GO111MODULE=off $(APISERVER_BOOT) build generated
