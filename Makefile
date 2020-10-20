@@ -6,7 +6,7 @@ DOCKER_RUNNER	?= docker run --rm -i \
 			--network host \
 			-e KUBECONFIG=/apps/.kube/$(notdir $(KUBECONFIG)) \
 			-v $(dir $(KUBECONFIG)):/apps/.kube/ \
-			-v $(PWD):/apps \
+			-v $(shell pwd):/apps \
 			$(HELM_IMAGE)
 HELM		?= $(DOCKER_RUNNER) \
 			helm
@@ -22,7 +22,7 @@ KIND_NAME   	?= konk
 NODE_VERSION    ?= v1.19.0
 NODE_IMAGE      ?= kindest/node:${NODE_VERSION}
 KIND_VERSION    ?= v0.8.1
-KIND 			:= $(PWD)/bin/kind
+KIND 			:= $(shell pwd)/bin/kind
 
 default: all
 
@@ -107,7 +107,7 @@ docker-build: .image-${GIT_VERSION}
 docker-push:
 	docker push ${IMG}
 
-PATH  := $(PATH):$(PWD)/bin
+PATH  := $(PATH):$(shell pwd)/bin
 SHELL := env PATH=$(PATH) /bin/sh
 OS    = $(shell uname -s | tr '[:upper:]' '[:lower:]')
 ARCH  = $(shell uname -m | sed 's/x86_64/amd64/')
@@ -175,8 +175,8 @@ bin/kind-${KIND_VERSION}:
 	curl -Lo bin/kind-${KIND_VERSION} https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-$(shell uname)-amd64
 	chmod +x bin/kind-${KIND_VERSION}
 
-$(PWD)/bin/kind: bin/kind-${KIND_VERSION}
-	ln -sf $(PWD)/$< bin/kind
+$(shell pwd)/bin/kind: bin/kind-${KIND_VERSION}
+	ln -sf $(shell pwd)/$< bin/kind
 
 kind: $(KIND)
 	$(KIND) create cluster -v 1 --name ${KIND_NAME}
