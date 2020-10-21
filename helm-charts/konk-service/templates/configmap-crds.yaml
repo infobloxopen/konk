@@ -12,4 +12,4 @@ data:
 
     kubectl apply -f .
 
-  {{ .Values.crds }}
+{{ .Values.crds }}

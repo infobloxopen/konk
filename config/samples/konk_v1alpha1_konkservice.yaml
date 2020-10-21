@@ -4,7 +4,7 @@ metadata:
   name: konkservice-sample
 spec:
   # Default values copied from <project_dir>/helm-charts/konk-service/values.yaml
-  crds: {}
+  crds: null
   fullnameOverride: ""
   kind:
     image:
