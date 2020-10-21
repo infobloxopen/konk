@@ -6,4 +6,10 @@ metadata:
   labels:
     {{- include "konk-service.labels" . | nindent 4 }}
 data:
+  deploy-crds.sh: |
+    #!/bin/bash
+    set -xe
+
+    kubectl apply -f .
+
   {{ .Values.crds }}

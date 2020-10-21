@@ -14,6 +14,7 @@ data:
     CERT=${CERT//$'\n'/}
     cat /mounts/api-service.yaml.in | sed "s/{{` {{ SERVICENAME }} `}}/${SERVICENAME}/g" | sed "s/{{` {{ NAMESPACE }} `}}/${NAMESPACE}/g" | sed "s/{{` {{ CERT }} `}}/${CERT}/g" > /gen/api-service.yaml
     kubectl apply -f /gen/api-service.yaml
+    ./crds/deploy-crds.sh
 
   api-service.yaml.in: |
     apiVersion: apiregistration.k8s.io/v1

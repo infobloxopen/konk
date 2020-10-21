@@ -47,4 +47,4 @@ service:
   # The value below should be overriden by service-name
   name: test
 
-crds: {}
+crds: null

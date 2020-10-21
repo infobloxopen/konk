@@ -47,6 +47,8 @@ spec:
           readOnly: true
         - name: gen
           mountPath: "gen"
+        - name: crds
+          mountPath: "crds"
       volumes:
       - name: kubeconfig
         secret:
@@ -60,3 +62,7 @@ spec:
           defaultMode: 0777
       - name: gen
         emptyDir: {}
+      - name: crds
+        configMap:
+          name: {{ include "konk-service.fullname" . }}-crds
+          defaultMode: 0777
