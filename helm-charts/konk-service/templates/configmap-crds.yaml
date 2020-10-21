@@ -10,6 +10,8 @@ data:
     #!/bin/bash
     set -xe
 
-    kubectl apply -f .
+    kubectl apply -f crds/
 
+{{ if .Values.crds }}
 {{ .Values.crds | indent 2 }}
+{{ end }}
