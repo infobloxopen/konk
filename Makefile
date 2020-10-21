@@ -128,7 +128,7 @@ endif
 
 konk-operator-${GIT_VERSION}.tgz:
 	mkdir -p helm-charts/konk-operator/crds
-	cp -vR config/crd/bases/konk.infoblox.com_konks.yaml helm-charts/konk-operator/crds/
+	cp -vR config/crd/bases/* helm-charts/konk-operator/crds/
 	cp -vR config/rbac helm-charts/konk-operator/
 	rm helm-charts/konk-operator/rbac/konkservice_editor_role.yaml
 	rm helm-charts/konk-operator/rbac/konkservice_viewer_role.yaml
@@ -138,14 +138,12 @@ konk-operator-${GIT_VERSION}.tgz:
 	${HELM} package helm-charts/$* --version ${GIT_VERSION}
 
 konk-service-operator-${GIT_VERSION}.tgz:
-	cp -vR config/crd/bases/konk.infoblox.com_konkservices.yaml helm-charts/konk-service-operator/crds/
+	mkdir -p helm-charts/konk-service-operator/crds
+	cp -vR config/crd/bases/* helm-charts/konk-service-operator/crds/
 	cp -vR config/rbac helm-charts/konk-service-operator/
 	rm helm-charts/konk-service-operator/rbac/konk_editor_role.yaml
 	rm helm-charts/konk-service-operator/rbac/konk_viewer_role.yaml
 	${HELM} package helm-charts/konk-service-operator --version ${GIT_VERSION} --app-version ${GIT_VERSION}
-
-konk-service-${GIT_VERSION}.tgz:
-	${HELM} package helm-charts/konk-service --version ${GIT_VERSION}
 
 package: konk-operator-${GIT_VERSION}.tgz konk-${GIT_VERSION}.tgz konk-service-operator-${GIT_VERSION}.tgz konk-service-${GIT_VERSION}.tgz
 
