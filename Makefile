@@ -47,6 +47,8 @@ deploy-cert-manager:
 
 %-konk-operator: HELM_FLAGS ?=--set=image.tag=$(GIT_VERSION) --set=image.pullPolicy=IfNotPresent
 
+%-konk-service-operator: HELM_FLAGS ?=--set=image.tag=$(GIT_VERSION) --set=image.pullPolicy=IfNotPresent
+
 deploy-%: package
 	$(HELM) upgrade -i --wait $(RELEASE_NAME)-$* $(CHART_DIR)/$* $(HELM_FLAGS)
 

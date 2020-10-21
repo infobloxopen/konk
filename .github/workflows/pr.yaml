@@ -44,6 +44,19 @@ jobs:
           do
             sleep 1
           done
+      - name: Deploy konk-service
+        timeout-minutes: 5
+        run: |
+          make deploy-konk-service
+      - name: Deploy konk-service-operator
+        timeout-minutes: 5
+        run: |
+          make deploy-konk-service-operator
+          make deploy-example-konk-service
+          until kubectl wait --timeout=3m --for=condition=ready pod -l app.kubernetes.io/component=apiservice,app.kubernetes.io/instance=example-konkservice
+          do
+            sleep 1
+          done
       - name: Setup Go
         uses: actions/setup-go@v2
         with:
