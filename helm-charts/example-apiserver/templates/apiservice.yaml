@@ -21,7 +21,11 @@ spec:
     name: {{ include "example-apiserver.fullname" . }}
     namespace: {{ .Release.Namespace }}
   versionPriority: 10
+{{- if .Values.selfSign.enabled }}
   caBundle: {{ b64enc $aaCA.Cert }}
+{{- else }}
+  insecureSkipTLSVerify: true
+{{- end }}
 ---
 apiVersion: v1
 kind: Secret

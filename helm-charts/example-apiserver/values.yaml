@@ -14,6 +14,10 @@ imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
+# Provision apiservice with self-signed CA
+selfSign:
+  enabled: false
+
 serviceAccount:
   # Specifies whether a service account should be created
   create: true

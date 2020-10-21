@@ -2,6 +2,7 @@
 /apiserver.tgz
 /bin/*
 .image-*
+.push-*
 
 config/certificates/
 bin/

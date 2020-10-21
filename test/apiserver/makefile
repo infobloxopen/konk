@@ -50,6 +50,12 @@ kind-deploy-infra: kind-load deploy-%
 
 image: .image-${IMAGE_TAG}
 
+.push-${IMAGE_TAG}: build
+	docker push ${IMAGE}
+	touch $@
+
+push: image .push-${IMAGE_TAG}
+
 build: bin/apiserver bin/controller-manager
 
 # go list can build the dependency needed here
