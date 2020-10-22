@@ -58,8 +58,8 @@ jobs:
             sleep 1
           done
           POD_NAME=$(kubectl get pod -o name | grep konkservice)
-          kubectl exec -it $POD_NAME -- kubectl get apiservice
-          kubectl exec -it $POD_NAME -- kubectl get crd
+          kubectl exec -it $POD_NAME -- kubectl get apiservice v1alpha1.test.infoblox.com
+          kubectl exec -it $POD_NAME -- kubectl get crd appconfigs.stable.example.com websites.extensions.example.com
       - name: Setup Go
         uses: actions/setup-go@v2
         with:
