@@ -33,6 +33,10 @@ spec:
             value: {{ .Release.Namespace }}
           - name: KUBECONFIG
             value: /etc/kubernetes/admin.conf
+          {{- if .Values.crds }}
+          - name: CRDS
+            value: install
+          {{- end }}
         resources:
           {{- toYaml .Values.kind.resources | nindent 10 }}
         volumeMounts:
@@ -47,6 +51,13 @@ spec:
           readOnly: true
         - name: gen
           mountPath: "gen"
+        readinessProbe:
+          exec:
+            command:
+            - cat
+            - /tmp/healthy
+          initialDelaySeconds: 5
+          periodSeconds: 5
       volumes:
       - name: kubeconfig
         secret:
