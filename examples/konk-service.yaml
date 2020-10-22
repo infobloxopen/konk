@@ -4,6 +4,6 @@ metadata:
   name: example-konkservice
 spec:
   konk:
-    name: example-konk
+    name: example
   service:
     name: test
