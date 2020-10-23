@@ -25,8 +25,6 @@ bin
 
 helm-charts/konk-operator/crds/
 helm-charts/konk-operator/rbac
-helm-charts/konk-service-operator/crds/
-helm-charts/konk-service-operator/rbac
 /*.tgz
 
 /.image-*
