@@ -13,10 +13,7 @@ data:
     CERT=$(cat certs/ca.crt | base64)
     CERT=${CERT//$'\n'/}
     cat /mounts/api-service.yaml.in | sed "s/{{` {{ SERVICENAME }} `}}/${SERVICENAME}/g" | sed "s/{{` {{ NAMESPACE }} `}}/${NAMESPACE}/g" | sed "s/{{` {{ CERT }} `}}/${CERT}/g" > /gen/api-service.yaml
-    if ! kubectl get apiservice v1alpha1.$SERVICENAME.infoblox.com
-    then
-      kubectl apply -f /gen/api-service.yaml
-    fi
+    kubectl apply -f /gen/api-service.yaml
     INSTALL=install
     if [ $CRDS == $INSTALL ]
     then
@@ -25,6 +22,20 @@ data:
     echo 'Done' > /tmp/healthy
 
   api-service.yaml.in: |
+    apiVersion: v1
+    kind: Namespace
+    metadata:
+      name: {{` {{ NAMESPACE }} `}}
+    ---
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: {{` {{ SERVICENAME }} `}}
+      namespace: {{` {{ NAMESPACE }} `}}
+    spec:
+      type: ExternalName
+      externalName: {{` {{ SERVICENAME }} `}}.{{` {{ NAMESPACE }} `}}
+    ---
     apiVersion: apiregistration.k8s.io/v1
     kind: APIService
     metadata:
