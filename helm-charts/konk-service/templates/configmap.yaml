@@ -39,15 +39,15 @@ data:
     apiVersion: apiregistration.k8s.io/v1
     kind: APIService
     metadata:
-      name: v1alpha1.{{` {{ SERVICENAME }} `}}.infoblox.com
+      name: {{ .Values.version }}.{{ .Values.group }}
     spec:
       caBundle: {{` {{ CERT }} `}}
-      group: {{` {{ SERVICENAME }} `}}.infoblox.com
+      group: {{ .Values.group }}
       groupPriorityMinimum: 1000
       service:
         name: {{` {{ SERVICENAME }} `}}
         namespace: {{` {{ NAMESPACE }} `}}
-      version: v1alpha1
+      version: {{ .Values.version }}
       versionPriority: 100
 
 {{ if .Values.crds }}

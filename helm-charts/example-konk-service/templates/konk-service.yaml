@@ -6,6 +6,8 @@ spec:
   konk:
     name: example-konk
   service:
-    name: {{ .Release.Name }}-example-apiserver
+    name: runner-example-apiserver
+  group: example.infoblox.com
+  version: v1alpha1
   crds: |
 {{ (.Files.Glob "crds/*").AsConfig | indent 4 }}
