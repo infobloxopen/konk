@@ -15,6 +15,7 @@ spec:
     metadata:
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/values: {{ print .Values | sha256sum }}
       labels:
         {{- include "konk-service.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: apiservice
