@@ -44,6 +44,14 @@ jobs:
           do
             sleep 1
           done
+      - name: Setup Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.15.x
+      - name: Deploy Test APIServer
+        timeout-minutes: 5
+        run: |
+          make kind-load-apiserver deploy-example-apiserver KIND_NAME="chart-testing"
       - name: Deploy konk-service
         timeout-minutes: 5
         run: |
@@ -59,14 +67,6 @@ jobs:
           POD_NAME=$(kubectl get pod -o name | grep konkservice)
           kubectl exec -it $POD_NAME -- kubectl get apiservice v1alpha1.test.infoblox.com
           kubectl exec -it $POD_NAME -- kubectl get crd appconfigs.stable.example.com websites.extensions.example.com
-      - name: Setup Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.15.x
-      - name: Deploy Test APIServer
-        timeout-minutes: 5
-        run: |
-          make kind-load-apiserver deploy-example-apiserver KIND_NAME="chart-testing"
       - name: Print failure
         timeout-minutes: 1
         if: ${{ failure() }}
