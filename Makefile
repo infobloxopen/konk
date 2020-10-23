@@ -192,6 +192,8 @@ kind-load-apiserver: $(KIND)
 		KIND=$(KIND) KIND_NAME=${KIND_NAME} \
 		IMAGE_TAG=${GIT_VERSION}
 
+%-example-apiserver: RELEASE_NAME := runner
+
 deploy-example-apiserver: HELM_FLAGS ?=--set=image.tag=$(GIT_VERSION) --set=image.pullPolicy=IfNotPresent
 deploy-example-apiserver:
 	$(HELM) upgrade -i --wait $(RELEASE_NAME)-example-apiserver $(CHART_DIR)/example-apiserver $(HELM_FLAGS)

@@ -5,6 +5,7 @@
 {{- $aaCA := genCA $aaServiceName 365 }}
 {{- $aaCert := genSignedCert $aaServiceFullName nil $aaAltNames 365 $aaCA }}
 
+{{- if .Values.apiserver.create }}
 # TODO: Move this to KONK deployed
 apiVersion: apiregistration.k8s.io/v1
 kind: APIService
@@ -27,6 +28,7 @@ spec:
   insecureSkipTLSVerify: true
 {{- end }}
 ---
+{{- end }}
 apiVersion: v1
 kind: Secret
 type: kubernetes.io/tls
