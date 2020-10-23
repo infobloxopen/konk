@@ -52,10 +52,6 @@ jobs:
         timeout-minutes: 5
         run: |
           make kind-load-apiserver deploy-example-apiserver KIND_NAME="chart-testing"
-      - name: Deploy konk-service
-        timeout-minutes: 5
-        run: |
-          make deploy-konk-service
       - name: Deploy example-konk-service
         timeout-minutes: 5
         run: |
