@@ -61,8 +61,8 @@ jobs:
             sleep 1
           done
           POD_NAME=$(kubectl get pod -o name | grep konkservice)
-          kubectl exec -it $POD_NAME -- kubectl describe apiservice v1alpha1.runner-example-apiserver.infoblox.com
-          kubectl exec -it $POD_NAME -- kubectl get apiservice v1alpha1.runner-example-apiserver.infoblox.com | grep True
+          kubectl exec -it $POD_NAME -- kubectl describe apiservice v1alpha1.example.infoblox.com
+          kubectl exec -it $POD_NAME -- kubectl get apiservice v1alpha1.example.infoblox.com | grep True
           kubectl exec -it $POD_NAME -- kubectl get crd appconfigs.stable.example.com websites.extensions.example.com
       - name: Print failure
         timeout-minutes: 1
