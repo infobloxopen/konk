@@ -48,10 +48,9 @@ jobs:
         timeout-minutes: 5
         run: |
           make deploy-konk-service
-      - name: Deploy konk-service-operator
+      - name: Deploy example-konk-service
         timeout-minutes: 5
         run: |
-          make deploy-konk-service-operator
           make deploy-example-konk-service
           until kubectl wait --timeout=3m --for=condition=ready pod -l app.kubernetes.io/component=apiservice,app.kubernetes.io/instance=example-konkservice
           do
