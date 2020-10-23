@@ -1,0 +1,26 @@
+apiVersion: konk.infoblox.com/v1alpha1
+kind: KonkService
+metadata:
+  name: konkservice-sample
+spec:
+  # Default values copied from <project_dir>/helm-charts/konk-service/values.yaml
+  crds: null
+  fullnameOverride: ""
+  kind:
+    image:
+      pullPolicy: Always
+      repository: kindest/node
+      tag: ""
+    resources: {}
+    securityContext: {}
+  konk:
+    name: runner-konk
+  nameOverride: ""
+  service:
+    name: test
+  serviceAccount:
+    annotations: {}
+    create: false
+    name: ""
+  
+  

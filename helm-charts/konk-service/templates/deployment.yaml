@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "konk-service.fullname" . }}-kubectl
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "konk-service.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "konk-service.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: apiservice
+  template:
+    metadata:
+      labels:
+        {{- include "konk-service.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: apiservice
+    spec:
+      serviceAccountName: {{ include "konk-service.serviceAccountName" . }}
+      containers:
+      - name: kind
+        securityContext:
+          {{- toYaml .Values.kind.securityContext | nindent 10 }}
+        image: "{{ .Values.kind.image.repository }}:{{ .Values.kind.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.kind.image.pullPolicy }}
+        command: ["/bin/bash", "-c"]
+        args: ["/mounts/deploy-api-service.sh; while true; do sleep 30; done;"]
+        env:
+          - name: SERVICENAME
+            value: {{ .Values.service.name }}
+          - name: NAMESPACE
+            value: {{ .Release.Namespace }}
+          - name: KUBECONFIG
+            value: /etc/kubernetes/admin.conf
+          {{- if .Values.crds }}
+          - name: CRDS
+            value: install
+          {{- end }}
+        resources:
+          {{- toYaml .Values.kind.resources | nindent 10 }}
+        volumeMounts:
+        - name: kubeconfig
+          mountPath: "/etc/kubernetes"
+          readOnly: true
+        - name: ca-cert
+          mountPath: "certs"
+          readOnly: true
+        - name: mounts
+          mountPath: "mounts"
+          readOnly: true
+        - name: gen
+          mountPath: "gen"
+        readinessProbe:
+          exec:
+            command:
+            - cat
+            - /tmp/healthy
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: kubeconfig
+        secret:
+          secretName: {{ .Values.konk.name }}-kubeconfig
+      - name: ca-cert
+        secret:
+          secretName: {{ include "konk-service.fullname" . }}-server
+      - name: mounts
+        configMap:
+          name: {{ include "konk-service.fullname" . }}-mounts
+          defaultMode: 0777
+      - name: gen
+        emptyDir: {}

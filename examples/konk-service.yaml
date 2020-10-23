@@ -1,0 +1,9 @@
+apiVersion: konk.infoblox.com/v1alpha1
+kind: KonkService
+metadata:
+  name: example-konkservice
+spec:
+  konk:
+    name: example-konk
+  service:
+    name: test

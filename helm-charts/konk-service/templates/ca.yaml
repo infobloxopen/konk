@@ -1,0 +1,35 @@
+apiVersion: {{ include "konk-service.certManagerApiVersion" . }}
+kind: Issuer
+metadata:
+  name: {{ include "konk-service.fullname" . }}-self-signed
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "konk-service.labels" . | nindent 4 }}
+spec:
+  selfSigned: {}
+---
+apiVersion: {{ include "konk-service.certManagerApiVersion" . }}
+kind: Certificate
+metadata:
+  name: {{ include "konk-service.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "konk-service.labels" . | nindent 4 }}
+spec:
+  secretName: {{ include "konk-service.fullname" . }}
+  duration: 17520h #2y
+  issuerRef:
+    name: {{ include "konk-service.fullname" . }}-self-signed
+  commonName: "konk-service.infoblox"
+  isCA: true
+---
+apiVersion: {{ include "konk-service.certManagerApiVersion" . }}
+kind: Issuer
+metadata:
+  name: {{ include "konk-service.fullname" . }}-ca
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "konk-service.labels" . | nindent 4 }}
+spec:
+  ca:
+    secretName: {{ include "konk-service.fullname" . }}

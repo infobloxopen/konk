@@ -47,6 +47,8 @@ deploy-cert-manager:
 
 %-konk-operator: HELM_FLAGS ?=--set=image.tag=$(GIT_VERSION) --set=image.pullPolicy=IfNotPresent
 
+%-konk-service-operator: HELM_FLAGS ?=--set=image.tag=$(GIT_VERSION) --set=image.pullPolicy=IfNotPresent
+
 deploy-%: package
 	$(HELM) upgrade -i --wait $(RELEASE_NAME)-$* $(CHART_DIR)/$* $(HELM_FLAGS)
 
@@ -130,12 +132,22 @@ konk-operator-${GIT_VERSION}.tgz:
 	mkdir -p helm-charts/konk-operator/crds
 	cp -vR config/crd/bases/* helm-charts/konk-operator/crds/
 	cp -vR config/rbac helm-charts/konk-operator/
+	rm helm-charts/konk-operator/rbac/konkservice_editor_role.yaml
+	rm helm-charts/konk-operator/rbac/konkservice_viewer_role.yaml
 	${HELM} package helm-charts/konk-operator --version ${GIT_VERSION} --app-version ${GIT_VERSION}
 
 %-${GIT_VERSION}.tgz:
 	${HELM} package helm-charts/$* --version ${GIT_VERSION}
 
-package: konk-operator-${GIT_VERSION}.tgz konk-${GIT_VERSION}.tgz
+konk-service-operator-${GIT_VERSION}.tgz:
+	mkdir -p helm-charts/konk-service-operator/crds
+	cp -vR config/crd/bases/* helm-charts/konk-service-operator/crds/
+	cp -vR config/rbac helm-charts/konk-service-operator/
+	rm helm-charts/konk-service-operator/rbac/konk_editor_role.yaml
+	rm helm-charts/konk-service-operator/rbac/konk_viewer_role.yaml
+	${HELM} package helm-charts/konk-service-operator --version ${GIT_VERSION} --app-version ${GIT_VERSION}
+
+package: konk-operator-${GIT_VERSION}.tgz konk-${GIT_VERSION}.tgz konk-service-operator-${GIT_VERSION}.tgz konk-service-${GIT_VERSION}.tgz
 
 helm-operator:
 ifeq (, $(shell which helm-operator 2>/dev/null))
