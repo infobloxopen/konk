@@ -41,7 +41,7 @@ kind:
 
 konk:
   # The value below should be overriden by the konk-name
-  name: runner-konk
+  name:
 
 service:
   # The value below should be overriden by service-name
