@@ -71,6 +71,7 @@ rules:
   - get
   - create
   - list
+  - patch
   apiGroups:
   - "cert-manager.io"
   resources:
@@ -131,6 +132,7 @@ rules:
   - get
   - create
   - list
+  - patch
   apiGroups:
   - "cert-manager.io"
   resources:
