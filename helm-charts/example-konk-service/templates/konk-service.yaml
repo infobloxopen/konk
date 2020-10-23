@@ -6,6 +6,6 @@ spec:
   konk:
     name: example-konk
   service:
-    name: test
+    name: {{ .Release.Name }}-example-apiserver
   crds: |
 {{ (.Files.Glob "crds/*").AsConfig | indent 4 }}
