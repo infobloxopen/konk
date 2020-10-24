@@ -10,6 +10,6 @@ spec:
   issuerRef:
     name: {{ include "konk-service.fullname" . }}-ca
   dnsNames:
-  - {{ include "konk-service.fullname" . }}
-  - {{ include "konk-service.fullname" . }}.{{ .Release.Namespace }}
-  - {{ include "konk-service.fullname" . }}.{{ .Release.Namespace }}.svc
+  - {{ .Values.service.name }}
+  - {{ .Values.service.name }}.{{ .Release.Namespace }}
+  - {{ .Values.service.name }}.{{ .Release.Namespace }}.svc
