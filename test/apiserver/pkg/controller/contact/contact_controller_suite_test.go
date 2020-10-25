@@ -1,6 +1,8 @@
 package contact
 
 import (
+	"io/ioutil"
+	"log"
 	"os"
 	"sync"
 	"testing"
@@ -20,10 +22,18 @@ var cfg *rest.Config
 func TestMain(m *testing.M) {
 
 	env := suite.NewDefaultTestingEnvironment()
+	dir, err := ioutil.TempDir("", "contact_controller_suite")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// FIXME: cant override any flags due to test suite
+	env.AggregatedAPIServerFlags = []string{"--root-dir", dir}
 	if err := env.StartLocalKubeAPIServer(); err != nil {
 		stdlog.Fatal(err)
 		return
 	}
+
 	if err := env.StartLocalAggregatedAPIServer("example.infoblox.com", "v1alpha1"); err != nil {
 		stdlog.Fatal(err)
 		return

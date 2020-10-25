@@ -17,6 +17,8 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/tmc/grpc-websocket-proxy v0.0.0-20190109142713-0ad062ec5ee5 // indirect
 	k8s.io/api v0.19.2
+	github.com/spf13/pflag v1.0.5
+	golang.org/x/net v0.0.0-20200707034311-ab3426394381
 	k8s.io/apimachinery v0.19.2
 	k8s.io/apiserver v0.19.2
 	k8s.io/client-go v0.19.2

@@ -11,6 +11,7 @@ import (
 
 // See https://github.com/kubernetes-sigs/apiserver-builder-alpha/pull/533/files#diff-163ee78893222e626ff355526b0c37102559d5c551b0d4c6851e4da2c1ef06f9R12
 func NewContactREST(getter generic.RESTOptionsGetter) rest.Storage {
+	klog.Infof("new_contact_rest root-directory=%s", rootDir)
 	gr := schema.GroupResource{
 		Group:    "example.infoblox.com",
 		Resource: "contacts",
@@ -22,7 +23,7 @@ func NewContactREST(getter generic.RESTOptionsGetter) rest.Storage {
 	bugged := filepath.NewFilepathREST(
 		gr,
 		opt.StorageConfig.Codec,
-		"/data/",
+		rootDir,
 		true,
 		func() runtime.Object { return &Contact{} },
 		func() runtime.Object { return &ContactList{} },

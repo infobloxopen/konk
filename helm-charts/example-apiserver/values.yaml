@@ -10,6 +10,17 @@ image:
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""
 
+etcd:
+  image:
+    repository: quay.io/coreos/etcd
+    tag: v3.4.13
+  imagePullPolicy: IfNotPresent
+  svc:
+    protocol: http
+    name: localhost
+    port: 2379
+
+
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""

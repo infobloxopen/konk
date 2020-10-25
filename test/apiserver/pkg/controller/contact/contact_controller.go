@@ -65,12 +65,13 @@ type ReconcileContact struct {
 	scheme *runtime.Scheme
 }
 
+// +kubebuilder:rbac:groups=example.infoblox.com,resources=contacts,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=example.infoblox.com,resources=contacts/status,verbs=get;update;patch
+
 // Reconcile reads that state of the cluster for a Contact object and makes changes based on the state read
 // and what is in the Contact.Spec
 // TODO(user): Modify this Reconcile function to implement your Controller logic.  The scaffolding writes
 // a Deployment as an example
-// +kubebuilder:rbac:groups=example.infoblox.com,resources=contacts,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=example.infoblox.com,resources=contacts/status,verbs=get;update;patch
 func (r *ReconcileContact) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	// Fetch the Contact instance
 	instance := &examplev1alpha1.Contact{}

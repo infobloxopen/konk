@@ -31,17 +31,17 @@ spec:
       containers:
         # Insecure etcd to chat with
         - name: etcd
-          image: quay.io/coreos/etcd:v3.4.13
-          imagePullPolicy: IfNotPresent
+          image: {{ .Values.etcd.image.repository }}:{{ .Values.etcd.image.tag }}
+          imagePullPolicy: {{ .Values.etcd.imagePullPolicy }}
           command:
             - etcd
-            - --listen-client-urls=http://0.0.0.0:2379
-            - --advertise-client-urls=http://localhost:2379
+            - --listen-client-urls={{ .Values.etcd.svc.protocol }}://0.0.0.0:{{ .Values.etcd.svc.port }}
+            - --advertise-client-urls={{ .Values.etcd.svc.protocol }}://{{ .Values.etcd.svc.name }}:{{ .Values.etcd.svc.port }}
           ports:
-          - containerPort: 2379
+          - containerPort: {{ .Values.etcd.svc.port }}
           readinessProbe:
             httpGet:
-              port: 2379
+              port: {{ .Values.etcd.svc.port }}
               path: /health
             failureThreshold: 1
             initialDelaySeconds: 10
@@ -50,7 +50,7 @@ spec:
             timeoutSeconds: 2
           livenessProbe:
             httpGet:
-              port: 2379
+              port: {{ .Values.etcd.svc.port }}
               path: /health
             failureThreshold: 3
             initialDelaySeconds: 10
@@ -84,14 +84,17 @@ spec:
           - "./apiserver"
           args:
           - "--delegated-auth=false"
-          - --etcd-servers=http://127.0.0.1:2379
+          - --etcd-servers=http://127.0.0.1:{{ .Values.etcd.svc.port }}
           - "--tls-cert-file=/apiserver.local.config/certificates/tls.crt"
           - "--tls-private-key-file=/apiserver.local.config/certificates/tls.key"
+          - "-v=10"
         - name: controller
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           command:
           - "./controller-manager"
+          args:
+          - "-v=10"
           args:
           resources:
             {{- toYaml .Values.manager.resources | nindent 12 }}

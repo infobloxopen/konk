@@ -1,6 +1,7 @@
 IMAGE_TAG  ?= $(shell git describe --tags --always)
 IMAGE_REPO ?= infoblox/konk-apiserver-example
 IMAGE      := $(IMAGE_REPO):$(IMAGE_TAG)
+TEST_ENV   := GO111MODULE=off
 
 APISERVER_BOOT_VERSION := v1.18.0
 APISERVER_BOOT := bin/apiserver-boot
@@ -57,6 +58,15 @@ image: .image-${IMAGE_TAG}
 push: image .push-${IMAGE_TAG}
 
 build: bin/apiserver bin/controller-manager
+
+vendor:
+	go mod vendor
+
+# Tests run better if you disable GO111MODULE
+test: vendor test
+
+suite-test:
+	${TEST_ENV} cd pkg/controller/contact; go test -v
 
 # go list can build the dependency needed here
 .PHONY: bin/controller-manager
