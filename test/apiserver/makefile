@@ -1,7 +1,8 @@
-IMAGE_TAG  ?= $(shell git describe --tags --always)
-IMAGE_REPO ?= infoblox/konk-apiserver-example
-IMAGE      := $(IMAGE_REPO):$(IMAGE_TAG)
-TEST_ENV   := GO111MODULE=off
+IMAGE_TAG   ?= $(shell git describe --tags --always)
+IMAGE_REPO  ?= infoblox/konk-apiserver-example
+IMAGE       := $(IMAGE_REPO):$(IMAGE_TAG)
+TEST_ENV    := GO111MODULE=off
+BUILD_FLAGS ?=
 
 APISERVER_BOOT_VERSION := v1.18.0
 APISERVER_BOOT := bin/apiserver-boot
@@ -40,7 +41,10 @@ deploy-%: config/%.yaml
 	kubectl apply -f $<
 
 kind-load: KIND=false
+kind-load: QUAY_IMG=quay.io/coreos/etcd:v3.4.13
 kind-load: image
+	docker pull ${QUAY_IMG}
+	$(KIND) load docker-image ${QUAY_IMG} --name ${KIND_NAME}
 	$(KIND) load docker-image ${IMAGE} --name ${KIND_NAME}
 
 kind-deploy-infra: kind-load deploy-%
@@ -71,11 +75,11 @@ suite-test:
 # go list can build the dependency needed here
 .PHONY: bin/controller-manager
 bin/controller-manager:
-	${GO_ENV} go build -o $@ ./cmd/manager
+	${GO_ENV} go build ${BUILD_FLAGS} -o $@ ./cmd/manager
 
 .PHONY: bin/apiserver
 bin/apiserver:
-	${GO_ENV} go build -o $@ ./cmd/apiserver
+	${GO_ENV} go build ${BUILD_FLAGS} -o $@ ./cmd/apiserver
 
 run:
 	apiserver-boot run in-cluster --image ${IMAGE} --generate=false --name=contact --namespace=default
