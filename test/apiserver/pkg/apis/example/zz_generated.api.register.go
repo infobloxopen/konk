@@ -15,11 +15,11 @@ import (
 )
 
 var (
-	ExampleContactStorage = builders.NewApiResourceWithStorage( // Resource status endpoint
+	ExampleContactStorage = builders.NewApiResource( // Resource status endpoint
 		InternalContact,
 		func() runtime.Object { return &Contact{} },     // Register versioned resource
 		func() runtime.Object { return &ContactList{} }, // Register versioned resource list
-		NewContactREST,
+		&ContactStrategy{builders.StorageStrategySingleton},
 	)
 	InternalContact = builders.NewInternalResource(
 		"contacts",
