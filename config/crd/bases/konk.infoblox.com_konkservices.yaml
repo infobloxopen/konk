@@ -33,6 +33,28 @@ spec:
             description: Spec defines the desired state of KonkService
             type: object
             x-kubernetes-preserve-unknown-fields: true
+            properties:
+              konk:
+                type: object
+                properties:
+                  name:
+                    description: The name of the konk to create the APIService in.
+                    type: string
+                required:
+                - name
+                x-kubernetes-preserve-unknown-fields: true
+              service:
+                type: object
+                properties:
+                  name:
+                    description: The name of your extension API service
+                    type: string
+                required:
+                - name
+                x-kubernetes-preserve-unknown-fields: true
+            required:
+              - konk
+              - service
           status:
             description: Status defines the observed state of KonkService
             type: object
