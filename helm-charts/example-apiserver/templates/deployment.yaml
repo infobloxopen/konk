@@ -95,9 +95,15 @@ spec:
           - "./controller-manager"
           args:
           - "-v=10"
-          args:
+          env:
+          - name: KUBECONFIG
+            value: /etc/kubernetes/admin.conf
           resources:
             {{- toYaml .Values.manager.resources | nindent 12 }}
+          volumeMounts:
+          - name: kubeconfig
+            mountPath: "/etc/kubernetes"
+            readOnly: true
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -114,3 +120,6 @@ spec:
       - name: apiserver-certs
         secret:
           secretName: {{ include "example-apiserver.fullname" . }}
+      - name: kubeconfig
+        secret:
+          secretName: {{ .Values.konk.name | required "must specify konk.name" }}-kubeconfig
