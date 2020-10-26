@@ -97,7 +97,7 @@ tolerations: []
 affinity: {}
 
 apiserver:
-  create: false
+  create: true
   tls:
     caBundle: ""
     crt: ""
