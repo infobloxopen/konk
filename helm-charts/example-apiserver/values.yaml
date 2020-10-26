@@ -97,12 +97,11 @@ tolerations: []
 affinity: {}
 
 apiserver:
-  create: true
+  create: false
   tls:
     caBundle: ""
     crt: ""
     key: ""
 
-group: example.infoblox.com
-
-version: v1alpha1
+konk:
+  name: example-konk
