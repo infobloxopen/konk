@@ -24,7 +24,7 @@ data:
       fi
     done
     INSTALL=install
-    if [ $CRDS == $INSTALL ]
+    if [ "$CRDS" == "$INSTALL" ]
     then
       kubectl apply -f /mounts/
     fi
