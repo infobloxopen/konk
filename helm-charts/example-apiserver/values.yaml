@@ -102,3 +102,7 @@ apiserver:
     caBundle: ""
     crt: ""
     key: ""
+
+group: example.infoblox.com
+
+version: v1alpha1

@@ -52,6 +52,17 @@ jobs:
         timeout-minutes: 5
         run: |
           make kind-load-apiserver deploy-example-apiserver KIND_NAME="chart-testing"
+          until kubectl wait --timeout=2m --for=condition=ready pod -l app.kubernetes.io/component=apiservice,app.kubernetes.io/instance=example-konkservice
+          do
+            sleep 1
+          done
+          POD_NAME=$(kubectl get pod -o name | grep konkservice)
+          until kubectl exec -it $POD_NAME -- kubectl get apiservice v1alpha1.example.infoblox.com | grep True
+          do
+            kubectl exec -it $POD_NAME -- kubectl describe apiservice v1alpha1.example.infoblox.com
+            sleep 10
+          done
+          kubectl exec -it $POD_NAME -- kubectl get crd appconfigs.stable.example.com websites.extensions.example.com
       - name: Test APIServer actions
         timeout-minutes: 1
         run: |
@@ -69,21 +80,6 @@ jobs:
           do
             sleep 5
           done
-      - name: Deploy example-konk-service
-        timeout-minutes: 5
-        run: |
-          make deploy-example-konk-service
-          until kubectl wait --timeout=3m --for=condition=ready pod -l app.kubernetes.io/component=apiservice,app.kubernetes.io/instance=example-konkservice
-          do
-            sleep 1
-          done
-          POD_NAME=$(kubectl get pod -o name | grep konkservice)
-          until kubectl exec -it $POD_NAME -- kubectl get apiservice v1alpha1.example.infoblox.com | grep True
-          do
-            kubectl exec -it $POD_NAME -- kubectl describe apiservice v1alpha1.example.infoblox.com
-            sleep 10
-          done
-          kubectl exec -it $POD_NAME -- kubectl get crd appconfigs.stable.example.com websites.extensions.example.com
       - name: Print failure
         timeout-minutes: 1
         if: ${{ failure() }}
