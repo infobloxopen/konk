@@ -3,7 +3,9 @@ kind: KonkService
 metadata:
   name: example-konkservice
 spec:
+  group: example.infoblox.com
   konk:
     name: example-konk
   service:
     name: test
+  version: v1alpha1

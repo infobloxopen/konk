@@ -34,6 +34,8 @@ spec:
             type: object
             x-kubernetes-preserve-unknown-fields: true
             properties:
+              group:
+                type: string
               konk:
                 type: object
                 properties:
@@ -52,9 +54,13 @@ spec:
                 required:
                 - name
                 x-kubernetes-preserve-unknown-fields: true
+              version:
+                type: string
             required:
+              - group
               - konk
               - service
+              - version
           status:
             description: Status defines the observed state of KonkService
             type: object
