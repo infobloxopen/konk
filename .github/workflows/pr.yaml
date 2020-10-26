@@ -52,6 +52,23 @@ jobs:
         timeout-minutes: 5
         run: |
           make kind-load-apiserver deploy-example-apiserver KIND_NAME="chart-testing"
+      - name: Test APIServer actions
+        timeout-minutes: 1
+        run: |
+          # TODO: move API Registration and test calls to to KONK
+          until kubectl get apiservice v1alpha1.example.infoblox.com | grep True
+          do
+            kubectl describe apiservice v1alpha1.example.infoblox.com
+            sleep 5
+          done
+          until kubectl apply -f test/apiserver/sample/contact.yaml
+          do
+            sleep 5
+          done
+          until kubectl get contact
+          do
+            sleep 5
+          done
       - name: Deploy example-konk-service
         timeout-minutes: 5
         run: |
