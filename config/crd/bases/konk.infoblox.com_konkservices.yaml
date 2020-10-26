@@ -60,6 +60,16 @@ spec:
             type: object
             x-kubernetes-preserve-unknown-fields: true
         type: object
+    additionalPrinterColumns:
+    - name: Konk
+      type: string
+      jsonPath: .spec.konk.name
+    - name: APIService
+      type: string
+      jsonPath: .spec.service.name
+    - name: Age
+      type: date
+      jsonPath: .metadata.creationTimestamp
     served: true
     storage: true
     subresources:
