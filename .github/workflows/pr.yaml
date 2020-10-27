@@ -58,11 +58,11 @@ jobs:
             kubectl exec -it $POD_NAME -- kubectl describe apiservice v1alpha1.example.infoblox.com
             sleep 10
           done
-          until kubectl apply -f test/apiserver/sample/contact.yaml
+          until cat test/apiserver/sample/contact.yaml | kubectl exec -i $POD_NAME -- kubectl apply -f -
           do
             sleep 5
           done
-          until kubectl get contact
+          until kubectl exec -it $POD_NAME -- kubectl get contact contact-example
           do
             sleep 5
           done
