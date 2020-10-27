@@ -39,7 +39,7 @@ data:
     apiVersion: v1
     kind: Service
     metadata:
-      name: {{` {{ SERVICENAME }} `}}
+      name: konk-{{` {{ SERVICENAME }} `}}
       namespace: {{` {{ NAMESPACE }} `}}
     spec:
       type: ExternalName
@@ -50,11 +50,16 @@ data:
     metadata:
       name: {{ .Values.version }}.{{ .Values.group }}
     spec:
+      {{- if eq .Values.tlsVerify false }}
       caBundle: {{` {{ CERT }} `}}
+      {{- end }}
       group: {{ .Values.group }}
       groupPriorityMinimum: 1000
+      {{- if eq .Values.tlsVerify true }}
+      insecureSkipTLSVerify: {{ .Values.tlsVerify }}
+      {{- end }}
       service:
-        name: {{` {{ SERVICENAME }} `}}
+        name: konk-{{` {{ SERVICENAME }} `}}
         namespace: {{` {{ NAMESPACE }} `}}
       version: {{ .Values.version }}
       versionPriority: 100

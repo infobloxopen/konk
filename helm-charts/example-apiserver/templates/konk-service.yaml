@@ -9,5 +9,6 @@ spec:
     name: {{ include "example-apiserver.fullname" . }}
   group: example.infoblox.com
   version: v1alpha1
+  tlsVerify: true
   crds: |
 {{ (.Files.Glob "crds/*").AsConfig | indent 4 }}

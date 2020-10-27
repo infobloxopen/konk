@@ -52,3 +52,5 @@ crds: null
 group:
 
 version:
+
+tlsVerify: false
