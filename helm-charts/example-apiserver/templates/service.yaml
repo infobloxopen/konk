@@ -14,3 +14,4 @@ spec:
       name: http
   selector:
     {{- include "example-apiserver.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: apiserver

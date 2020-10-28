@@ -4,10 +4,11 @@ metadata:
   name: example-konkservice
 spec:
   konk:
-    name: example-konk
+    name: {{ .Values.konk.name }}
   service:
-    name: runner-example-apiserver
+    name: {{ include "example-apiserver.fullname" . }}
   group: example.infoblox.com
   version: v1alpha1
+  insecureSkipTLSVerify: true
   crds: |
 {{ (.Files.Glob "crds/*").AsConfig | indent 4 }}

@@ -97,8 +97,11 @@ tolerations: []
 affinity: {}
 
 apiserver:
-  create: true
+  create: false
   tls:
     caBundle: ""
     crt: ""
     key: ""
+
+konk:
+  name: example-konk

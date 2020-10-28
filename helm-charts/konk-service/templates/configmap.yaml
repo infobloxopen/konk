@@ -50,7 +50,11 @@ data:
     metadata:
       name: {{ .Values.version }}.{{ .Values.group }}
     spec:
+      {{- if .Values.insecureSkipTLSVerify }}
+      insecureSkipTLSVerify: {{ .Values.insecureSkipTLSVerify }}
+      {{- else }}
       caBundle: {{` {{ CERT }} `}}
+      {{- end }}
       group: {{ .Values.group }}
       groupPriorityMinimum: 1000
       service:

@@ -12,6 +12,7 @@ spec:
   selector:
     matchLabels:
       {{- include "example-apiserver.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: apiserver
   template:
     metadata:
     {{- with .Values.podAnnotations }}
@@ -20,6 +21,7 @@ spec:
     {{- end }}
       labels:
         {{- include "example-apiserver.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: apiserver
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
@@ -88,16 +90,6 @@ spec:
           - "--tls-cert-file=/apiserver.local.config/certificates/tls.crt"
           - "--tls-private-key-file=/apiserver.local.config/certificates/tls.key"
           - "-v=10"
-        - name: controller
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command:
-          - "./controller-manager"
-          args:
-          - "-v=10"
-          args:
-          resources:
-            {{- toYaml .Values.manager.resources | nindent 12 }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

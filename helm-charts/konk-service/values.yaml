@@ -48,3 +48,9 @@ service:
   name: test
 
 crds: null
+
+group:
+
+version:
+
+insecureSkipTLSVerify: false

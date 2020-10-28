@@ -21,7 +21,22 @@ This chart will deploy konk.
 
 ## konk operator
 
-konk-operator is generated with operator-sdk and implements a helm operator for the konk chart. Once deployed, `Konk` resources can be created in the cluster and the operator will deploy a konk instance for each of them.
+konk-operator is generated with operator-sdk and implements a helm operator for the konk chart and the konk-service chart. Once deployed, `Konk` and `KonkService` resources can be created in the cluster and the operator will deploy a konk instance and a konk-service instance for each of them.
+
+## konk service chart
+
+Found in [helm-charts/konk-service](helm-charts/konk-service).
+
+This chart will deploy konk-service. The konk-service chart requires an existing konk to be deployed in the cluster. You need to specify the name of the konk and the name of the service that the APIService object being created should point to. This would be specified under `konk.name` and `service.name` in the `values.yaml` file. Also specify the `group` and `version` values to be populated in the generated APIService.
+
+## example apiserver chart
+
+Found in [helm-charts/example-apiserver](helm-charts/example-apiserver).
+
+This chart will deploy an example-apiserver instance. This chart requires an existing konk to be deployed in the cluster. This chart also assumes that the konk-operator has been deployed to the cluster, since it involves creating a `KonkService` CR. In the `KonkService` CR, you need to specify the name of the konk and the name of the service that the APIService object being created should point to. This would be specified under `konk.name` and `service.name` in the `values.yaml` file. Also specify the `group` and `version` values to be populated in the generated APIService. CRDs can be deployed by creating a `crds` folder in your helm-chart. The crds created here will be installed in Konk. These CRDs are added to the KonkService CR using -
+
+      crds: |
+    {{ (.Files.Glob "crds/*").AsConfig | indent 4 }}
 
 ### Optional, stand up KIND
 
