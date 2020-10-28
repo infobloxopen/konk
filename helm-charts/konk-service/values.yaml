@@ -53,4 +53,4 @@ group:
 
 version:
 
-tlsVerify: false
+insecureSkipTLSVerify: false
