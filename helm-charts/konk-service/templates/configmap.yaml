@@ -48,21 +48,39 @@ data:
     apiVersion: apiregistration.k8s.io/v1
     kind: APIService
     metadata:
-      name: {{ .Values.version }}.{{ .Values.group }}
+      name: {{ .Values.version }}.{{ .Values.group.name }}
     spec:
       {{- if .Values.insecureSkipTLSVerify }}
       insecureSkipTLSVerify: {{ .Values.insecureSkipTLSVerify }}
       {{- else }}
       caBundle: {{` {{ CERT }} `}}
       {{- end }}
-      group: {{ .Values.group }}
+      group: {{ .Values.group.name }}
       groupPriorityMinimum: 1000
       service:
         name: {{` {{ SERVICENAME }} `}}
         namespace: {{` {{ NAMESPACE }} `}}
       version: {{ .Values.version }}
       versionPriority: 100
-
+    ---
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    metadata:
+      name: {{ .Values.group.name }}-edit
+      labels:
+        rbac.authorization.k8s.io/aggregate-to-edit: "true"
+        rbac.authorization.k8s.io/aggregate-to-admin: "true"
+    rules:
+      - apiGroups:
+        - {{ .Values.group.name }}
+        resources:
+        {{- range .Values.group.kinds }}
+        - {{ . | title }}
+        {{- end }}
+        verbs:
+        {{- range .Values.group.verbs }}
+        - {{ . }}
+        {{- end }}
 {{ if .Values.crds }}
 {{ .Values.crds | indent 2 }}
 {{ end }}

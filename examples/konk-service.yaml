@@ -3,7 +3,17 @@ kind: KonkService
 metadata:
   name: example-konkservice
 spec:
-  group: example.infoblox.com
+  group:
+    name: example.infoblox.com
+    kinds:
+    - Contact
+    verbs:
+    - create
+    - update
+    - get
+    - list
+    - delete
+    - watch
   konk:
     name: example-konk
   service:

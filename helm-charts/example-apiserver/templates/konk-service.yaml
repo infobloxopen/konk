@@ -7,7 +7,18 @@ spec:
     name: {{ .Values.konk.name }}
   service:
     name: {{ include "example-apiserver.fullname" . }}
-  group: example.infoblox.com
+  group:
+    name: example.infoblox.com
+    kinds:
+    - Contact
+    verbs:
+    - create
+    - delete
+    - get
+    - watch
+    - patch
+    - list
+    - update
   version: v1alpha1
   insecureSkipTLSVerify: true
   crds: |
