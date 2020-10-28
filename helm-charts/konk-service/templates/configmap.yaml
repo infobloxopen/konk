@@ -50,14 +50,13 @@ data:
     metadata:
       name: {{ .Values.version }}.{{ .Values.group }}
     spec:
-      {{- if eq .Values.insecureSkipTLSVerify false }}
+      {{- if .Values.insecureSkipTLSVerify }}
+      insecureSkipTLSVerify: {{ .Values.insecureSkipTLSVerify }}
+      {{- else }}
       caBundle: {{` {{ CERT }} `}}
       {{- end }}
       group: {{ .Values.group }}
       groupPriorityMinimum: 1000
-      {{- if eq .Values.insecureSkipTLSVerify true }}
-      insecureSkipTLSVerify: {{ .Values.insecureSkipTLSVerify }}
-      {{- end }}
       service:
         name: {{` {{ SERVICENAME }} `}}
         namespace: {{` {{ NAMESPACE }} `}}
