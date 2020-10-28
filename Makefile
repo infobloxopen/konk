@@ -76,7 +76,7 @@ IMG ?= infoblox/konk:$(GIT_VERSION)
 all: docker-build
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
-run: helm-operator
+run: $(HELM_OPERATOR) $(OPERATOR_SDK)
 	$(HELM_OPERATOR) run
 
 # Install CRDs into a cluster
@@ -137,27 +137,28 @@ konk-operator-${GIT_VERSION}.tgz:
 
 package: konk-operator-${GIT_VERSION}.tgz konk-${GIT_VERSION}.tgz konk-service-${GIT_VERSION}.tgz
 
-helm-operator:
-ifeq (, $(shell which helm-operator 2>/dev/null))
-	@{ \
-	set -e ;\
-	mkdir -p bin ;\
-	curl -LO https://github.com/operator-framework/operator-sdk/releases/download/v1.0.0/helm-operator-v1.0.0-$(ARCHOPER)-$(OSOPER) ;\
-	mv helm-operator-v1.0.0-$(ARCHOPER)-$(OSOPER) ./bin/helm-operator ;\
-	chmod +x ./bin/helm-operator ;\
-	}
-HELM_OPERATOR=$(realpath ./bin/helm-operator)
-else
-HELM_OPERATOR=$(shell which helm-operator)
-endif
+OPERATOR_VERSION:=v1.1.0
+./bin/%: ./bin/%-$(OPERATOR_VERSION)
+	ln -sf $(^F) $@
+
+./bin/%-$(OPERATOR_VERSION):
+	mkdir -p bin
+	curl -L -o ./$@ https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_VERSION)/$*-$(OPERATOR_VERSION)-$(ARCHOPER)-$(OSOPER)
+	chmod +x $@
+
+# prevent make from deleting intermediate files
+not_intermediates: ./bin/helm-operator-$(OPERATOR_VERSION) ./bin/operator-sdk-$(OPERATOR_VERSION)
+
+HELM_OPERATOR:=./bin/helm-operator
+OPERATOR_SDK:=./bin/operator-sdk
 
 # Generate bundle manifests and metadata, then validate generated files.
 .PHONY: bundle
-bundle: kustomize
-	operator-sdk generate kustomize manifests -q
+bundle: kustomize $(OPERATOR_SDK)
+	$(OPERATOR_SDK) generate kustomize manifests
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
-	$(KUSTOMIZE) build config/manifests | operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
-	operator-sdk bundle validate ./bundle
+	$(KUSTOMIZE) build config/manifests | $(OPERATOR_SDK) generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
+	$(OPERATOR_SDK) bundle validate ./bundle
 
 # Build the bundle image.
 .PHONY: bundle-build
