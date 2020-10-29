@@ -35,7 +35,22 @@ spec:
             x-kubernetes-preserve-unknown-fields: true
             properties:
               group:
-                type: string
+                description: Names of the api group of this APIService
+                type: object
+                properties:
+                  name:
+                    description: Name of the API Group
+                    type: string
+                  kinds:
+                    description: Kind(s) within the api group
+                    type: array
+                    items:
+                      type: string
+                  verbs:
+                    description: Verb(s) allowed within the api group
+                    type: array
+                    items:
+                      type: string
               konk:
                 type: object
                 properties:

@@ -50,6 +50,18 @@ service:
 crds: null
 
 group:
+  name: example.com
+  kinds:
+  - Test
+  - Alpha
+  verbs:
+  - create
+  - update
+  - get
+  - list
+  - delete
+  - patch
+  - watch
 
 version:
 
