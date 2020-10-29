@@ -10,6 +10,7 @@ jobs:
         working-directory: ./src/github.com/${{ github.repository }}
     env:
       GOPATH: ${{ github.workspace }}
+      KIND_NAME: chart-testing
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -27,23 +28,22 @@ jobs:
       - name: Deploy charts
         timeout-minutes: 5
         run: |
-          kubectl cluster-info
+          kubectl cluster-info -v8
           make deploy-cert-manager
-          make deploy-konk
-      - name: Test charts
-        timeout-minutes: 5
-        run: |
-          make test-konk
       - name: Test konk-operator
         timeout-minutes: 5
         run: |
-          make kind-load-konk KIND_NAME="chart-testing"
-          make deploy-konk-operator
+          make -e kind-load-konk-operator
+          make -e deploy-konk-operator
           kubectl create -f examples/konk.yaml
           until kubectl wait --timeout=3m --for=condition=ready pod -l app.kubernetes.io/component=apiserver,app.kubernetes.io/instance=example-konk
           do
             sleep 1
           done
+      - name: Test Konk
+        timeout-minutes: 5
+        run: |
+          make test-konk
       - name: Setup Go
         uses: actions/setup-go@v2
         with:
@@ -51,7 +51,7 @@ jobs:
       - name: Deploy Test APIServer
         timeout-minutes: 5
         run: |
-          make kind-load-apiserver deploy-example-apiserver KIND_NAME="chart-testing"
+          make -e kind-load-apiserver deploy-example-apiserver
           POD_NAME=$(kubectl get pod -o name | grep konkservice)
           until kubectl exec -it $POD_NAME -- kubectl get apiservice v1alpha1.example.infoblox.com | grep True
           do

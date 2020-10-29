@@ -184,7 +184,7 @@ kind: $(KIND)
 kind-destroy: $(KIND)
 	$(KIND) delete cluster --name ${KIND_NAME}
 
-kind-load-konk: $(KIND) docker-build
+kind-load-konk-operator: $(KIND) docker-build
 	$(KIND) load docker-image ${IMG} --name ${KIND_NAME}
 
 kind-load-apiserver: QUAY_IMG=$(shell $(HELM) template helm-charts/example-apiserver | awk '/image: quay/ {print $$2}')

@@ -1,5 +1,5 @@
 apiVersion: konk.infoblox.com/v1alpha1
 kind: Konk
 metadata:
-  name: example-konk
+  name: example
 spec: {}

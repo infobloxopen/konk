@@ -104,4 +104,4 @@ apiserver:
     key: ""
 
 konk:
-  name: example-konk
+  name: example
