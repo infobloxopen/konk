@@ -13,3 +13,4 @@ spec:
   - {{ .Values.service.name }}
   - {{ .Values.service.name }}.{{ .Release.Namespace }}
   - {{ .Values.service.name }}.{{ .Release.Namespace }}.svc
+  - {{ .Values.service.name }}.{{ .Release.Namespace }}.svc.cluster.local

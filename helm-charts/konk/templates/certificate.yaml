@@ -6,9 +6,11 @@ metadata:
   labels:
     {{- include "konk.labels" . | nindent 4 }}
 spec:
-  secretName: {{ include "konk.fullname" . }}-generated-cert
+  secretName: {{ include "konk.fullname" . }}-ingress-client
+  # SubjectAltName
+  # TODO: change to view, update RBAC to allow view
   dnsNames:
-  - {{ include "konk.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local
+  - admin
   issuerRef:
     name: {{ include "konk.fullname" . }}-ca-issuer
     kind: Issuer
