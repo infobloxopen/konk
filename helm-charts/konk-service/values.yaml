@@ -39,6 +39,17 @@ kind:
     # runAsNonRoot: true
     # runAsUser: 1000
 
+ingress:
+  enabled: false
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+  hosts:
+    - host: localhost
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
+
 konk:
   # The value below should be overriden by the konk-name
   name:
