@@ -1,4 +1,4 @@
-apiVersion: cert-manager.io/v1alpha2
+apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
   name: {{ include "konk.fullname" . }}-ingress-client
@@ -9,6 +9,10 @@ spec:
   secretName: {{ include "konk.fullname" . }}-ingress-client
   # SubjectAltName
   # TODO: change to view, update RBAC to allow view
+  subject:
+    organizations:
+    - system:masters
+  commonName: kubernetes-admin
   dnsNames:
   - admin
   issuerRef:
