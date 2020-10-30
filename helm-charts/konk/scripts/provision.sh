@@ -1,7 +1,19 @@
 #!/bin/bash
 set -xe
 
+cat << EOF > /tmp/kubeadmcfg.yaml
+apiVersion: "kubeadm.k8s.io/v1beta2"
+kind: ClusterConfiguration
+etcd:
+  local:
+    serverCertSANs:
+    - localhost
+    - $RELEASE-etcd-headless
+EOF
+
 kubeadm init phase certs all --apiserver-cert-extra-sans $FULLNAME,$FULLNAME.$NAMESPACE,$FULLNAME.$NAMESPACE.svc,$FULLNAME.$NAMESPACE.svc.cluster.local
+rm -f /etc/kubernetes/pki/etcd/server*
+kubeadm init phase certs etcd-server --config=/tmp/kubeadmcfg.yaml
 kubeadm init phase kubeconfig admin --control-plane-endpoint $FULLNAME.$NAMESPACE.svc
 find /etc/kubernetes/pki
 if ! kubectl -n $NAMESPACE get secret $FULLNAME-etcd-cert

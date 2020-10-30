@@ -44,10 +44,10 @@ apiserver:
     - storage.k8s.io/v1beta1
 
 etcd:
-  image:
-    repository: k8s.gcr.io/etcd
-    pullPolicy: Always
-    tag: "3.4.9-1" # keep image versions in sync with `kubeadm config images list`
+  # image:
+  #   repository: k8s.gcr.io/etcd
+  #   pullPolicy: Always
+  #   tag: "3.4.9-1" # keep image versions in sync with `kubeadm config images list`
   resources:
     limits:
       cpu: 200m
@@ -62,6 +62,22 @@ etcd:
     # readOnlyRootFilesystem: true
     # runAsNonRoot: true
     # runAsUser: 1000
+
+  # subchart options
+  subchart: true
+  auth:
+    rbac:
+      enabled: false
+    client:
+      secureTransport: true
+      existingSecret: # must override this with RELEASE_NAME-CHART_NAME-etcd-cert
+      certFilename: server.crt
+      certKeyFilename: server.key
+  # these probes don't work with self-signed certs because probe.sh doesn't set the cacert path in the $AUTH_OPTIONS
+  livenessProbe:
+    enabled: false
+  readinessProbe:
+    enabled: false
 
 kind:
   image:
@@ -132,17 +148,3 @@ nodeSelector: {}
 tolerations: []
 
 affinity: {}
-
-etcd:
-  subchart: true
-  auth:
-    rbac:
-      enabled: false
-    client:
-      secureTransport: true
-      existingSecret: # must override this with RELEASE_NAME-CHART_NAME-etcd-cert
-  # these probes don't work with self-signed certs because probe.sh doesn't set the cacert path in the $AUTH_OPTIONS
-  livenessProbe:
-    enabled: false
-  readinessProbe:
-    enabled: false
