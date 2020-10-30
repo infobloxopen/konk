@@ -25,6 +25,11 @@ apiserver:
     # runAsNonRoot: true
     # runAsUser: 1000
   startupProbe: true
+  remoteHeaders:
+    requestheader-extra-headers-prefix: X-Remote-Extra-
+    requestheader-group-headers: X-Remote-Group
+    requestheader-username-headers: X-Remote-User
+  extraFlags: {}
   disabledAPIs:
     - apps/v1
     - apps/v1beta1

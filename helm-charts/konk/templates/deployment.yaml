@@ -50,6 +50,12 @@ spec:
             {{- end }}
             - --tls-cert-file=/etc/kubernetes/pki/apiserver/apiserver.crt
             - --tls-private-key-file=/etc/kubernetes/pki/apiserver/apiserver.key
+            {{- range $k, $v := .Values.apiserver.remoteHeaders }}
+            - --{{ $k }}={{ $v }}
+            {{- end }}
+            {{- range $k, $v := .Values.apiserver.extraFlags }}
+            - --{{ $k }}={{ $v }}
+            {{- end }}
           livenessProbe:
             httpGet:
               path: /healthz
