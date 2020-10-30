@@ -70,6 +70,8 @@ etcd:
 
   # subchart options
   subchart: true
+  statefulset:
+    replicaCount: 3
   auth:
     rbac:
       enabled: false
