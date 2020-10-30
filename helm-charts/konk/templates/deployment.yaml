@@ -48,6 +48,10 @@ spec:
             {{- range $api := .Values.apiserver.disabledAPIs }}
             - --runtime-config={{ $api }}=false
             {{- end }}
+            - --requestheader-allowed-names=core
+            - --proxy-client-cert-file=/etc/kubernetes/pki/proxyclient/tls.crt
+            - --proxy-client-key-file=/etc/kubernetes/pki/proxyclient/tls.key
+            - --requestheader-client-ca-file=/etc/kubernetes/pki/proxyclient/ca.crt
             - --tls-cert-file=/etc/kubernetes/pki/apiserver/apiserver.crt
             - --tls-private-key-file=/etc/kubernetes/pki/apiserver/apiserver.key
             {{- range $k, $v := .Values.apiserver.remoteHeaders }}
@@ -83,6 +87,9 @@ spec:
           resources:
             {{- toYaml .Values.apiserver.resources | nindent 12 }}
           volumeMounts:
+          - mountPath: /etc/kubernetes/pki/proxyclient/
+            name: proxy-client
+            readOnly: true
           - mountPath: /etc/kubernetes/pki/apiserver
             name: apiserver-certs
             readOnly: true
@@ -118,6 +125,10 @@ spec:
             name: etcd-client-certs
             readOnly: true
       volumes:
+      - name: proxy-client
+        secret:
+          defaultMode: 256
+          secretName: {{ include "konk.fullname" . }}-proxy-client
       - name: etcd-client-certs
         secret:
           defaultMode: 256

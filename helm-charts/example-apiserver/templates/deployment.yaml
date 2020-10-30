@@ -88,9 +88,15 @@ spec:
           command:
           - "./apiserver"
           args:
+          # https://kubernetes.io/docs/tasks/extend-kubernetes/configure-aggregation-layer/#kubernetes-apiserver-client-authentication
+          # authN kubeconfig looks up the configmap kube-system/extension-apiserver-authentication
           - --authentication-kubeconfig=/kubeconfig/admin.conf
-          - --delegated-auth=false
+          # authZ kubeconfig creates subjectaccessreviews.authorization.k8s.io
+          - --authorization-kubeconfig=/kubeconfig/admin.conf
+          # https://github.com/kubernetes-sigs/apiserver-builder-alpha/blob/master/docs/concepts/auth.md#delegated-token-authentication
+          - --delegated-auth=true
           - --etcd-servers=http://127.0.0.1:{{ .Values.etcd.svc.port }}
+          # Server certificates must be signed with CA used in apiregistration object
           - --tls-cert-file=/apiserver.local.config/certificates/tls.crt
           - --tls-private-key-file=/apiserver.local.config/certificates/tls.key
           - -v=10
@@ -109,7 +115,7 @@ spec:
       volumes:
       - name: apiserver-certs
         secret:
-          secretName: {{ include "example-apiserver.fullname" . }}-api-konk-service-server
+          secretName: {{ .Release.Name }}-api-konk-service-server
       - name: kubeconfig
         secret:
-          secretName: {{ .Values.konk.name }}-kubeconfig
+          secretName: {{ .Values.konk.name }}-konk-kubeconfig

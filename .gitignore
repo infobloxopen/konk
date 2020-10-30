@@ -29,3 +29,5 @@ helm-charts/konk-operator/rbac
 
 /.image-*
 /bin/
+
+examples/konk.yaml
