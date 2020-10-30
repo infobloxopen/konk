@@ -28,6 +28,26 @@ spec:
       serviceAccountName: {{ include "example-apiserver.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      initContainers:
+      - name: kubectl
+        image: "{{ .Values.kind.image.repository }}:{{ .Values.kind.image.tag }}"
+        imagePullPolicy: {{ .Values.kind.image.pullPolicy }}
+        command:
+        - /bin/bash
+        - -c
+        args:
+        - |
+          until kubectl get contact
+          do
+            sleep 1s
+          done
+        env:
+        - name: KUBECONFIG
+          value: /etc/kubernetes/admin.conf
+        volumeMounts:
+        - name: kubeconfig
+          mountPath: "/etc/kubernetes"
+          readOnly: true
       containers:
         - name: controller
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
