@@ -82,14 +82,18 @@ spec:
           - name: apiserver-certs
             mountPath: /apiserver.local.config/certificates
             readOnly: true
+          - name: kubeconfig
+            mountPath: /kubeconfig
+            readOnly: true
           command:
           - "./apiserver"
           args:
-          - "--delegated-auth=false"
+          - --authentication-kubeconfig=/kubeconfig/admin.conf
+          - --delegated-auth=false
           - --etcd-servers=http://127.0.0.1:{{ .Values.etcd.svc.port }}
-          - "--tls-cert-file=/apiserver.local.config/certificates/tls.crt"
-          - "--tls-private-key-file=/apiserver.local.config/certificates/tls.key"
-          - "-v=10"
+          - --tls-cert-file=/apiserver.local.config/certificates/tls.crt
+          - --tls-private-key-file=/apiserver.local.config/certificates/tls.key
+          - -v=10
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -105,4 +109,7 @@ spec:
       volumes:
       - name: apiserver-certs
         secret:
-          secretName: {{ include "example-apiserver.fullname" . }}
+          secretName: {{ include "example-apiserver.fullname" . }}-diff-konk-service-server
+      - name: kubeconfig
+        secret:
+          secretName: {{ .Values.konk.name }}-kubeconfig

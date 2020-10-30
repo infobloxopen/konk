@@ -39,7 +39,6 @@ spec:
   insecureSkipTLSVerify: true
 {{- end }}
 ---
-{{- end }}
 apiVersion: v1
 kind: Secret
 type: kubernetes.io/tls
@@ -51,3 +50,4 @@ metadata:
 data:
   tls.crt: {{ b64enc $aaCert.Cert }}
   tls.key: {{ b64enc $aaCert.Key }}
+{{- end }}

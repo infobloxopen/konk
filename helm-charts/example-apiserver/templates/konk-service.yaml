@@ -1,7 +1,7 @@
 apiVersion: konk.infoblox.com/v1alpha1
 kind: KonkService
 metadata:
-  name: example-konkservice
+  name: {{ include "example-apiserver.fullname" . }}-diff
 spec:
   konk:
     name: {{ .Values.konk.name }}
@@ -20,6 +20,6 @@ spec:
     - list
     - update
   version: v1alpha1
-  insecureSkipTLSVerify: true
+  insecureSkipTLSVerify: {{ .Values.konkservice.insecureSkipTLSVerify }}
   crds: |
 {{ (.Files.Glob "crds/*").AsConfig | indent 4 }}
