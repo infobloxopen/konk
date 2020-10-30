@@ -36,7 +36,7 @@ jobs:
           make -e kind-load-konk-operator
           make -e deploy-konk-operator
           kubectl create -f examples/konk.yaml
-          until kubectl wait --timeout=3m --for=condition=ready pod -l app.kubernetes.io/component=apiserver,app.kubernetes.io/instance=example-konk
+          until kubectl wait --timeout=3m --for=condition=ready pod -l app.kubernetes.io/component=apiserver,app.kubernetes.io/instance=example
           do
             sleep 1
           done
