@@ -129,10 +129,13 @@ rules:
   - update
   - watch
 - verbs:
-  - get
   - create
+  - delete
+  - get
   - list
   - patch
+  - update
+  - watch
   apiGroups:
   - "cert-manager.io"
   resources:
