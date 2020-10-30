@@ -5,6 +5,7 @@ import (
 	_ "github.com/go-openapi/loads"
 	_ "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	_ "github.com/infobloxopen/konk/test/apiserver/pkg/auth/remoteheader"
 	_ "k8s.io/client-go/plugin/pkg/client/auth" // Enable cloud provider auth
 	"sigs.k8s.io/apiserver-builder-alpha/pkg/cmd/server"
 

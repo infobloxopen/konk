@@ -52,7 +52,7 @@ jobs:
         timeout-minutes: 5
         run: |
           make kind-load-apiserver deploy-example-apiserver KIND_NAME="chart-testing"
-          POD_NAME=$(kubectl get pod -o name | grep konkservice)
+          POD_NAME=$(kubectl get pod -o name -l app.kubernetes.io/name=konk-service )
           until kubectl exec -it $POD_NAME -- kubectl get apiservice v1alpha1.example.infoblox.com | grep True
           do
             kubectl exec -it $POD_NAME -- kubectl describe apiservice v1alpha1.example.infoblox.com

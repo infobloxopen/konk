@@ -10,7 +10,6 @@ spec:
   selector:
     matchLabels:
       {{- include "konk-service.selectorLabels" . | nindent 6 }}
-      app.kubernetes.io/component: apiservice
   template:
     metadata:
       annotations:
@@ -18,7 +17,6 @@ spec:
         checksum/values: {{ print .Values | sha256sum }}
       labels:
         {{- include "konk-service.selectorLabels" . | nindent 8 }}
-        app.kubernetes.io/component: apiservice
     spec:
       serviceAccountName: {{ include "konk-service.serviceAccountName" . }}
       containers:

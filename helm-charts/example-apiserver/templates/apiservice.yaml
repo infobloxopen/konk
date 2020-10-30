@@ -16,7 +16,18 @@ metadata:
     apiserver: "true"
 spec:
   version: v1alpha1
-  group: example.infoblox.com
+  group:
+  - name: example.infoblox.com
+    kinds:
+    - Contact
+    verbs:
+    - create
+    - update
+    - get
+    - list
+    - delete
+    - patch
+    - watch
   groupPriorityMinimum: 2000
   service:
     name: {{ include "example-apiserver.fullname" . }}
@@ -28,7 +39,6 @@ spec:
   insecureSkipTLSVerify: true
 {{- end }}
 ---
-{{- end }}
 apiVersion: v1
 kind: Secret
 type: kubernetes.io/tls
@@ -40,3 +50,4 @@ metadata:
 data:
   tls.crt: {{ b64enc $aaCert.Cert }}
   tls.key: {{ b64enc $aaCert.Key }}
+{{- end }}

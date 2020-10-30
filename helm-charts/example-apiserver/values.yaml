@@ -103,5 +103,8 @@ apiserver:
     crt: ""
     key: ""
 
+konkservice:
+  insecureSkipTLSVerify: false
+
 konk:
   name: example-konk
