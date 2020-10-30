@@ -7,4 +7,6 @@
   version: v1alpha1
   kind: KonkService
   chart: helm-charts/konk-service
+  overrideValues:
+    authURL: $AUTH_URL
 # +kubebuilder:scaffold:watch
