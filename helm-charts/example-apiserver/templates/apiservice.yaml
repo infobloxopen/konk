@@ -16,7 +16,18 @@ metadata:
     apiserver: "true"
 spec:
   version: v1alpha1
-  group: example.infoblox.com
+  group:
+  - name: example.infoblox.com
+    kinds:
+    - Contact
+    verbs:
+    - create
+    - update
+    - get
+    - list
+    - delete
+    - patch
+    - watch
   groupPriorityMinimum: 2000
   service:
     name: {{ include "example-apiserver.fullname" . }}
