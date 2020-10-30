@@ -1,6 +1,0 @@
-# TODO: Install secrets with api-service
-# apiVersion:
-# kind: APIService
-# metadata:
-#   name: {{ include "example-apiserver.fullname" . }}
-# spec: {}
