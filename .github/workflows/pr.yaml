@@ -39,8 +39,9 @@ jobs:
         run: |
           make kind-load-konk KIND_NAME="chart-testing"
           make deploy-konk-operator
+          make examples/konk.yaml
           kubectl create -f examples/konk.yaml
-          until kubectl wait --timeout=3m --for=condition=ready pod -l app.kubernetes.io/component=apiserver,app.kubernetes.io/instance=example-konk
+          until kubectl wait --timeout=3m --for=condition=ready pod -l app.kubernetes.io/component=apiserver,app.kubernetes.io/name=konk
           do
             sleep 1
           done
@@ -48,23 +49,27 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: 1.15.x
-      - name: Deploy Test APIServer
+      - name: Deploy Extension APIServer
         timeout-minutes: 5
         run: |
           make kind-load-apiserver deploy-example-apiserver KIND_NAME="chart-testing"
           POD_NAME=$(kubectl get pod -o name -l app.kubernetes.io/name=konk-service )
-          until kubectl exec -it $POD_NAME -- kubectl get apiservice v1alpha1.example.infoblox.com | grep True
+          until kubectl exec -it $POD_NAME -- kubectl get contact
           do
             kubectl exec -it $POD_NAME -- kubectl describe apiservice v1alpha1.example.infoblox.com
-            sleep 10
+            sleep 3
           done
+      - name: Test Extension APIServer
+        timeout-minutes: 2
+        run: |
+          POD_NAME=$(kubectl get pod -o name -l app.kubernetes.io/name=konk-service )
           until cat test/apiserver/sample/contact.yaml | kubectl exec -i $POD_NAME -- kubectl apply -f -
           do
-            sleep 5
+            sleep 1
           done
           until kubectl exec -it $POD_NAME -- kubectl get contact contact-example
           do
-            sleep 5
+            sleep 1
           done
           kubectl exec -it $POD_NAME -- kubectl get crd appconfigs.stable.example.com websites.extensions.example.com
       - name: Print failure
@@ -72,3 +77,5 @@ jobs:
         if: ${{ failure() }}
         run: |
           git diff
+          kubectl describe po
+          k get po,certificate,issuer,secrets,configmap

@@ -50,6 +50,9 @@ deploy-cert-manager:
 deploy-%: package
 	$(HELM) upgrade -i --wait $(RELEASE_NAME)-$* $(CHART_DIR)/$* $(HELM_FLAGS)
 
+examples/konk.yaml: examples/konk.yaml.in
+	cat $< | sed "s/{{USER}}/${USER}/g" > $@
+
 test-%:
 	$(HELM) test --logs $(RELEASE_NAME)-$*
 
@@ -195,8 +198,6 @@ kind-load-apiserver: $(KIND)
 		IMAGE_TAG=${GIT_VERSION} \
 		BUILD_FLAGS="-mod=readonly"
 
-%-example-apiserver: RELEASE_NAME := runner
-
-deploy-example-apiserver: HELM_FLAGS ?=--set=image.tag=$(GIT_VERSION) --set=image.pullPolicy=IfNotPresent
+deploy-example-apiserver: HELM_FLAGS ?=--set=image.tag=$(GIT_VERSION) --set=konk.name=${USER} --set=image.pullPolicy=IfNotPresent
 deploy-example-apiserver:
-	$(HELM) upgrade --debug -i --wait $(RELEASE_NAME)-example-apiserver $(CHART_DIR)/example-apiserver $(HELM_FLAGS)
+	$(HELM) upgrade --debug -i --wait $(RELEASE_NAME)-apiserver $(CHART_DIR)/example-apiserver $(HELM_FLAGS)

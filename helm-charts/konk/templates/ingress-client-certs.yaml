@@ -16,5 +16,6 @@ spec:
   dnsNames:
   - admin
   issuerRef:
-    name: {{ include "konk.fullname" . }}-ca-issuer
+    name: {{ include "konk.fullname" . }}-selfsigned
     kind: Issuer
+...
