@@ -1,5 +1,6 @@
 {{- if .Values.ingress.enabled }}
 {{- $fullName := include "konk-service.fullname" . }}
+{{- $konkName := printf "%s-konk" (.Values.konk.name | trimSuffix "-konk") }}
 {{- if semverCompare ">=1.14-0" .Capabilities.KubeVersion.GitVersion }}
 apiVersion: networking.k8s.io/v1beta1
 {{- else }}
@@ -17,8 +18,8 @@ metadata:
     nginx.ingress.kubernetes.io/auth-response-headers: Authorization,Request-Id
   {{- end }}
     nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
-    nginx.ingress.kubernetes.io/proxy-ssl-name: {{ .Values.konk.name }}
-    nginx.ingress.kubernetes.io/proxy-ssl-secret: {{ .Values.konk.namespace | default .Release.Namespace }}/{{ .Values.konk.name }}-ingress-client
+    nginx.ingress.kubernetes.io/proxy-ssl-name: {{ $konkName }}
+    nginx.ingress.kubernetes.io/proxy-ssl-secret: {{ .Values.konk.namespace | default .Release.Namespace }}/{{ $konkName }}-ingress-client
     nginx.ingress.kubernetes.io/proxy-ssl-verify: "on"
     # nginx.ingress.kubernetes.io/configuration-snippet: |
     #   proxy_set_header 'my-header' $var;
@@ -48,7 +49,7 @@ spec:
             # - /apis/example.infoblox.com/v1alpha1/namespaces/default/contacts
             # - /apis/{{ $.Values.group.name }}/{{ $.Values.version }}
             backend:
-              serviceName: {{ $.Values.konk.name }}-konk
+              serviceName: {{ $konkName }}
               servicePort: https
     {{- end }}
   {{- end }}
