@@ -29,13 +29,8 @@ jobs:
         run: |
           kubectl cluster-info
           make deploy-cert-manager
-          make deploy-konk
-      - name: Test charts
-        timeout-minutes: 5
-        run: |
-          make test-konk
       - name: Test konk-operator
-        timeout-minutes: 5
+        timeout-minutes: 6
         run: |
           make kind-load-konk KIND_NAME="chart-testing"
           make deploy-konk-operator
@@ -45,6 +40,8 @@ jobs:
           do
             sleep 1
           done
+          # helm test runner-konk
+          make test-konk
       - name: Setup Go
         uses: actions/setup-go@v2
         with:

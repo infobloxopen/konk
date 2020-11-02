@@ -54,11 +54,10 @@ examples/konk.yaml: examples/konk.yaml.in
 	cat $< | sed "s/{{USER}}/${USER}/g" > $@
 
 test-%:
-	$(HELM) test --logs $(RELEASE_NAME)-$*
+	$(HELM) test --timeout 2m --logs $(RELEASE_NAME)-$*
 
 teardown-%:
 	$(HELM) delete $(RELEASE_NAME)-$*
-
 
 # Current Operator version
 VERSION ?= 0.0.1

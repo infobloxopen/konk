@@ -1,27 +1,42 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: "{{ include "konk.fullname" . }}-test-connection"
+  name: {{ include "konk.fullname" . }}-test-connection
   labels:
     {{- include "konk.labels" . | nindent 4 }}
   annotations:
     "helm.sh/hook": test-success
+    "helm.sh/hook": test
 spec:
   containers:
   - name: kind
     image: "{{ .Values.kind.image.repository }}:{{ .Values.kind.image.tag | default .Chart.AppVersion }}"
     imagePullPolicy: {{ .Values.kind.image.pullPolicy }}
     command:
-      - kubectl
+    - /bin/bash
+    - -ecx
     args:
-      - get
-      - apiservices
+    - |
+      until kubectl cluster-info
+      do
+        sleep 1s
+      done
+      kubectl get apiservices
+      KUBECONFIG='' kubectl api-versions \
+        --certificate-authority=/nginx/ca.crt \
+        --client-certificate=/nginx/tls.crt \
+        --client-key=/nginx/tls.key \
+        -s https://{{ include "konk.fullname" . }}:6443
+      #sleep 5m
     env:
-      - name: KUBECONFIG
-        value: /kubeconfig/admin.conf
+    - name: KUBECONFIG
+      value: /kubeconfig/admin.conf
     resources:
       {{- toYaml .Values.kind.resources | nindent 6 }}
     volumeMounts:
+    - mountPath: /nginx/
+      name: nginx-client
+      readOnly: true
     - mountPath: /kubeconfig/
       name: kubeconfig
       readOnly: true
@@ -29,4 +44,7 @@ spec:
   - name: kubeconfig
     secret:
       secretName: {{ include "konk.fullname" . }}-kubeconfig
+  - name: nginx-client
+    secret:
+      secretName: {{ include "konk.fullname" . }}-ingress-client
   restartPolicy: Never

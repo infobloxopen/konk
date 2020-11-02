@@ -1,4 +1,15 @@
 apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: {{ include "konk.fullname" . }}-kubeadm-ca
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "konk.labels" . | nindent 4 }}
+spec:
+ ca:
+   secretName: {{ include "konk.fullname" . }}-ca
+---
+apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
   name: {{ include "konk.fullname" . }}-ingress-client
@@ -16,6 +27,6 @@ spec:
   dnsNames:
   - admin
   issuerRef:
-    name: {{ include "konk.fullname" . }}-selfsigned
+    name: {{ include "konk.fullname" . }}-kubeadm-ca
     kind: Issuer
 ...
