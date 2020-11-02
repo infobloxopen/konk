@@ -109,6 +109,8 @@ kind:
     tag: v1.19.0
 
 konkservice:
+  ingress:
+    enabled: true
   insecureSkipTLSVerify: false
 
 konk:

@@ -24,11 +24,13 @@ jobs:
           mkdir -p ~/.kube
           make helm-lint
       - uses: helm/kind-action@v1.0.0
+        with:
+          config: ./src/github.com/${{ github.repository }}/test/kind.yaml
       - name: Deploy charts
         timeout-minutes: 5
         run: |
           kubectl cluster-info
-          make deploy-cert-manager
+          make deploy-cert-manager deploy-ingress-nginx
       - name: Test konk-operator
         timeout-minutes: 6
         run: |
@@ -69,6 +71,14 @@ jobs:
             sleep 1
           done
           kubectl exec -it $POD_NAME -- kubectl get crd appconfigs.stable.example.com websites.extensions.example.com
+      - name: Test ingress
+        timeout-minutes: 1
+        run: |
+          kubectl -n ingress-nginx logs -l app.kubernetes.io/component=controller --tail 0 -f &
+          until kubectl -s localhost:80 get contacts
+          do
+            sleep 3
+          done
       - name: Print failure
         timeout-minutes: 1
         if: ${{ failure() }}

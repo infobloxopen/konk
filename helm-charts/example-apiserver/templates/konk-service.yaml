@@ -23,6 +23,8 @@ spec:
     - list
     - update
   version: v1alpha1
-  insecureSkipTLSVerify: {{ .Values.konkservice.insecureSkipTLSVerify }}
+  {{- with .Values.konkservice }}
+  {{- toYaml . | nindent 2 }}
+  {{- end }}
   crds: |
 {{ (.Files.Glob "crds/*").AsConfig | indent 4 }}
