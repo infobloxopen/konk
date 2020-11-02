@@ -118,4 +118,4 @@ spec:
           secretName: {{ .Release.Name }}-api-konk-service-server
       - name: kubeconfig
         secret:
-          secretName: {{ .Values.konk.name }}-konk-kubeconfig
+          secretName: {{ include "example-apiserver.konkname" . }}-kubeconfig

@@ -15,7 +15,7 @@ HELM_CMD	?= $(DOCKER_RUNNER) \
 K8S_RELEASE	?= v1.19.0
 KUBEADM		?= docker run --rm -it --entrypoint="" kindest/node:$(K8S_RELEASE) kubeadm
 KUBECONFIG	?= ${HOME}/.kube/config
-RELEASE_NAME	?= $(USER)
+RELEASE_PREFIX	?= $(USER)
 
 # KIND env variables
 KIND_NAME   	?= konk
@@ -48,16 +48,13 @@ deploy-cert-manager:
 %-konk-operator: HELM_FLAGS ?=--set=image.tag=$(GIT_VERSION) --set=image.pullPolicy=IfNotPresent
 
 deploy-%: package
-	$(HELM) upgrade -i --wait $(RELEASE_NAME)-$* $(CHART_DIR)/$* $(HELM_FLAGS)
-
-examples/konk.yaml: examples/konk.yaml.in
-	cat $< | sed "s/{{USER}}/${USER}/g" > $@
+	$(HELM) upgrade -i --wait $(RELEASE_PREFIX)-$* $(CHART_DIR)/$* $(HELM_FLAGS)
 
 test-%:
-	$(HELM) test --timeout 2m --logs $(RELEASE_NAME)-$*
+	$(HELM) test "$(RELEASE_PREFIX)-$*" --timeout 2m --logs
 
 teardown-%:
-	$(HELM) delete $(RELEASE_NAME)-$*
+	$(HELM) delete $(RELEASE_PREFIX)-$*
 
 # Current Operator version
 VERSION ?= 0.0.1
@@ -192,14 +189,10 @@ kind-load-konk: $(KIND) docker-build
 
 kind-load-apiserver: QUAY_IMG=$(shell $(HELM) template helm-charts/example-apiserver | awk '/image: quay/ {print $$2}')
 kind-load-apiserver: $(KIND)
-	$(MAKE) -C test/apiserver image kind-load \
+	$(MAKE) -C test/apiserver kind-load \
 		KIND=$(KIND) KIND_NAME=${KIND_NAME} \
 		IMAGE_TAG=${GIT_VERSION} \
 		BUILD_FLAGS="-mod=readonly"
-
-deploy-example-apiserver: HELM_FLAGS ?=--set=image.tag=$(GIT_VERSION) --set=konk.name=${USER} --set=image.pullPolicy=IfNotPresent
-deploy-example-apiserver:
-	$(HELM) upgrade --debug -i --wait $(RELEASE_NAME)-apiserver $(CHART_DIR)/example-apiserver $(HELM_FLAGS)
 
 deploy-ingress-nginx:
 	# avoids accidentally deploying ingress controller in shared clusters
@@ -213,3 +206,10 @@ deploy-ingress-nginx:
 	do \
 		kubectl --namespace ingress-nginx describe pod -l app.kubernetes.io/component=controller; \
 	done
+
+deploy-apiserver: HELM_FLAGS ?=--set=image.tag=$(GIT_VERSION) --set=image.pullPolicy=IfNotPresent --set=konk.name=${KONK_NAME}
+deploy-apiserver: kind-load-apiserver
+	$(HELM) upgrade --debug -i \
+	 	--wait $(RELEASE_PREFIX)-apiserver \
+	 	$(CHART_DIR)/example-apiserver \
+	 	$(HELM_FLAGS)

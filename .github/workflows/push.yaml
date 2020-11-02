@@ -1,0 +1,30 @@
+name: Push
+on:
+  push:
+    branches:
+    - main
+jobs:
+  push:
+    name: Push Images
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: ./src/github.com/${{ github.repository }}
+    env:
+      GOPATH: ${{ github.workspace }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          path: ./src/github.com/${{ github.repository }}
+      - name: Fetch tags
+        run: |
+          pwd
+          git fetch --prune --unshallow
+      - name: Push images
+        timeout-minutes: 3
+        run: |
+          echo TODO add push credentials to repo
+          # make docker-push
+          # make -C test/apiserver push

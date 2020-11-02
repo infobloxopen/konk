@@ -1,8 +1,10 @@
+# generated files
 /config/*.yaml
 /apiserver.tgz
 /bin/*
-.image-*
-.push-*
+/.image-*
+/.push-*
+/.kind-*
 
 config/certificates/
 bin/

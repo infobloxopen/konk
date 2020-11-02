@@ -1,0 +1,8 @@
+apiVersion: konk.infoblox.com/v1alpha1
+kind: Konk
+metadata:
+  name: {{ .Release.Name }}-konk
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "example-apiserver.labels" . | nindent 4 }}
+spec: {}

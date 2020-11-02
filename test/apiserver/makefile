@@ -40,14 +40,10 @@ config: config/konk.yaml config/infra.yaml
 deploy-%: config/%.yaml
 	kubectl apply -f $<
 
-kind-load: KIND=false
-kind-load: QUAY_IMG=quay.io/coreos/etcd:v3.4.13
+# does nothing unless a KIND cli is provided
+kind-load: KIND=echo
 kind-load: image
-	docker pull ${QUAY_IMG}
-	$(KIND) load docker-image ${QUAY_IMG} --name ${KIND_NAME}
 	$(KIND) load docker-image ${IMAGE} --name ${KIND_NAME}
-
-kind-deploy-infra: kind-load deploy-%
 
 .image-${IMAGE_TAG}: build
 	docker build -t ${IMAGE} -f Dockerfile bin/

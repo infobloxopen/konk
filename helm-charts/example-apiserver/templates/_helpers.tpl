@@ -61,3 +61,14 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+{{/*
+Templates kubeconfig name
+*/}}
+{{- define "example-apiserver.konkname" -}}
+{{- if (eq "-" .Values.konk.name) }}
+{{- .Release.Name }}-konk
+{{- else }}
+{{- .Values.konk.name }}
+{{- end }}
+{{- end }}

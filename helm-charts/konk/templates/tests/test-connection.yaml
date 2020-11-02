@@ -27,7 +27,6 @@ spec:
         --client-certificate=/nginx/tls.crt \
         --client-key=/nginx/tls.key \
         -s https://{{ include "konk.fullname" . }}:6443
-      #sleep 5m
     env:
     - name: KUBECONFIG
       value: /kubeconfig/admin.conf
