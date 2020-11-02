@@ -182,7 +182,7 @@ $(shell pwd)/bin/kind: bin/kind-${KIND_VERSION}
 	ln -sf $(shell pwd)/$< bin/kind
 
 kind: $(KIND)
-	$(KIND) create cluster -v 1 --name ${KIND_NAME}
+	$(KIND) create cluster -v 1 --name ${KIND_NAME} --config=test/kind.yaml
 
 kind-destroy: $(KIND)
 	$(KIND) delete cluster --name ${KIND_NAME}
@@ -200,3 +200,16 @@ kind-load-apiserver: $(KIND)
 deploy-example-apiserver: HELM_FLAGS ?=--set=image.tag=$(GIT_VERSION) --set=konk.name=${USER} --set=image.pullPolicy=IfNotPresent
 deploy-example-apiserver:
 	$(HELM) upgrade --debug -i --wait $(RELEASE_NAME)-apiserver $(CHART_DIR)/example-apiserver $(HELM_FLAGS)
+
+deploy-ingress-nginx:
+	# avoids accidentally deploying ingress controller in shared clusters
+	kubectl config current-context | grep -v -E '(^[a-z]{3}-[0-9])|(infoblox.com$$)'
+	# https://kind.sigs.k8s.io/docs/user/ingress/#ingress-nginx
+	kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/static/provider/kind/deploy.yaml
+	until kubectl wait --namespace ingress-nginx \
+		--for=condition=ready pod \
+		--selector=app.kubernetes.io/component=controller \
+		--timeout=10s; \
+	do \
+		kubectl --namespace ingress-nginx describe pod -l app.kubernetes.io/component=controller; \
+	done

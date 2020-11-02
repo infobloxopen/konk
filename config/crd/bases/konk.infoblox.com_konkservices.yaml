@@ -51,6 +51,13 @@ spec:
                     type: array
                     items:
                       type: string
+              ingress:
+                type: object
+                properties:
+                  enabled:
+                    description: Creates an ingress resource pointing to the konk.
+                    type: boolean
+                x-kubernetes-preserve-unknown-fields: true
               konk:
                 type: object
                 properties:
