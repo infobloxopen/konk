@@ -3,8 +3,8 @@ module github.com/infobloxopen/konk/test/apiserver
 go 1.13
 
 require (
-	github.com/go-openapi/loads v0.19.4
-	github.com/go-openapi/spec v0.19.3
+	github.com/go-openapi/loads v0.19.5
+	github.com/go-openapi/spec v0.19.6
 	github.com/gorilla/websocket v1.4.1 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.0.1-0.20190723091251-e0797f438f94 // indirect
 	github.com/onsi/ginkgo v1.12.0
