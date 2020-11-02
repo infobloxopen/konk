@@ -48,7 +48,7 @@ spec:
             # - /apis/example.infoblox.com/v1alpha1/namespaces/default/contacts
             # - /apis/{{ $.Values.group.name }}/{{ $.Values.version }}
             backend:
-              serviceName: {{ $.Values.konk.name }}
+              serviceName: {{ $.Values.konk.name }}-konk
               servicePort: https
     {{- end }}
   {{- end }}
