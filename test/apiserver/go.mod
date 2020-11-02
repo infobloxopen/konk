@@ -7,10 +7,10 @@ require (
 	github.com/go-openapi/spec v0.19.3
 	github.com/gorilla/websocket v1.4.1 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.0.1-0.20190723091251-e0797f438f94 // indirect
-	github.com/onsi/ginkgo v1.12.0
-	github.com/onsi/gomega v1.9.0
+	github.com/onsi/ginkgo v1.12.1
+	github.com/onsi/gomega v1.10.3
 	github.com/spf13/pflag v1.0.5
-	golang.org/x/net v0.0.0-20200707034311-ab3426394381
+	golang.org/x/net v0.0.0-20201006153459-a7d1128ccaa0
 	k8s.io/apimachinery v0.19.2
 	k8s.io/apiserver v0.19.2
 	k8s.io/client-go v0.19.2
