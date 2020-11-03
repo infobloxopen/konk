@@ -79,6 +79,8 @@ jobs:
           do
             sleep 3
           done
+          curl 'localhost/apis/example.infoblox.com/v1alpha1/namespaces/default/contacts?limit=500' \
+            -H 'X-Remote-Extra-OBO: foo'
       - name: Print failure
         timeout-minutes: 1
         if: ${{ failure() }}
