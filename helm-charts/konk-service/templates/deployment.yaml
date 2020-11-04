@@ -65,7 +65,11 @@ spec:
           secretName: {{ .Values.konk.name | required "must specify konk.name" }}-konk-kubeconfig
       - name: ca-cert
         secret:
-          secretName: {{ include "konk-service.fullname" . }}-server
+          secretName: {{ if .Values.service.caSecretName -}}
+          {{ .Values.service.caSecretName }}
+          {{- else -}}
+          {{ include "konk-service.fullname" . }}-server
+          {{- end }}
       - name: mounts
         configMap:
           name: {{ include "konk-service.fullname" . }}-mounts

@@ -1,3 +1,4 @@
+{{- if not .Values.service.caSecretName }}
 apiVersion: {{ include "konk-service.certManagerApiVersion" . }}
 kind: Issuer
 metadata:
@@ -33,3 +34,4 @@ metadata:
 spec:
   ca:
     secretName: {{ include "konk-service.fullname" . }}
+{{- end }}
