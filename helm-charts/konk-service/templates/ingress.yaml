@@ -42,7 +42,8 @@ spec:
     - host: {{ .host | quote }}
       http:
         paths:
-          - path: /api
+        {{- range list "/api" "/apis" }}
+          - path: {{ . }}
             # actual path examples:
             # - /api
             # - /apis
@@ -51,5 +52,6 @@ spec:
             backend:
               serviceName: {{ $konkName }}
               servicePort: https
+        {{- end }}
     {{- end }}
   {{- end }}
