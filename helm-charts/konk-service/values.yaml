@@ -57,6 +57,9 @@ konk:
 service:
   # The value below should be overriden by service-name
   name: test
+  # Optional reference to the secret the service's CA certs are stored in.
+  # When omitted, KonkService will generate a CA to be used by the APIService.
+  caSecretName:
 
 crds: null
 
