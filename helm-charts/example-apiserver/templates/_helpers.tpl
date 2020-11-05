@@ -63,7 +63,7 @@ Create the name of the service account to use
 {{- end }}
 
 {{/*
-Templates kubeconfig name
+Templates konk name
 */}}
 {{- define "example-apiserver.konkname" -}}
 {{- if (eq "-" .Values.konk.name) }}

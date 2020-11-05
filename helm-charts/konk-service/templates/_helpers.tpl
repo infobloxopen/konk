@@ -81,3 +81,10 @@ dummy
 {{- fail "cert-manager CRD does not appear to be installed" }}
 {{- end -}}
 {{- end -}}
+
+{{/*
+Templates konk name
+*/}}
+{{- define "konk-service.konkname" -}}
+{{- .Values.konk.name }}
+{{- end }}

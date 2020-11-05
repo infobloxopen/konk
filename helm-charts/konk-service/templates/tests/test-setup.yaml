@@ -23,7 +23,7 @@ spec:
       kubectl auth can-i create apiservice
       kubectl auth can-i create crd
       {{- range .Values.group.kinds }}
-      until kubectl get {{ $.Values.group.name}}/{{ . }}
+      until kubectl get {{ . }}.{{ $.Values.group.name}}
       do
       sleep 3s
       done
@@ -37,4 +37,4 @@ spec:
   volumes:
   - name: kubeconfig
     secret:
-      secretName: {{ .Values.konk.name | required "must specify konk.name" }}-kubeconfig
+      secretName: {{ include "konk-service.konkname" . }}-kubeconfig

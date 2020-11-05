@@ -13,7 +13,7 @@ spec:
   group:
     name: example.infoblox.com
     kinds:
-    - Contact
+    - contact
     verbs:
     - create
     - delete

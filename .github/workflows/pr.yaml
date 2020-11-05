@@ -48,7 +48,7 @@ jobs:
         with:
           go-version: 1.15.x
       - name: Test Extension APIServer
-        timeout-minutes: 5
+        timeout-minutes: 3
         run: |
           # deploy example-apiserver using a passed KONK reference
           make deploy-apiserver KIND_NAME="chart-testing" KONK_NAME="runner-konk"

@@ -1,3 +1,7 @@
+{{- if (eq "-" .Values.konk.name) }}
+{{/*
+Stand up KONK is one is not provided as input to the chart
+*/}}
 apiVersion: konk.infoblox.com/v1alpha1
 kind: Konk
 metadata:
@@ -6,3 +10,4 @@ metadata:
   labels:
     {{- include "example-apiserver.labels" . | nindent 4 }}
 spec: {}
+{{- end }}
