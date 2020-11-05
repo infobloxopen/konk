@@ -36,41 +36,31 @@ jobs:
         run: |
           make kind-load-konk KIND_NAME="chart-testing"
           make deploy-konk-operator
-          make examples/konk.yaml
+
           kubectl create -f examples/konk.yaml
           until kubectl wait --timeout=3m --for=condition=ready pod -l app.kubernetes.io/component=apiserver,app.kubernetes.io/name=konk
           do
             sleep 1
           done
-          # helm test runner-konk
           make test-konk
       - name: Setup Go
         uses: actions/setup-go@v2
         with:
           go-version: 1.15.x
-      - name: Deploy Extension APIServer
-        timeout-minutes: 5
+      - name: Test Extension APIServer
+        timeout-minutes: 3
         run: |
-          make kind-load-apiserver deploy-example-apiserver KIND_NAME="chart-testing"
+          # deploy example-apiserver using a passed KONK reference
+          make deploy-apiserver KIND_NAME="chart-testing" KONK_NAME="runner-konk"
           POD_NAME=$(kubectl get pod -o name -l app.kubernetes.io/name=konk-service )
           until kubectl exec -it $POD_NAME -- kubectl get contact
           do
             kubectl exec -it $POD_NAME -- kubectl describe apiservice v1alpha1.example.infoblox.com
             sleep 3
           done
-      - name: Test Extension APIServer
-        timeout-minutes: 2
-        run: |
-          POD_NAME=$(kubectl get pod -o name -l app.kubernetes.io/name=konk-service )
-          until cat test/apiserver/sample/contact.yaml | kubectl exec -i $POD_NAME -- kubectl apply -f -
-          do
-            sleep 1
-          done
-          until kubectl exec -it $POD_NAME -- kubectl get contact contact-example
-          do
-            sleep 1
-          done
-          kubectl exec -it $POD_NAME -- kubectl get crd appconfigs.stable.example.com websites.extensions.example.com
+          make test-apiserver
+          # Test konkservice deployed
+          make test-apiserver-api
       - name: Test ingress
         timeout-minutes: 1
         run: |

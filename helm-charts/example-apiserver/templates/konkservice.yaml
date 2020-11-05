@@ -7,13 +7,13 @@ metadata:
     {{- include "example-apiserver.labels" . | nindent 4 }}
 spec:
   konk:
-    name: {{ .Values.konk.name }}
+    name: {{ include "example-apiserver.konkname" . }}
   service:
     name: {{ include "example-apiserver.fullname" . }}
   group:
     name: example.infoblox.com
     kinds:
-    - Contact
+    - contact
     verbs:
     - create
     - delete

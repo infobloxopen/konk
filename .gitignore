@@ -27,7 +27,7 @@ helm-charts/konk-operator/crds/
 helm-charts/konk-operator/rbac
 /*.tgz
 
+# generated files
 /.image-*
 /bin/
-
-examples/konk.yaml
+/.kind-load-*

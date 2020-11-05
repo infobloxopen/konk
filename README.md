@@ -61,3 +61,8 @@ This chart will deploy an example-apiserver instance. This chart requires an exi
     NAME                                READY   STATUS    RESTARTS   AGE
     example-konk-6b4996448c-skjxw       2/2     Running   0          83s
     example-konk-init-d6cff859c-2w4bm   1/1     Running   0          83s
+
+### Deploy example apiserver with konk
+
+    make deploy-example-apiserver
+    make test-example-apiserver

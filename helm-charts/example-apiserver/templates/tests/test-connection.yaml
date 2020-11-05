@@ -1,15 +1,54 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: "{{ include "example-apiserver.fullname" . }}-test-connection"
+  name: {{ include "example-apiserver.fullname" . }}-test
   labels:
     {{- include "example-apiserver.labels" . | nindent 4 }}
   annotations:
     "helm.sh/hook": test-success
+    "helm.sh/hook": test
 spec:
   containers:
-    - name: wget
-      image: busybox
-      command: ['wget']
-      args: ['{{ include "example-apiserver.fullname" . }}:{{ .Values.service.port }}']
+  - name: wget
+    image: {{ .Values.kind.image.repository }}:{{ .Values.kind.image.tag }}
+    command:
+    - /bin/bash
+    - -cx
+    env:
+    - name: KUBECONFIG
+      value: /kubeconfig/admin.conf
+    args:
+    - |
+      until kubectl cluster-info
+      do
+        sleep 1s
+      done
+      # verify api server is responding
+      until kubectl get contact
+      do
+        sleep 1s
+      done
+
+      # HEREDOC in a variable is ugly code
+      # TODO: make this retry
+      cat <<EOF | kubectl create -f -
+      apiVersion: example.infoblox.com/v1alpha1
+      kind: Contact
+      metadata:
+        name: contact-example
+      spec:
+      EOF
+
+      kubectl get contact-example
+      kubectl delete contact-example
+
+      kubectl get crd appconfigs.stable.example.com websites.extensions.example.com
+    volumeMounts:
+    - name: kubeconfig
+      mountPath: /kubeconfig
+      readOnly: true
   restartPolicy: Never
+  volumes:
+  - name: kubeconfig
+    secret:
+      secretName: {{ include "example-apiserver.konkname" . }}-kubeconfig

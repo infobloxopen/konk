@@ -1,6 +1,8 @@
 {{- if .Values.ingress.enabled }}
 {{- $fullName := include "konk-service.fullname" . }}
-{{- $konkName := printf "%s-konk" (.Values.konk.name | trimSuffix "-konk") }}
+{{- $konkName := include "konk-service.konkname" . }}
+
+{{- $konkName := include "konk-service.konkname" . }}
 {{- if semverCompare ">=1.14-0" .Capabilities.KubeVersion.GitVersion }}
 apiVersion: networking.k8s.io/v1beta1
 {{- else }}

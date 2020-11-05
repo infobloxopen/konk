@@ -19,7 +19,7 @@ kind:
     repository: kindest/node
     pullPolicy: Always
     # Overrides the image tag whose default is the chart appVersion.
-    tag: ""
+    tag: v1.19.0
   resources: {}
     # We usually recommend not to specify default resources and to leave this as a conscious
     # choice for the user. This also increases chances charts run on environments with little
@@ -52,7 +52,7 @@ ingress:
 
 konk:
   # The value below should be overriden by the konk-name
-  name:
+  name: ""
 
 service:
   # The value below should be overriden by service-name

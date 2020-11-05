@@ -80,4 +80,4 @@ spec:
       volumes:
       - name: kubeconfig
         secret:
-          secretName: {{ .Values.konk.name | required "must specify konk.name" }}-konk-kubeconfig
+          secretName: {{ include "example-apiserver.konkname" . }}-kubeconfig

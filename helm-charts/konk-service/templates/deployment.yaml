@@ -62,7 +62,7 @@ spec:
       volumes:
       - name: kubeconfig
         secret:
-          secretName: {{ .Values.konk.name | required "must specify konk.name" }}-konk-kubeconfig
+          secretName: {{ include "konk-service.konkname" . }}-kubeconfig
       - name: ca-cert
         secret:
           secretName: {{ if .Values.service.caSecretName -}}
