@@ -23,7 +23,8 @@ spec:
       kubectl auth can-i create apiservice
       kubectl auth can-i create crd
       {{- range .Values.group.kinds }}
-      until kubectl get {{ $.Values.group.name}}/{{ . }}; do
+      until kubectl get {{ $.Values.group.name}}/{{ . }}
+      do
       sleep 3s
       done
       {{- end }}

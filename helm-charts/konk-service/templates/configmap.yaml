@@ -75,7 +75,7 @@ data:
         - {{ .Values.group.name }}
         resources:
         {{- range .Values.group.kinds }}
-        - {{ . | title }}
+        - {{ . }}
         {{- end }}
         verbs:
         {{- range .Values.group.verbs }}
