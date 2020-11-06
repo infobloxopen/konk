@@ -53,6 +53,16 @@ deploy-%: package
 test-%:
 	$(HELM) test "$(RELEASE_PREFIX)-$*" --timeout 2m --logs
 
+test-konk-local:
+	kubectl delete -f test/konk.fail.yaml || true
+	kubectl create -f test/konk.fail.yaml
+	until kubectl wait --timeout=1s \
+		--for=condition=ReleaseFailed \
+		konk failstodeploy; \
+    do \
+      sleep 1s; \
+    done
+
 teardown-%:
 	$(HELM) delete $(RELEASE_PREFIX)-$*
 
