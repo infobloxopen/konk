@@ -35,6 +35,25 @@ The konk-service chart or `KonkService` CR will deploy the resources required to
 
 [Example `KonkService`](examples/konk-service.yaml)
 
+### front-proxy ingress
+
+Setting `.spec.ingress.enabled=true` in your `KonkService` will provision front-proxy ingress to the `APIService` you registered in konk. The front-proxy certs are provisioned automatically.
+
+```yaml
+kind: KonkService
+...
+spec:
+  ...
+  ingress:
+    enabled: true
+    hosts:
+    - host: my-api.example.com
+    tls:
+    - hosts:
+      - my-api.example.com
+      secretName: my-api.example.com-tls
+```
+
 # Testing
 
 ## example apiserver chart
