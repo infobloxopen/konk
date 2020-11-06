@@ -134,7 +134,7 @@ konk-operator-${GIT_VERSION}.tgz:
 %-${GIT_VERSION}.tgz:
 	${HELM} package helm-charts/$* --version ${GIT_VERSION}
 
-package: konk-operator-${GIT_VERSION}.tgz konk-${GIT_VERSION}.tgz konk-service-${GIT_VERSION}.tgz
+package: konk-operator-${GIT_VERSION}.tgz konk-${GIT_VERSION}.tgz konk-service-${GIT_VERSION}.tgz example-apiserver-${GIT_VERSION}.tgz
 
 OPERATOR_VERSION:=v1.1.0
 ./bin/%: ./bin/%-$(OPERATOR_VERSION)
