@@ -2,7 +2,7 @@
 
 konk - Kubernetes On Kubernetes - is a tool for deploying an independent Kubernetes API server within Kubernetes.
 
-konk can be used as part of a larger application to manage resources via CustomResourceDefinitions and implement a CRUD API for those resources by leveraging kube-apiserver.
+konk can be used as part of a larger application to manage resources via CustomResourceDefinitions and implement a CRUD API for those resources by leveraging kube-apiserver. Or implement an [extension API server](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/apiserver-aggregation/) without worrying about [breaking the parent cluster with a non-compliant API](https://github.com/kubernetes/kubernetes/issues/96066).
 
 konk does not start a kubelet and therefore does not support any resources that require a node such as deployments and pods.
 
@@ -60,10 +60,7 @@ spec:
 
 Found in [helm-charts/example-apiserver](helm-charts/example-apiserver).
 
-This chart will deploy an example-apiserver instance. This chart requires an existing konk to be deployed in the cluster. This chart also assumes that the konk-operator has been deployed to the cluster, since it involves creating a `KonkService` CR. In the `KonkService` CR, you need to specify the name of the konk and the name of the service that the APIService object being created should point to. This would be specified under `konk.name` and `service.name` in the `values.yaml` file. Also specify the `group` and `version` values to be populated in the generated APIService. CRDs can be deployed by creating a `crds` folder in your helm-chart. The crds created here will be installed in Konk. These CRDs are added to the KonkService CR using -
-
-      crds: |
-    {{ (.Files.Glob "crds/*").AsConfig | indent 4 }}
+This chart will deploy an example-apiserver instance, which is a reference implementation of an extension API server and its usage with konk. This chart requires an existing konk to be deployed in the cluster. This chart also assumes that the konk-operator has been deployed to the cluster, since it involves creating a `KonkService` CR.
 
 ### Optional, stand up KIND
 
