@@ -16,11 +16,19 @@ If release name contains chart name it will be used as a full name.
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
 {{- else }}
 {{- $name := default .Chart.Name .Values.nameOverride }}
-{{- if contains $name .Release.Name }}
+    {{- if contains $name .Release.Name }}
 {{- .Release.Name | trunc 63 | trimSuffix "-" }}
-{{- else }}
+    {{- else }}
+        {{- if hasSuffix "-konk" .Release.Name }}
 {{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" }}
-{{- end }}
+        {{- else if (eq "RELEASE-NAME" .Release.Name) }}
+{{- "template-konk" }}
+        {{- else if (eq "testRelease" .Release.Name) }}
+{{- "lint-konk" }}
+        {{- else }}
+{{- fail (printf "release name (%s) must include a -konk suffix:" .Release.Name) }}
+        {{- end }}
+    {{- end }}
 {{- end }}
 {{- end }}
 

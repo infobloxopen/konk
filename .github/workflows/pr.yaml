@@ -43,6 +43,7 @@ jobs:
             sleep 1
           done
           make test-konk
+          make test-konk-local
       - name: Setup Go
         uses: actions/setup-go@v2
         with:

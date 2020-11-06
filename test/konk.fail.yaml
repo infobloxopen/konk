@@ -1,0 +1,5 @@
+apiVersion: konk.infoblox.com/v1alpha1
+kind: Konk
+metadata:
+  name: failstodeploy
+spec: {}
