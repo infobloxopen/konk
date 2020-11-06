@@ -64,9 +64,12 @@ spec:
                   name:
                     description: The name of the konk to create the APIService in.
                     type: string
+                    pattern: '^.+-konk$'
+                  namespace:
+                    description: Namespace of the konk service
+                    type: string
                 required:
                 - name
-                x-kubernetes-preserve-unknown-fields: true
               service:
                 type: object
                 properties:
