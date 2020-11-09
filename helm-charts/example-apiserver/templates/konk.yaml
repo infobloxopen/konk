@@ -1,11 +1,11 @@
-{{- if (eq "-" .Values.konk.name) }}
+{{- if .Values.konk.create }}
 {{/*
 Stand up KONK is one is not provided as input to the chart
 */}}
 apiVersion: konk.infoblox.com/v1alpha1
 kind: Konk
 metadata:
-  name: {{ .Release.Name }}-konk
+  name: {{ include "example-apiserver.konkname" . }}
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "example-apiserver.labels" . | nindent 4 }}
