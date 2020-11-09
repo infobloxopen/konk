@@ -1,8 +1,8 @@
 #!/bin/bash
 set -xe
 
-kubeadm init phase certs all --apiserver-cert-extra-sans $FULLNAME,$FULLNAME.$NAMESPACE,$FULLNAME.$NAMESPACE.svc
-kubeadm init phase kubeconfig admin --control-plane-endpoint $FULLNAME
+kubeadm init phase certs all --apiserver-cert-extra-sans $FULLNAME,$FULLNAME.$NAMESPACE,$FULLNAME.$NAMESPACE.svc,$FULLNAME.$NAMESPACE.svc.cluster.local
+kubeadm init phase kubeconfig admin --control-plane-endpoint $FULLNAME.$NAMESPACE.svc
 find /etc/kubernetes/pki
 if ! kubectl -n $NAMESPACE get secret $FULLNAME-etcd-cert
 then
