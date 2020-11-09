@@ -39,10 +39,8 @@ spec:
       spec:
       EOF
 
-      kubectl get contact-example
-      kubectl delete contact-example
-
-      kubectl get crd appconfigs.stable.example.com websites.extensions.example.com
+      kubectl get contact contact-example
+      kubectl delete contact contact-example
     volumeMounts:
     - name: kubeconfig
       mountPath: /kubeconfig
