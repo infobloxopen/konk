@@ -69,3 +69,12 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+{{/*
+Prefixes "Cluster" when Konk is cluster-scoped
+*/}}
+{{- define "konk.scope" -}}
+{{- if eq "cluster" .Values.scope -}}
+Cluster
+{{- end }}
+{{- end }}

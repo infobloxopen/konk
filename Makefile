@@ -50,8 +50,12 @@ deploy-cert-manager:
 deploy-%: package
 	$(HELM) upgrade -i --wait $(RELEASE_PREFIX)-$* $(CHART_DIR)/$* $(HELM_FLAGS)
 
+ifdef KONK_NAMESPACE
+test-konk: HELM_FLAGS=--namespace=${KONK_NAMESPACE}
+endif
+
 test-%:
-	$(HELM) test "$(RELEASE_PREFIX)-$*" --timeout 2m --logs
+	$(HELM) test "$(RELEASE_PREFIX)-$*" --timeout 2m --logs $(HELM_FLAGS)
 
 test-konk-local:
 	kubectl delete -f test/konk.fail.yaml || true

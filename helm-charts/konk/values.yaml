@@ -88,6 +88,10 @@ imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
+# scope can be cluster or namespace.
+# When scope is cluster, Certificates in any namespace can be signed by the konk's Issuer.
+scope: namespace
+
 serviceAccount:
   # Specifies whether a service account should be created
   create: true
