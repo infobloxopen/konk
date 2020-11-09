@@ -71,6 +71,7 @@ jobs:
           do
             sleep 1
           done
+          helm list
           make test-konk
           make test-konk-local
       - name: Setup Go
