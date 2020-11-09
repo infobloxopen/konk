@@ -54,6 +54,9 @@ tolerations: []
 
 affinity: {}
 
+cert-manager:
+  namespace: cert-manager
+
 crds:
   create: false
 

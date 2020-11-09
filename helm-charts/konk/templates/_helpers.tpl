@@ -75,6 +75,9 @@ Prefixes "Cluster" when Konk is cluster-scoped
 */}}
 {{- define "konk.scope" -}}
 {{- if eq "cluster" .Values.scope -}}
+{{- if not .Values.certManager.namespace }}
+{{ fail ".certManager.namespace is required for cluster-scoped konks" }}
+{{- end -}}
 Cluster
 {{- end }}
 {{- end }}

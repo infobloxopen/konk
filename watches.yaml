@@ -3,6 +3,8 @@
   version: v1alpha1
   kind: Konk
   chart: helm-charts/konk
+  overrideValues:
+    certManager.namespace: $CERT_MANAGER_NAMESPACE
 - group: konk.infoblox.com
   version: v1alpha1
   kind: KonkService

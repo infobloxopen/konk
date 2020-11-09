@@ -2,7 +2,7 @@
 set -xe
 
 secret_not_found () {
-  output=$(kubectl -n $NAMESPACE get secret $1 --ignore-not-found 2>&1 )
+  output=$(kubectl -n ${2:-$NAMESPACE} get secret $1 --ignore-not-found 2>&1 )
   echo "$output"
   [ "$output" = "" ]
 }
@@ -62,6 +62,17 @@ then
   kubectl -n $NAMESPACE label secret $FULLNAME-etcd-ca $LABELS
 fi
 
+if [ "$SCOPE" = "cluster" ]
+then
+  if secret_not_found $FULLNAME-ca $CERT_MANAGER_NAMESPACE
+  then
+    kubectl -n $CERT_MANAGER_NAMESPACE create secret tls $FULLNAME-ca \
+      --cert=/etc/kubernetes/pki/ca.crt \
+      --key=/etc/kubernetes/pki/ca.key
+    kubectl -n $CERT_MANAGER_NAMESPACE label secret $FULLNAME-ca $LABELS
+  fi
+fi
+
 if secret_not_found $FULLNAME-kubeconfig
 then
   kubectl -n $NAMESPACE create secret generic $FULLNAME-kubeconfig \
@@ -76,3 +87,7 @@ for name in $FULLNAME-apiserver-cert $FULLNAME-etcd-cert $FULLNAME-ca $FULLNAME-
 do
   kubectl patch -n $NAMESPACE secret $name -p '{"metadata":{"ownerReferences":[{"apiVersion":"apps/v1", "kind":"Deployment", "name":"'${FULLNAME}'", "uid":"'${DEPLOYMENT_UID}'"}]}}'
 done
+if [ "$SCOPE" = "cluster" ]
+then
+  kubectl patch -n $CERT_MANAGER_NAMESPACE secret $FULLNAME-ca -p '{"metadata":{"ownerReferences":[{"apiVersion":"apps/v1", "kind":"Deployment", "name":"'${FULLNAME}'", "namespace":"'${NAMESPACE}'", "uid":"'${DEPLOYMENT_UID}'"}]}}'
+fi
