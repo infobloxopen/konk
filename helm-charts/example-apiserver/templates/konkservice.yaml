@@ -8,6 +8,7 @@ metadata:
 spec:
   konk:
     name: {{ include "example-apiserver.konkname" . }}
+    scope: {{ .Values.konk.scope }}
   service:
     name: {{ include "example-apiserver.fullname" . }}
   group:

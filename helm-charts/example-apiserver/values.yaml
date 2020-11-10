@@ -119,3 +119,4 @@ konk:
   # specifies the name of the konk to use, especially useful when targeting a shared Konk,
   # but can also be used to customize the name of the Konk created by this chart.
   name:
+  scope: cluster
