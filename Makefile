@@ -55,7 +55,13 @@ test-konk: HELM_FLAGS=--namespace=${KONK_NAMESPACE}
 endif
 
 test-%:
-	$(HELM) test "$(RELEASE_PREFIX)-$*" --timeout 2m --logs $(HELM_FLAGS)
+	START=`date +%s`; \
+	until $(HELM) test "$(RELEASE_PREFIX)-$*" --timeout 2m --logs $(HELM_FLAGS); \
+	do \
+		NOW=`date +%s`; \
+		[ $$(( NOW-START )) -lt 120 ] || exit 1; \
+		sleep 10; \
+	done; \
 
 test-konk-local:
 	kubectl delete -f test/konk.fail.yaml || true
