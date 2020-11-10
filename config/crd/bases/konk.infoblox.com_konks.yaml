@@ -40,6 +40,13 @@ spec:
             type: object
             x-kubernetes-preserve-unknown-fields: true
         type: object
+    additionalPrinterColumns:
+    - name: Status
+      type: string
+      jsonPath: .status.conditions[1].reason
+    - name: Age
+      type: date
+      jsonPath: .metadata.creationTimestamp
     served: true
     storage: true
     subresources:
