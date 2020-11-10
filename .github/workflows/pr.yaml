@@ -70,17 +70,19 @@ jobs:
           pwd
           git fetch --prune --unshallow
       - name: Install/Upgrade konk-operator
-        timeout-minutes: 6
+        timeout-minutes: 3
         run: |
           make kind-load-konk KIND_NAME="chart-testing"
           make deploy-konk-operator
-
+      - name: Test Konk
+        timeout-minutes: 4
+        run: |
           kubectl apply -f examples/konk.yaml
+          # FIXME: use the helm-operator status to detect installation was successful
           until kubectl wait --timeout=3m --for=condition=ready pod -l app.kubernetes.io/component=apiserver,app.kubernetes.io/name=konk
           do
             sleep 1
           done
-          helm list
           make test-konk
           make test-konk-local
       - name: Setup Go
@@ -114,5 +116,6 @@ jobs:
         if: ${{ failure() }}
         run: |
           git diff
+          helm list
           kubectl describe po,ing
           kubectl get po,svc,ep,certificate,issuer,ingress,secrets,configmap
