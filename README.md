@@ -90,3 +90,47 @@ This chart will deploy an example-apiserver instance, which is a reference imple
 
     make deploy-example-apiserver
     make test-example-apiserver
+
+# Troubleshooting
+
+konk-operator will update the `status` field on Konk and KonkService resources. The contents here can be particularly helpful for determining why konk is not functioning properly.
+
+Here's an example of a healthy konk status:
+```json
+% kubectl get konks runner-konk -o jsonpath='{.status.conditions}' | jq
+[
+  {
+    "lastTransitionTime": "2020-11-10T00:29:56Z",
+    "status": "True",
+    "type": "Initialized"
+  },
+  {
+    "lastTransitionTime": "2020-11-10T00:29:59Z",
+    "message": "1. Get the application URL by running these commands:\n  export POD_NAME=$(kubectl get pods --namespace default -l \"app.kubernetes.io/name=konk,app.kubernetes.io/instance=runner-konk\" -o jsonpath=\"{.items[0].metadata.name}\")\n  echo \"Visit http://127.0.0.1:8080 to use your application\"\n  kubectl --namespace default port-forward $POD_NAME 8080:80\n",
+    "reason": "InstallSuccessful",
+    "status": "True",
+    "type": "Deployed"
+  }
+]
+```
+`"reason": "InstallSuccessful"` is a good sign!
+
+Here's an example of an unhealthy konk:
+```json
+% k -n aggregate get konks tagging-aggregate-api-konk -o jsonpath='{.status.conditions}' | jq
+[
+  {
+    "lastTransitionTime": "2020-11-10T13:50:38Z",
+    "status": "True",
+    "type": "Initialized"
+  },
+  {
+    "lastTransitionTime": "2020-11-10T13:50:41Z",
+    "message": "failed to install release: rendered manifests contain a resource that already exists. Unable to continue with install: Service \"tagging-aggregate-api-konk\" in namespace \"aggregate\" exists and cannot be imported into the current release: invalid ownership metadata; label validation error: missing key \"app.kubernetes.io/managed-by\": must be set to \"Helm\"; annotation validation error: missing key \"meta.helm.sh/release-name\": must be set to \"tagging-aggregate-api-konk\"; annotation validation error: missing key \"meta.helm.sh/release-namespace\": must be set to \"aggregate\"",
+    "reason": "InstallError",
+    "status": "True",
+    "type": "ReleaseFailed"
+  }
+]
+```
+`"reason": "InstallError"` means there was a problem while trying to reconcile the konk's resources. The message explains exactly what the problem is; there's a resource name conflict: `Service \"tagging-aggregate-api-konk\" in namespace \"aggregate\" exists and cannot be imported into the current release`. One potential solution to this problem is to choose a more unique name for your Konk, but in this particular case the conflicting resource was not longer needed and the problem was resolved by manually deleting it.
