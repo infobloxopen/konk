@@ -46,7 +46,7 @@ kind-load: image
 	$(KIND) load docker-image ${IMAGE} --name ${KIND_NAME}
 
 .image-${IMAGE_TAG}: build
-	docker build -t ${IMAGE} -f Dockerfile bin/
+	docker build --pull -t ${IMAGE} -f Dockerfile .
 	touch $@
 
 image: .image-${IMAGE_TAG}
