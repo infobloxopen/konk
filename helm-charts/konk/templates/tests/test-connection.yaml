@@ -14,18 +14,18 @@ spec:
     imagePullPolicy: {{ .Values.kind.image.pullPolicy }}
     command:
     - /bin/bash
-    - -ecx
+    - -cx
     args:
     - |
-      until kubectl cluster-info
+      until kubectl -v6 cluster-info
       do
         sleep 1s
       done
-      until kubectl get apiservices
+      until kubectl -v6 get apiservices
       do
         sleep 1s
       done
-      until KUBECONFIG='' kubectl api-versions \
+      until KUBECONFIG='' kubectl -v6 api-versions \
         --certificate-authority=/nginx/ca.crt \
         --client-certificate=/nginx/tls.crt \
         --client-key=/nginx/tls.key \
