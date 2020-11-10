@@ -1,5 +1,10 @@
 FROM golang:1.15 AS builder
 WORKDIR /go/src/github.com/infobloxopen/konk/test/apiserver
+
+COPY go.mod .
+COPY go.sum .
+RUN go mod download
+
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -o bin/apiserver ./cmd/apiserver
 RUN CGO_ENABLED=0 GOOS=linux go build -o bin/controller-manager ./cmd/manager

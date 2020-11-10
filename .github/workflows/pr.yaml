@@ -22,6 +22,15 @@ jobs:
         with:
           path: ./src/github.com/${{ github.repository }}
           ref: ${{ matrix.ref }}
+      - name: Cache Go modules
+        uses: actions/cache@v2
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - uses: satackey/action-docker-layer-caching@v0.0.8
+        continue-on-error: true
       - name: Fetch tags
         run: |
           pwd
