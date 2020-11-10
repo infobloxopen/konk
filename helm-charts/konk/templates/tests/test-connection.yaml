@@ -21,12 +21,18 @@ spec:
       do
         sleep 1s
       done
-      kubectl get apiservices
-      KUBECONFIG='' kubectl api-versions \
+      until kubectl get apiservices
+      do
+        sleep 1s
+      done
+      until KUBECONFIG='' kubectl api-versions \
         --certificate-authority=/nginx/ca.crt \
         --client-certificate=/nginx/tls.crt \
         --client-key=/nginx/tls.key \
         -s https://{{ include "konk.fullname" . }}:6443
+      do
+        sleep 1s
+      done
     env:
     - name: KUBECONFIG
       value: /kubeconfig/admin.conf
