@@ -1,6 +1,16 @@
 #!/bin/bash
 set -xe
 
+# load existing CA
+if kubectl -n $NAMESPACE get secret $FULLNAME-ca
+then
+  mkdir -p /etc/kubernetes/pki
+  for ext in crt key
+  do
+    kubectl -n $NAMESPACE get secret $FULLNAME-ca -o 'go-template={{index .data "tls.'$ext'"}}' | base64 --decode > /etc/kubernetes/pki/ca.$ext
+  done
+fi
+
 kubeadm init phase certs all --apiserver-cert-extra-sans $FULLNAME,$FULLNAME.$NAMESPACE,$FULLNAME.$NAMESPACE.svc,$FULLNAME.$NAMESPACE.svc.cluster.local
 kubeadm init phase kubeconfig admin --control-plane-endpoint $FULLNAME.$NAMESPACE.svc
 find /etc/kubernetes/pki
