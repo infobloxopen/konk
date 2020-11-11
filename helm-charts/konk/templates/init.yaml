@@ -13,6 +13,8 @@ spec:
       app.kubernetes.io/component: init
   template:
     metadata:
+      annotations:
+        checksum/scripts: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
       labels:
         {{- include "konk.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: init
