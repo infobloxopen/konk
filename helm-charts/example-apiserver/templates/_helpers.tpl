@@ -66,9 +66,5 @@ Create the name of the service account to use
 Templates konk name
 */}}
 {{- define "example-apiserver.konkname" -}}
-{{- if (eq "-" .Values.konk.name) }}
-{{- .Release.Name }}-konk
-{{- else }}
-{{- .Values.konk.name }}
-{{- end }}
+{{- .Values.konk.name | default (printf "%s-konk" .Release.Name) }}
 {{- end }}
