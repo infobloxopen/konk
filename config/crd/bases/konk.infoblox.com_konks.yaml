@@ -43,7 +43,7 @@ spec:
     additionalPrinterColumns:
     - name: Status
       type: string
-      jsonPath: .status.conditions[1].reason
+      jsonPath: .status.conditions[-1].reason
     - name: Age
       type: date
       jsonPath: .metadata.creationTimestamp
