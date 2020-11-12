@@ -55,7 +55,14 @@ spec:
         image: "{{ .Values.kind.image.repository }}:{{ .Values.kind.image.tag | default .Chart.AppVersion }}"
         imagePullPolicy: {{ .Values.kind.image.pullPolicy }}
         command: ["/bin/bash", "-c"]
-        args: ["while true; do /mounts/deploy-api-service.sh; date; sleep 30; done;"]
+        args:
+          - |
+            while true
+            do
+              /mounts/deploy-api-service.sh
+              date
+              sleep 30
+            done
         env:
           - name: SERVICENAME
             value: {{ .Values.service.name }}
