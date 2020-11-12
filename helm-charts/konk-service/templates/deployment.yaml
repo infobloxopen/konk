@@ -19,6 +19,35 @@ spec:
         {{- include "konk-service.selectorLabels" . | nindent 8 }}
     spec:
       serviceAccountName: {{ include "konk-service.serviceAccountName" . }}
+      initContainers:
+      - name: kubeconfig
+        securityContext:
+          {{- toYaml .Values.kind.securityContext | nindent 10 }}
+        image: "{{ .Values.kind.image.repository }}:{{ .Values.kind.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.kind.image.pullPolicy }}
+        command: ["/bin/bash", "-c"]
+        args:
+          - |
+            # https://kubernetes.io/docs/setup/best-practices/certificates/#configure-certificates-for-user-accounts
+            kubectl config set-cluster {{ .Values.konk.name }} \
+              --server=https://{{ include "konk-service.konkfqdn" . }}:6443 \
+              --certificate-authority /tmp/certs/ca.crt \
+              --embed-certs
+            kubectl config set-credentials kubernetes-admin \
+              --client-certificate /tmp/certs/tls.crt \
+              --client-key /tmp/certs/tls.key \
+              --embed-certs
+            kubectl config set-context {{ .Values.konk.name }} --cluster {{ .Values.konk.name }} --user kubernetes-admin
+            kubectl config use-context {{ .Values.konk.name }}
+        env:
+          - name: KUBECONFIG
+            value: /etc/kubernetes/admin.conf
+        volumeMounts:
+        - name: kubeconfig
+          mountPath: "/etc/kubernetes"
+        - name: kubeconfig-cert
+          mountPath: /tmp/certs
+          readOnly: true
       containers:
       - name: kind
         securityContext:
@@ -61,8 +90,10 @@ spec:
           periodSeconds: 5
       volumes:
       - name: kubeconfig
+        emptyDir: {}
+      - name: kubeconfig-cert
         secret:
-          secretName: {{ include "konk-service.konkname" . }}-kubeconfig
+          secretName: {{ include "konk-service.fullname" . }}-kubeconfig
       - name: ca-cert
         secret:
           secretName: {{ if .Values.service.caSecretName -}}

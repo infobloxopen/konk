@@ -88,3 +88,10 @@ Templates konk name
 {{- define "konk-service.konkname" -}}
 {{- .Values.konk.name }}
 {{- end }}
+
+{{- define "konk-service.konkfqdn" -}}
+{{- .Values.konk.name -}}
+{{- if .Values.konk.namespace -}}
+.{{- .Values.konk.namespace -}}.svc
+{{- end }}
+{{- end }}
