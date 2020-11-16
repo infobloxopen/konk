@@ -11,7 +11,7 @@ require (
 	github.com/onsi/gomega v1.10.3
 	github.com/spf13/pflag v1.0.5
 	golang.org/x/net v0.0.0-20201006153459-a7d1128ccaa0
-	k8s.io/apimachinery v0.19.3
+	k8s.io/apimachinery v0.19.4
 	k8s.io/apiserver v0.19.3
 	k8s.io/client-go v0.19.3
 	k8s.io/klog v1.0.0
