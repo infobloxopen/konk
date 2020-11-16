@@ -41,14 +41,14 @@ then
     --from-file=/etc/kubernetes/pki/apiserver-etcd-client.key
   kubectl -n $NAMESPACE label secret $FULLNAME-apiserver-cert $LABELS
 fi
-if ! kubectl -n $NAMESPACE get secret $FULLNAME-ca
+if [ "$(kubectl -n $NAMESPACE get secret $FULLNAME-ca --ignore-not-found 2>&1 )" = "" ]
 then
   kubectl -n $NAMESPACE create secret tls $FULLNAME-ca \
     --cert=/etc/kubernetes/pki/ca.crt \
     --key=/etc/kubernetes/pki/ca.key
   kubectl -n $NAMESPACE label secret $FULLNAME-ca $LABELS
 fi
-if ! kubectl -n $NAMESPACE get secret $FULLNAME-etcd-ca
+if [ "$(kubectl -n $NAMESPACE get secret $FULLNAME-etcd-ca --ignore-not-found 2>&1 )" = "" ]
 then
   kubectl -n $NAMESPACE create secret tls $FULLNAME-etcd-ca \
     --cert=/etc/kubernetes/pki/etcd/ca.crt \
