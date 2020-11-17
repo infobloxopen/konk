@@ -2,16 +2,13 @@
 set -xe
 
 secret_not_found () {
-  if [ "$(kubectl -n $NAMESPACE get secret $1 --ignore-not-found 2>&1 )" = "" ]
-  then
-    return 0
-  else
-    return 1
-  fi
+  output=$(kubectl -n $NAMESPACE get secret $1 --ignore-not-found 2>&1 )
+  echo "$output"
+  [ "$output" = "" ]
 }
 
 # load existing CA
-if kubectl -n $NAMESPACE get secret $FULLNAME-ca
+if ! secret_not_found $FULLNAME-ca
 then
   mkdir -p /etc/kubernetes/pki
   for ext in crt key
@@ -19,7 +16,7 @@ then
     kubectl -n $NAMESPACE get secret $FULLNAME-ca -o 'go-template={{index .data "tls.'$ext'"}}' | base64 --decode > /etc/kubernetes/pki/ca.$ext
   done
 fi
-if kubectl -n $NAMESPACE get secret $FULLNAME-etcd-ca
+if ! secret_not_found $FULLNAME-etcd-ca
 then
   mkdir -p /etc/kubernetes/pki/etcd
   for ext in crt key
