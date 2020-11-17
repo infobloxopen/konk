@@ -1,6 +1,15 @@
 #!/bin/bash
 set -xe
 
+secret_not_found () {
+  if [ "$(kubectl -n $NAMESPACE get secret $1 --ignore-not-found 2>&1 )" = "" ]
+  then
+    return 0
+  else
+    return 1
+  fi
+}
+
 # load existing CA
 if kubectl -n $NAMESPACE get secret $FULLNAME-ca
 then
@@ -22,7 +31,7 @@ fi
 kubeadm init phase certs all --apiserver-cert-extra-sans $FULLNAME,$FULLNAME.$NAMESPACE,$FULLNAME.$NAMESPACE.svc,$FULLNAME.$NAMESPACE.svc.cluster.local
 kubeadm init phase kubeconfig admin --control-plane-endpoint $FULLNAME.$NAMESPACE.svc
 find /etc/kubernetes/pki
-if ! kubectl -n $NAMESPACE get secret $FULLNAME-etcd-cert
+if secret_not_found $FULLNAME-etcd-cert
 then
   kubectl -n $NAMESPACE create secret generic $FULLNAME-etcd-cert \
     --from-file=/etc/kubernetes/pki/etcd/ca.crt \
@@ -30,7 +39,7 @@ then
     --from-file=/etc/kubernetes/pki/etcd/server.key
   kubectl -n $NAMESPACE label secret $FULLNAME-etcd-cert $LABELS
 fi
-if ! kubectl -n $NAMESPACE get secret $FULLNAME-apiserver-cert
+if secret_not_found $FULLNAME-apiserver-cert
 then
   kubectl -n $NAMESPACE create secret generic $FULLNAME-apiserver-cert \
     --from-file=/etc/kubernetes/pki/apiserver.crt \
@@ -41,14 +50,14 @@ then
     --from-file=/etc/kubernetes/pki/apiserver-etcd-client.key
   kubectl -n $NAMESPACE label secret $FULLNAME-apiserver-cert $LABELS
 fi
-if [ "$(kubectl -n $NAMESPACE get secret $FULLNAME-ca --ignore-not-found 2>&1 )" = "" ]
+if secret_not_found $FULLNAME-ca
 then
   kubectl -n $NAMESPACE create secret tls $FULLNAME-ca \
     --cert=/etc/kubernetes/pki/ca.crt \
     --key=/etc/kubernetes/pki/ca.key
   kubectl -n $NAMESPACE label secret $FULLNAME-ca $LABELS
 fi
-if [ "$(kubectl -n $NAMESPACE get secret $FULLNAME-etcd-ca --ignore-not-found 2>&1 )" = "" ]
+if secret_not_found $FULLNAME-etcd-ca
 then
   kubectl -n $NAMESPACE create secret tls $FULLNAME-etcd-ca \
     --cert=/etc/kubernetes/pki/etcd/ca.crt \
@@ -56,7 +65,7 @@ then
   kubectl -n $NAMESPACE label secret $FULLNAME-etcd-ca $LABELS
 fi
 
-if ! kubectl -n $NAMESPACE get secret $FULLNAME-kubeconfig
+if secret_not_found $FULLNAME-kubeconfig
 then
   kubectl -n $NAMESPACE create secret generic $FULLNAME-kubeconfig \
     --from-file=/etc/kubernetes/admin.conf
