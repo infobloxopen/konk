@@ -115,7 +115,7 @@ spec:
       volumes:
       - name: apiserver-certs
         secret:
-          secretName: {{ .Release.Name }}-api-konk-service-server
+          secretName: {{ include "example-apiserver.konk-service-fullname" . }}-server
       - name: kubeconfig
         secret:
-          secretName: {{ include "example-apiserver.konkname" . }}-kubeconfig
+          secretName: {{ include "example-apiserver.konk-service-fullname" . }}-kubeconfig
