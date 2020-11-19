@@ -1,5 +1,6 @@
 # konk
 
+
 konk - Kubernetes On Kubernetes - is a tool for deploying an independent Kubernetes API server within Kubernetes.
 
 konk can be used as part of a larger application to manage resources via CustomResourceDefinitions and implement a CRUD API for those resources by leveraging kube-apiserver. Or implement an [extension API server](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/apiserver-aggregation/) without worrying about [breaking the parent cluster with a non-compliant API](https://github.com/kubernetes/kubernetes/issues/96066).
@@ -7,6 +8,9 @@ konk can be used as part of a larger application to manage resources via CustomR
 konk does not start a kubelet and therefore does not support any resources that require a node such as deployments and pods.
 
 This repo provides a konk helm chart that can be used to deploy an instance of konk with helm, and a konk-operator that watches for konk CRs and will deploy a konk instance for each of them.
+
+
+Office Hour 9am PST/12pm EST on Fridays landing on even days [https://infoblox.zoom.us/j/98130157567](https://infoblox.zoom.us/j/98130157567)
 
 ## konk chart
 
