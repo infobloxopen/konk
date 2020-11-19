@@ -1,5 +1,13 @@
 version: 2
 updates:
+- package-ecosystem: docker
+  directory: "/"
+  schedule:
+    interval: daily
+- package-ecosystem: docker
+  directory: "/test/apiserver"
+  schedule:
+    interval: daily
 - package-ecosystem: gomod
   directory: "/test/apiserver"
   schedule:
