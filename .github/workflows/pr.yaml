@@ -98,7 +98,7 @@ jobs:
         run: |
           # deploy example-apiserver using a passed KONK reference
           make deploy-apiserver KIND_NAME="chart-testing" KONK_NAME="runner-konk"
-          POD_NAME=$(kubectl get pod -o name -l app.kubernetes.io/name=konk-service )
+          POD_NAME=$(kubectl get pod -o name -l app.kubernetes.io/name=konk-service,app.kubernetes.io/component=apiservice )
           until kubectl exec -it $POD_NAME -- kubectl get contact
           do
             kubectl exec -it $POD_NAME -- kubectl describe apiservice v1alpha1.example.infoblox.com
