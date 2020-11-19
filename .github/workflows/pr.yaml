@@ -5,6 +5,7 @@ jobs:
     name: End To End
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         isUpgrade: [true, false]
         include:
