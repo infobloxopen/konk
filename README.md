@@ -1,6 +1,5 @@
 # konk
 
-
 konk - Kubernetes On Kubernetes - is a tool for deploying an independent Kubernetes API server within Kubernetes.
 
 konk can be used as part of a larger application to manage resources via CustomResourceDefinitions and implement a CRUD API for those resources by leveraging kube-apiserver. Or implement an [extension API server](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/apiserver-aggregation/) without worrying about [breaking the parent cluster with a non-compliant API](https://github.com/kubernetes/kubernetes/issues/96066).
