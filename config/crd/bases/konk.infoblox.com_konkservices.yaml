@@ -67,7 +67,10 @@ spec:
                     type: string
                     pattern: '^.+-konk$'
                   namespace:
-                    description: Namespace of the konk service
+                    description: Namespace of the konk
+                    type: string
+                  scope:
+                    description: Scope of the konk, cluster or namespace
                     type: string
                 required:
                 - name
