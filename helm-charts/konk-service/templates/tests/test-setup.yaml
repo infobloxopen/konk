@@ -37,4 +37,4 @@ spec:
   volumes:
   - name: kubeconfig
     secret:
-      secretName: {{ include "konk-service.konkname" . }}-kubeconfig
+      secretName: {{ include "konk-service.fullname" . }}-kubeconfig

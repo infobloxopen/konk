@@ -1,5 +1,5 @@
 apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
+kind: {{ include "konk.scope" . }}RoleBinding
 metadata:
   name: {{ include "konk.fullname" . }}-certs-rb
   namespace: {{ .Release.Namespace }}
@@ -7,8 +7,11 @@ metadata:
     {{- include "konk.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
-  kind: Role
+  kind: {{ include "konk.scope" . }}Role
   name: {{ include "konk.fullname" . }}-certs-role
 subjects:
 - kind: ServiceAccount
   name: {{ include "konk.serviceAccountName" . }}
+  {{- if eq .Values.scope "cluster" }}
+  namespace: {{ .Release.Namespace }}
+  {{- end }}

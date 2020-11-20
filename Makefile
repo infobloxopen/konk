@@ -50,8 +50,18 @@ deploy-cert-manager:
 deploy-%: package
 	$(HELM) upgrade -i --wait $(RELEASE_PREFIX)-$* $(CHART_DIR)/$* $(HELM_FLAGS)
 
+ifdef KONK_NAMESPACE
+test-konk: HELM_FLAGS=--namespace=${KONK_NAMESPACE}
+endif
+
 test-%:
-	$(HELM) test "$(RELEASE_PREFIX)-$*" --timeout 2m --logs
+	START=`date +%s`; \
+	until $(HELM) test "$(RELEASE_PREFIX)-$*" --timeout 2m --logs $(HELM_FLAGS); \
+	do \
+		NOW=`date +%s`; \
+		[ $$(( NOW-START )) -lt 120 ] || exit 1; \
+		sleep 10; \
+	done; \
 
 test-konk-local:
 	kubectl delete -f test/konk.fail.yaml || true
@@ -220,7 +230,7 @@ deploy-ingress-nginx:
 ifndef KONK_NAME
 deploy-apiserver: CREATE_KONK ?= true
 endif
-deploy-apiserver: HELM_FLAGS ?=--set=image.tag=$(GIT_VERSION) --set=image.pullPolicy=IfNotPresent --set=konk.create=${CREATE_KONK} --set=konk.name=${KONK_NAME}
+deploy-apiserver: HELM_FLAGS ?=--set=image.tag=$(GIT_VERSION) --set=image.pullPolicy=IfNotPresent --set=konk.create=${CREATE_KONK} --set=konk.name=${KONK_NAME} --set=konk.namespace=${KONK_NAMESPACE}
 deploy-apiserver: kind-load-apiserver
 	$(HELM) upgrade --debug -i \
 	 	--wait $(RELEASE_PREFIX)-apiserver \

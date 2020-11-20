@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "konk-service.fullname" . }}-kubectl
+  name: {{ include "konk-service.fullname" . }}-kubectl-apiservice
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "konk-service.labels" . | nindent 4 }}
@@ -10,13 +10,15 @@ spec:
   selector:
     matchLabels:
       {{- include "konk-service.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: apiservice
   template:
     metadata:
       annotations:
-        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/config: {{ include (print $.Template.BasePath "/apiservice-configmap.yaml") . | sha256sum }}
         checksum/values: {{ print .Values | sha256sum }}
       labels:
         {{- include "konk-service.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: apiservice
     spec:
       serviceAccountName: {{ include "konk-service.serviceAccountName" . }}
       containers:
@@ -26,7 +28,14 @@ spec:
         image: "{{ .Values.kind.image.repository }}:{{ .Values.kind.image.tag | default .Chart.AppVersion }}"
         imagePullPolicy: {{ .Values.kind.image.pullPolicy }}
         command: ["/bin/bash", "-c"]
-        args: ["while true; do /mounts/deploy-api-service.sh; date; sleep 30; done;"]
+        args:
+          - |
+            while true
+            do
+              /mounts/deploy-api-service.sh
+              date
+              sleep 30
+            done
         env:
           - name: SERVICENAME
             value: {{ .Values.service.name }}
@@ -62,7 +71,7 @@ spec:
       volumes:
       - name: kubeconfig
         secret:
-          secretName: {{ include "konk-service.konkname" . }}-kubeconfig
+          secretName: {{ include "konk-service.fullname" . }}-kubeconfig
       - name: ca-cert
         secret:
           secretName: {{ if .Values.service.caSecretName -}}

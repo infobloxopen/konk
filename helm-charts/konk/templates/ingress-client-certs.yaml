@@ -1,8 +1,10 @@
 apiVersion: cert-manager.io/v1
-kind: Issuer
+kind: {{ include "konk.scope" . }}Issuer
 metadata:
   name: {{ include "konk.fullname" . }}-kubeadm-ca
+  {{- if eq .Values.scope "namespace" }}
   namespace: {{ .Release.Namespace }}
+  {{- end }}
   labels:
     {{- include "konk.labels" . | nindent 4 }}
 spec:
@@ -28,5 +30,5 @@ spec:
   - admin
   issuerRef:
     name: {{ include "konk.fullname" . }}-kubeadm-ca
-    kind: Issuer
+    kind: {{ include "konk.scope" . }}Issuer
 ...

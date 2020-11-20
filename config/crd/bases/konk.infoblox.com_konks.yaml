@@ -35,12 +35,20 @@ spec:
             description: Spec defines the desired state of Konk
             type: object
             x-kubernetes-preserve-unknown-fields: true
+            properties:
+              scope:
+                description: Defines the scope of access to this konk
+                type: string
+                pattern: '^cluster|namespace$'
           status:
             description: Status defines the observed state of Konk
             type: object
             x-kubernetes-preserve-unknown-fields: true
         type: object
     additionalPrinterColumns:
+    - name: Scope
+      type: string
+      jsonPath: .spec.scope
     - name: Status
       type: string
       jsonPath: .status.conditions[-1].reason

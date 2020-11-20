@@ -43,6 +43,11 @@ apiserver:
     - storage.k8s.io/v1
     - storage.k8s.io/v1beta1
 
+certManager:
+  # When using cluster-scoped konks, the cert-manager namespace must be provided.
+  # Konk will create CA secrets for use by ClusterIssuers in cert-manager's namespace.
+  namespace:
+
 etcd:
   image:
     repository: k8s.gcr.io/etcd
@@ -87,6 +92,10 @@ kind:
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
+
+# scope can be cluster or namespace.
+# When scope is cluster, Certificates in any namespace can be signed by the konk's Issuer.
+scope: namespace
 
 serviceAccount:
   # Specifies whether a service account should be created

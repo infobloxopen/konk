@@ -5,6 +5,7 @@ jobs:
     name: End To End
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         isUpgrade: [true, false]
         include:
@@ -16,6 +17,7 @@ jobs:
         working-directory: ./src/github.com/${{ github.repository }}
     env:
       GOPATH: ${{ github.workspace }}
+      KONK_NAMESPACE: baz
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -55,9 +57,9 @@ jobs:
         run: |
           make kind-load-konk KIND_NAME="chart-testing"
           make deploy-konk-operator
-
-          kubectl create -f examples/konk.yaml
-          until kubectl wait --timeout=3m --for=condition=ready pod -l app.kubernetes.io/component=apiserver,app.kubernetes.io/name=konk
+          kubectl create ns $KONK_NAMESPACE || true
+          kubectl create -n $KONK_NAMESPACE -f examples/konk.yaml
+          until kubectl wait -n $KONK_NAMESPACE --timeout=3m --for=condition=ready pod -l app.kubernetes.io/component=apiserver,app.kubernetes.io/name=konk
           do
             sleep 1
           done
@@ -79,13 +81,14 @@ jobs:
       - name: Test Konk
         timeout-minutes: 4
         run: |
-          kubectl apply -f examples/konk.yaml
+          kubectl create ns $KONK_NAMESPACE || true
+          kubectl apply -n $KONK_NAMESPACE -f examples/konk.yaml
           # FIXME: use the helm-operator status to detect installation was successful
-          until kubectl wait --timeout=3m --for=condition=ready pod -l app.kubernetes.io/component=apiserver,app.kubernetes.io/name=konk
+          until kubectl wait -n $KONK_NAMESPACE --timeout=3m --for=condition=ready pod -l app.kubernetes.io/component=apiserver,app.kubernetes.io/name=konk
           do
             sleep 1
           done
-          make test-konk
+          make test-konk KONK_NAMESPACE=$KONK_NAMESPACE
           make test-konk-local
       - name: Setup Go
         uses: actions/setup-go@v2
@@ -95,8 +98,8 @@ jobs:
         timeout-minutes: 7
         run: |
           # deploy example-apiserver using a passed KONK reference
-          make deploy-apiserver KIND_NAME="chart-testing" KONK_NAME="runner-konk"
-          POD_NAME=$(kubectl get pod -o name -l app.kubernetes.io/name=konk-service )
+          make deploy-apiserver KIND_NAME="chart-testing" KONK_NAME="runner-konk" KONK_NAMESPACE=$KONK_NAMESPACE
+          POD_NAME=$(kubectl get pod -o name -l app.kubernetes.io/name=konk-service,app.kubernetes.io/component=apiservice )
           until kubectl exec -it $POD_NAME -- kubectl get contact
           do
             kubectl exec -it $POD_NAME -- kubectl describe apiservice v1alpha1.example.infoblox.com
@@ -119,5 +122,5 @@ jobs:
         run: |
           git diff
           helm list
-          kubectl describe po,ing
-          kubectl get po,svc,ep,certificate,issuer,ingress,secrets,configmap
+          kubectl describe po,ing,certificate,clusterissuer,issuer,konk,konkservice
+          kubectl get po,svc,ep,certificate,clusterissuer,issuer,ingress,secrets,configmap

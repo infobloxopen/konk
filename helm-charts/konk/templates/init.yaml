@@ -31,6 +31,10 @@ spec:
         args:
           - /scripts/provision.sh
         env:
+          {{- with .Values.certManager.namespace }}
+          - name: CERT_MANAGER_NAMESPACE
+            value: {{ . }}
+          {{- end }}
           - name: NAMESPACE
             valueFrom:
               fieldRef:
@@ -41,6 +45,8 @@ spec:
             value: {{ (include "konk.selectorLabels" .) | replace ": " "=" | replace "\n" " " }}
           - name: RELEASE
             value: {{ .Release.Name }}
+          - name: SCOPE
+            value: {{ .Values.scope }}
         resources:
           {{- toYaml .Values.kind.resources | nindent 10 }}
         volumeMounts:
