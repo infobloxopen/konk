@@ -17,7 +17,7 @@ jobs:
         working-directory: ./src/github.com/${{ github.repository }}
     env:
       GOPATH: ${{ github.workspace }}
-      KONK_NAMESPACE: konk
+      KONK_NAMESPACE: baz
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -98,7 +98,7 @@ jobs:
         timeout-minutes: 7
         run: |
           # deploy example-apiserver using a passed KONK reference
-          make deploy-apiserver KIND_NAME="chart-testing" KONK_NAME="runner-konk"
+          make deploy-apiserver KIND_NAME="chart-testing" KONK_NAME="runner-konk" KONK_NAMESPACE=$KONK_NAMESPACE
           POD_NAME=$(kubectl get pod -o name -l app.kubernetes.io/name=konk-service,app.kubernetes.io/component=apiservice )
           until kubectl exec -it $POD_NAME -- kubectl get contact
           do

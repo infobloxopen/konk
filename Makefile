@@ -230,7 +230,7 @@ deploy-ingress-nginx:
 ifndef KONK_NAME
 deploy-apiserver: CREATE_KONK ?= true
 endif
-deploy-apiserver: HELM_FLAGS ?=--set=image.tag=$(GIT_VERSION) --set=image.pullPolicy=IfNotPresent --set=konk.create=${CREATE_KONK} --set=konk.name=${KONK_NAME}
+deploy-apiserver: HELM_FLAGS ?=--set=image.tag=$(GIT_VERSION) --set=image.pullPolicy=IfNotPresent --set=konk.create=${CREATE_KONK} --set=konk.name=${KONK_NAME} --set=konk.namespace=${KONK_NAMESPACE}
 deploy-apiserver: kind-load-apiserver
 	$(HELM) upgrade --debug -i \
 	 	--wait $(RELEASE_PREFIX)-apiserver \
