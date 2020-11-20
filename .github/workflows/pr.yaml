@@ -122,5 +122,5 @@ jobs:
         run: |
           git diff
           helm list
-          kubectl describe po,ing,certificate,clusterissuer,issuer
+          kubectl describe po,ing,certificate,clusterissuer,issuer,konk,konkservice
           kubectl get po,svc,ep,certificate,clusterissuer,issuer,ingress,secrets,configmap
