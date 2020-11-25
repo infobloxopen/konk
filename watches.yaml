@@ -14,5 +14,5 @@
 - group: konk.infoblox.com
   version: v1alpha1
   kind: Etcd
-  chart: helm-charts/etcd-5.2.0.tgz
+  chart: helm-charts/etcd
 # +kubebuilder:scaffold:watch

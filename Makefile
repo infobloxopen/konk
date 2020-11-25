@@ -241,6 +241,5 @@ deploy-apiserver: kind-load-apiserver
 
 upgrade-etcd:
 	cd $(CHART_DIR) && \
-	rm -f etcd-*.tgz && \
-	helm pull --debug --repo https://charts.bitnami.com/bitnami etcd
-	sed -i '' 's@chart: $(CHART_DIR)/etcd.*@chart: $(wildcard $(CHART_DIR)/etcd-*.tgz)@' watches.yaml
+	rm -f etcd* && \
+	helm pull --debug --untar --repo https://charts.bitnami.com/bitnami etcd
