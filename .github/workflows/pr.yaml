@@ -124,3 +124,4 @@ jobs:
           helm list
           kubectl describe po,ing,certificate,clusterissuer,issuer,konk,konkservice
           kubectl get po,svc,ep,certificate,clusterissuer,issuer,ingress,secrets,configmap
+          kubectl logs -l app.kubernetes.io/name=konk-operator

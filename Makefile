@@ -66,12 +66,14 @@ test-%:
 test-konk-local:
 	kubectl delete -f test/konk.fail.yaml || true
 	kubectl create -f test/konk.fail.yaml
-	until kubectl wait --timeout=1s \
+	until kubectl wait --timeout=10s \
 		--for=condition=ReleaseFailed \
 		konk failstodeploy; \
-    do \
-      sleep 1s; \
-    done
+	do \
+		kubectl get konks; \
+		kubectl get konk failstodeploy -o jsonpath='{.status.conditions[-1]}' | jq . ; \
+		sleep 1s; \
+	done
 
 teardown-%:
 	$(HELM) delete $(RELEASE_PREFIX)-$*
