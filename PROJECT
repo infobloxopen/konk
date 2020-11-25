@@ -1,5 +1,6 @@
 domain: infoblox.com
 layout: helm.sdk.operatorframework.io/v1
+multigroup: true
 projectName: konk
 resources:
 - group: konk
