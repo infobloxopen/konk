@@ -45,8 +45,6 @@ deploy-cert-manager:
 		--set installCRDs=true \
 		--set extraArgs[0]="--enable-certificate-owner-ref=true""
 
-%-konk: HELM_FLAGS ?= --set=etcd.auth.client.existingSecret=$(RELEASE_NAME)-$*-etcd-cert
-
 %-konk-operator: HELM_FLAGS ?=--set=image.tag=$(GIT_VERSION) --set=image.pullPolicy=IfNotPresent
 
 deploy-%: package

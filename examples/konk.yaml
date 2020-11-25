@@ -3,8 +3,4 @@ kind: Konk
 metadata:
   name: runner-konk
 spec:
-  etcd:
-    auth:
-      client:
-        existingSecret: runner-konk-etcd-cert
   scope: cluster

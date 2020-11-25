@@ -45,7 +45,7 @@ spec:
             - --etcd-certfile=/etc/kubernetes/pki/apiserver/apiserver-etcd-client.crt
             - --etcd-keyfile=/etc/kubernetes/pki/apiserver/apiserver-etcd-client.key
             - --etcd-servers=
-            {{- if .Values.etcd.subchart -}}
+            {{- if .Values.etcd.operator -}}
             https://{{ .Release.Name }}-etcd-headless:2379 # TODO: resolve port from values
             {{- else -}}
             https://127.0.0.1:2379
@@ -98,7 +98,7 @@ spec:
           - mountPath: /etc/kubernetes/pki/apiserver
             name: apiserver-certs
             readOnly: true
-        {{- if not .Values.etcd.subchart }}
+        {{- if not .Values.etcd.operator }}
         - name: etcd
           securityContext:
             {{- toYaml .Values.etcd.securityContext | nindent 12 }}

@@ -49,6 +49,7 @@ certManager:
   namespace:
 
 etcd:
+  # only override "image:" when "operator: false"
   # image:
   #   repository: k8s.gcr.io/etcd
   #   pullPolicy: Always
@@ -68,23 +69,10 @@ etcd:
     # runAsNonRoot: true
     # runAsUser: 1000
 
-  # subchart options
-  subchart: true
+  # etcd operator options
+  operator: true
   statefulset:
     replicaCount: 3
-  auth:
-    rbac:
-      enabled: false
-    client:
-      secureTransport: true
-      existingSecret: # must override this with RELEASE_NAME-CHART_NAME-etcd-cert
-      certFilename: server.crt
-      certKeyFilename: server.key
-  # these probes don't work with self-signed certs because probe.sh doesn't set the cacert path in the $AUTH_OPTIONS
-  livenessProbe:
-    enabled: false
-  readinessProbe:
-    enabled: false
 
 kind:
   image:
