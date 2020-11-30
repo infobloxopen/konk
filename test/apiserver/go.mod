@@ -4,13 +4,13 @@ go 1.13
 
 require (
 	github.com/go-openapi/loads v0.19.7
-	github.com/go-openapi/spec v0.19.14
+	github.com/go-openapi/spec v0.19.15
 	github.com/gorilla/websocket v1.4.1 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.0.1-0.20190723091251-e0797f438f94 // indirect
 	github.com/onsi/ginkgo v1.14.2
 	github.com/onsi/gomega v1.10.3
 	github.com/spf13/pflag v1.0.5
-	golang.org/x/net v0.0.0-20201006153459-a7d1128ccaa0
+	golang.org/x/net v0.0.0-20201110031124-69a78807bb2b
 	k8s.io/apimachinery v0.19.4
 	k8s.io/apiserver v0.19.4
 	k8s.io/client-go v0.19.4
