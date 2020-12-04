@@ -45,6 +45,11 @@ deploy-cert-manager:
 		--set installCRDs=true \
 		--set extraArgs[0]="--enable-certificate-owner-ref=true""
 
+deploy-crds: konk-operator-${GIT_VERSION}.tgz
+	# https://helm.sh/docs/chart_best_practices/custom_resource_definitions/
+	# > There is no support at this time for upgrading or deleting CRDs using Helm.
+	kubectl apply -f helm-charts/konk-operator/crds
+
 %-konk-operator: HELM_FLAGS ?=--set=image.tag=$(GIT_VERSION) --set=image.pullPolicy=IfNotPresent
 
 deploy-%: package
