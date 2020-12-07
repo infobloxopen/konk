@@ -11,4 +11,8 @@
   chart: helm-charts/konk-service
   overrideValues:
     authURL: $AUTH_URL
+- group: konk.infoblox.com
+  version: v1alpha1
+  kind: Etcd
+  chart: helm-charts/etcd
 # +kubebuilder:scaffold:watch

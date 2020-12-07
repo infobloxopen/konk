@@ -77,7 +77,7 @@ jobs:
         timeout-minutes: 3
         run: |
           make kind-load-konk KIND_NAME="chart-testing"
-          make deploy-konk-operator
+          make deploy-crds deploy-konk-operator
       - name: Test Konk
         timeout-minutes: 4
         run: |
@@ -124,3 +124,4 @@ jobs:
           helm list
           kubectl describe po,ing,certificate,clusterissuer,issuer,konk,konkservice
           kubectl get po,svc,ep,certificate,clusterissuer,issuer,ingress,secrets,configmap
+          kubectl logs -l app.kubernetes.io/name=konk-operator

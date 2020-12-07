@@ -8,4 +8,5 @@ commonAnnotations:
 resources:
 - bases/konk.infoblox.com_konks.yaml
 - bases/konk.infoblox.com_konkservices.yaml
+- bases/konk.infoblox.com_etcds.yaml
 # +kubebuilder:scaffold:crdkustomizeresource

@@ -1,0 +1,114 @@
+apiVersion: konk.infoblox.com/v1alpha1
+kind: Etcd
+metadata:
+  name: etcd-sample
+spec:
+  # Default values copied from <project_dir>/helm-charts/etcd/values.yaml
+  affinity: {}
+  allowNoneAuthentication: true
+  auth:
+    client:
+      caFilename: ""
+      certFilename: cert.pem
+      certKeyFilename: key.pem
+      enableAuthentication: false
+      secureTransport: false
+      useAutoTLS: false
+    peer:
+      caFilename: ""
+      certFilename: cert.pem
+      certKeyFilename: key.pem
+      enableAuthentication: false
+      secureTransport: false
+      useAutoTLS: false
+    rbac:
+      enabled: true
+  clusterDomain: cluster.local
+  disasterRecovery:
+    cronjob:
+      historyLimit: 1
+      podAnnotations: {}
+      schedule: '*/30 * * * *'
+      snapshotHistoryLimit: 1
+    debug: true
+    enabled: false
+    pvc:
+      size: 2Gi
+      storageClassName: nfs
+  etcd:
+    initialClusterState: ""
+  image:
+    debug: false
+    pullPolicy: IfNotPresent
+    registry: docker.io
+    repository: bitnami/etcd
+    tag: 3.4.13-debian-10-r69
+  livenessProbe:
+    enabled: true
+    failureThreshold: 5
+    initialDelaySeconds: 60
+    periodSeconds: 30
+    successThreshold: 1
+    timeoutSeconds: 5
+  metrics:
+    enabled: false
+    podAnnotations:
+      prometheus.io/port: "2379"
+      prometheus.io/scrape: "true"
+    serviceMonitor:
+      enabled: false
+  nodeSelector: {}
+  pdb:
+    enabled: false
+  persistence:
+    accessModes:
+    - ReadWriteOnce
+    annotations: {}
+    enabled: true
+    selector: {}
+    size: 8Gi
+  podAnnotations: {}
+  priorityClassName: ""
+  readinessProbe:
+    enabled: true
+    failureThreshold: 5
+    initialDelaySeconds: 60
+    periodSeconds: 10
+    successThreshold: 1
+    timeoutSeconds: 5
+  resources:
+    limits: {}
+    requests: {}
+  securityContext:
+    enabled: true
+    fsGroup: 1001
+    runAsUser: 1001
+  service:
+    annotations: {}
+    clientPortNameOverride: ""
+    nodePorts:
+      clientPort: ""
+      peerPort: ""
+    peerPort: 2380
+    peerPortNameOverride: ""
+    port: 2379
+    type: ClusterIP
+  startFromSnapshot:
+    enabled: false
+  statefulset:
+    podManagementPolicy: Parallel
+    replicaCount: 1
+    updateStrategy: RollingUpdate
+  tolerations: []
+  volumePermissions:
+    enabled: false
+    image:
+      pullPolicy: Always
+      registry: docker.io
+      repository: bitnami/minideb
+      tag: buster
+    resources:
+      limits: {}
+      requests: {}
+  
+  

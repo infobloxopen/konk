@@ -45,6 +45,11 @@ deploy-cert-manager:
 		--set installCRDs=true \
 		--set extraArgs[0]="--enable-certificate-owner-ref=true""
 
+deploy-crds: konk-operator-${GIT_VERSION}.tgz
+	# https://helm.sh/docs/chart_best_practices/custom_resource_definitions/
+	# > There is no support at this time for upgrading or deleting CRDs using Helm.
+	kubectl apply -f helm-charts/konk-operator/crds
+
 %-konk-operator: HELM_FLAGS ?=--set=image.tag=$(GIT_VERSION) --set=image.pullPolicy=IfNotPresent
 
 deploy-%: package
@@ -66,12 +71,14 @@ test-%:
 test-konk-local:
 	kubectl delete -f test/konk.fail.yaml || true
 	kubectl create -f test/konk.fail.yaml
-	until kubectl wait --timeout=1s \
+	until kubectl wait --timeout=10s \
 		--for=condition=ReleaseFailed \
 		konk failstodeploy; \
-    do \
-      sleep 1s; \
-    done
+	do \
+		kubectl get konks; \
+		kubectl get konk failstodeploy -o jsonpath='{.status.conditions[-1]}' | jq . ; \
+		sleep 1s; \
+	done
 
 teardown-%:
 	$(HELM) delete $(RELEASE_PREFIX)-$*
@@ -236,3 +243,8 @@ deploy-apiserver: kind-load-apiserver
 	 	--wait $(RELEASE_PREFIX)-apiserver \
 	 	$(CHART_DIR)/example-apiserver \
 	 	$(HELM_FLAGS)
+
+upgrade-etcd:
+	cd $(CHART_DIR) && \
+	rm -f etcd* && \
+	helm pull --debug --untar --repo https://charts.bitnami.com/bitnami etcd
