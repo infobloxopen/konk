@@ -4,7 +4,7 @@ go 1.13
 
 require (
 	github.com/go-openapi/loads v0.19.7
-	github.com/go-openapi/spec v0.19.15
+	github.com/go-openapi/spec v0.20.0
 	github.com/gorilla/websocket v1.4.1 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.0.1-0.20190723091251-e0797f438f94 // indirect
 	github.com/onsi/ginkgo v1.14.2
