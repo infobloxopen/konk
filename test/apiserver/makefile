@@ -45,13 +45,13 @@ kind-load: KIND=echo
 kind-load: image
 	$(KIND) load docker-image ${IMAGE} --name ${KIND_NAME}
 
-.image-${IMAGE_TAG}: build
+.image-${IMAGE_TAG}:
 	docker build --pull -t ${IMAGE} -f Dockerfile .
 	touch $@
 
 image: .image-${IMAGE_TAG}
 
-.push-${IMAGE_TAG}: build
+.push-${IMAGE_TAG}: image
 	docker push ${IMAGE}
 	touch $@
 

@@ -215,7 +215,9 @@ kind-load-konk: $(KIND) docker-build
 	$(KIND) load docker-image ${IMG} --name ${KIND_NAME}
 
 kind-load-apiserver: QUAY_IMG=$(shell $(HELM) template helm-charts/example-apiserver | awk '/image: quay/ {print $$2}')
-kind-load-apiserver: $(KIND)
+kind-load-apiserver: $(KIND) .image-apiserver-${GIT_VERSION}
+
+.image-apiserver-${GIT_VERSION}:
 	$(MAKE) -C test/apiserver kind-load \
 		KIND=$(KIND) KIND_NAME=${KIND_NAME} \
 		IMAGE_TAG=${GIT_VERSION} \
@@ -234,14 +236,12 @@ deploy-ingress-nginx:
 		kubectl --namespace ingress-nginx describe pod -l app.kubernetes.io/component=controller; \
 	done
 
-ifndef KONK_NAME
-deploy-apiserver: CREATE_KONK ?= true
-endif
-deploy-apiserver: HELM_FLAGS ?=--set=image.tag=$(GIT_VERSION) --set=image.pullPolicy=IfNotPresent --set=konk.create=${CREATE_KONK} --set=konk.name=${KONK_NAME} --set=konk.namespace=${KONK_NAMESPACE}
-deploy-apiserver: kind-load-apiserver
+deploy-example-apiserver: HELM_FLAGS ?=--set=image.pullPolicy=IfNotPresent
+deploy-example-apiserver: kind-load-apiserver
 	$(HELM) upgrade --debug -i \
 	 	--wait $(RELEASE_PREFIX)-apiserver \
 	 	$(CHART_DIR)/example-apiserver \
+		--set=image.tag=$(GIT_VERSION) \
 	 	$(HELM_FLAGS)
 
 upgrade-etcd:

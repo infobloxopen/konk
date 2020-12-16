@@ -63,18 +63,30 @@ Create the name of the service account to use
 {{- end }}
 
 {{/*
-Templates konk name
+    Templates konk name
 */}}
 {{- define "example-apiserver.konkname" -}}
 {{- .Values.konk.name | default (printf "%s-konk" .Release.Name) }}
 {{- end }}
 
 {{/*
+    Template konk namespace
+*/}}
+{{- define "example-apiserver.konknamespace" -}}
+{{- .Values.konk.namespace | default .Release.Namespace }}
+{{- end }}
+
+
+{{/*
 Templates konk-service name
 */}}
 {{- define "example-apiserver.konk-service-name" -}}
-{{- .Release.Name | trunc 63 | trimSuffix "-" }}-api
+{{- .Values.konkservice.name | default (printf "%s-konk-service" .Release.Name) }}
 {{- end }}
-{{- define "example-apiserver.konk-service-fullname" -}}
-{{- include "example-apiserver.konk-service-name" . }}-konk-service
+
+{{/*
+Templates konk-service namespace
+*/}}
+{{- define "example-apiserver.konk-service-namespace" -}}
+{{- .Values.konkservice.namespace | default .Release.Namespace }}
 {{- end }}

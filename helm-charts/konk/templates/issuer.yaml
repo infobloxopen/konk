@@ -1,9 +1,0 @@
-apiVersion: cert-manager.io/v1
-kind: Issuer
-metadata:
-  name: {{ include "konk.fullname" . }}-selfsigned
-  namespace: {{ .Release.Namespace }}
-  labels:
-    {{- include "konk.labels" . | nindent 4 }}
-spec:
-  selfSigned: {}

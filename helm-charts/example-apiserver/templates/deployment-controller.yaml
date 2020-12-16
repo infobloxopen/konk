@@ -5,6 +5,7 @@ metadata:
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "example-apiserver.labels" . | nindent 4 }}
+    component: controller
 spec:
 {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
@@ -80,4 +81,4 @@ spec:
       volumes:
       - name: kubeconfig
         secret:
-          secretName: {{ include "example-apiserver.konk-service-fullname" . }}-kubeconfig
+          secretName: {{ include "example-apiserver.konk-service-name" . }}-kubeconfig

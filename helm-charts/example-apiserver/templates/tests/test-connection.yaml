@@ -49,4 +49,4 @@ spec:
   volumes:
   - name: kubeconfig
     secret:
-      secretName: {{ include "example-apiserver.konk-service-fullname" . }}-kubeconfig
+      secretName: {{ include "example-apiserver.konk-service-name" . }}-kubeconfig

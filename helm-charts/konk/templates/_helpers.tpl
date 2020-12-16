@@ -81,3 +81,23 @@ Prefixes "Cluster" when Konk is cluster-scoped
 Cluster
 {{- end }}
 {{- end }}
+
+{{/*
+Big thanks to opa chart for this!
+https://github.com/helm/charts/blob/master/stable/opa/templates/_helpers.tpl#L85
+Detect the version of cert manager crd that is installed
+Error if CRD is not available
+*/}}
+{{- define "konk.certManagerApiVersion" -}}
+{{- if (.Capabilities.APIVersions.Has "cert-manager.io/v1alpha3") -}}
+cert-manager.io/v1alpha3
+{{- else if (.Capabilities.APIVersions.Has "cert-manager.io/v1alpha2") -}}
+cert-manager.io/v1alpha2
+{{- else if (.Capabilities.APIVersions.Has "certmanager.k8s.io/v1alpha1") -}}
+certmanager.k8s.io/v1alpha1
+{{- else if .Values.isLint -}}
+dummy
+{{- else  -}}
+{{- fail "cert-manager CRD does not appear to be installed" }}
+{{- end -}}
+{{- end -}}

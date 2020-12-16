@@ -2,13 +2,13 @@ apiVersion: konk.infoblox.com/v1alpha1
 kind: KonkService
 metadata:
   name: {{ include "example-apiserver.konk-service-name" . }}
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ include "example-apiserver.konk-service-namespace" . }}
   labels:
     {{- include "example-apiserver.labels" . | nindent 4 }}
 spec:
   konk:
     name: {{ include "example-apiserver.konkname" . }}
-    namespace: {{ .Values.konk.namespace }}
+    namespace: {{ include "example-apiserver.konknamespace" . }}
     scope: {{ .Values.konk.scope }}
   service:
     name: {{ include "example-apiserver.fullname" . }}
