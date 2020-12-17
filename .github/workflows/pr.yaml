@@ -128,7 +128,7 @@ jobs:
         run: |
           git diff
           helm list
-          kubectl describe po,ing,certificate,clusterissuer,issuer,konk,konkservice
+          kubectl describe po,ing,certificate,clusterissuer,issuer,konk,konkservice -A
           kubectl get po,rs,svc,ep,certificate,clusterissuer,issuer,ingress,secrets,configmap -A
           kubectl logs -l app.kubernetes.io/component=apiservice -n $KONK_NAMESPACE
           kubectl logs -l app.kubernetes.io/name=konk-operator
