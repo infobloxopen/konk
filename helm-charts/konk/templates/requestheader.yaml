@@ -1,8 +1,51 @@
+# Front proxy client certificates.
+# Reference: https://kubernetes.io/docs/tasks/extend-kubernetes/configure-aggregation-layer/
+
+# Create a self signed CA certificate
+apiVersion: {{ include "konk.certManagerApiVersion" . }}
+kind: Issuer
+metadata:
+  name: {{ include "konk.fullname" . }}-requestheader-self-signed
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "konk.labels" . | nindent 4 }}
+spec:
+  selfSigned: {}
 ---
-apiVersion: cert-manager.io/v1
+apiVersion: {{ include "konk.certManagerApiVersion" . }}
 kind: Certificate
 metadata:
-  name: {{ include "konk.fullname" . }}-proxy-client
+  name: {{ include "konk.fullname" . }}-requestheader-self-signed
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "konk.labels" . | nindent 4 }}
+spec:
+  secretName: {{ include "konk.fullname" . }}-requestheader-self-signed
+  duration: 17520h #2y
+  issuerRef:
+    name: {{ include "konk.fullname" . }}-requestheader-self-signed
+  commonName: "konk.infoblox"
+  isCA: true
+---
+
+# Create client certificates signed with above CA Certificate
+apiVersion: {{ include "konk.certManagerApiVersion" . }}
+kind: Issuer
+metadata:
+  name: {{ include "konk.fullname" . }}-requestheader
+  {{- if eq .Values.scope "namespace" }}
+  namespace: {{ .Release.Namespace }}
+  {{- end }}
+  labels:
+    {{- include "konk.labels" . | nindent 4 }}
+spec:
+ ca:
+   secretName: {{ include "konk.fullname" . }}-requestheader-self-signed
+---
+apiVersion: {{ include "konk.certManagerApiVersion" . }}
+kind: Certificate
+metadata:
+  name: {{ include "konk.fullname" . }}-requestheader-proxy-client
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "konk.labels" . | nindent 4 }}
@@ -17,6 +60,6 @@ spec:
   dnsNames:
   - core
   issuerRef:
-    name: {{ include "konk.fullname" . }}-selfsigned
+    name: {{ include "konk.fullname" . }}-requestheader
     kind: Issuer
 ...
