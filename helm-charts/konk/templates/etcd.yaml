@@ -16,6 +16,11 @@ spec:
       existingSecret: {{ include "konk.fullname" $ }}-etcd-cert
       certFilename: server.crt
       certKeyFilename: server.key
+  {{- if $.Values.space.enabled }}
+  global:
+    imagePullSecrets:
+      - {{ include "konk.fullname" $ }}-imagepullsecret
+  {{- end }}
   # these probes don't work with self-signed certs because probe.sh doesn't set the cacert path in the $AUTH_OPTIONS
   livenessProbe:
     enabled: false

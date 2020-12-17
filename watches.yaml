@@ -5,12 +5,14 @@
   chart: helm-charts/konk
   overrideValues:
     certManager.namespace: $CERT_MANAGER_NAMESPACE
+    space.enabled: $SPACE
 - group: konk.infoblox.com
   version: v1alpha1
   kind: KonkService
   chart: helm-charts/konk-service
   overrideValues:
     authURL: $AUTH_URL
+    space.enabled: $SPACE
 - group: konk.infoblox.com
   version: v1alpha1
   kind: Etcd

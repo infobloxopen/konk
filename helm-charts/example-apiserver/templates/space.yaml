@@ -1,0 +1,21 @@
+{{- if .Values.space.enabled }}
+{{- range $key := list "imagepullsecret" }}
+{{- $secret := index $.Values.vaultCommon $key }}
+apiVersion: spacecontroller.infoblox-cto.github.com/v1alpha1
+kind: Space
+metadata:
+  name: {{ template "example-apiserver.fullname" $ }}-{{ lower $key }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "example-apiserver.labels" $ | nindent 4 }}
+spec:
+  secretName: {{ template "example-apiserver.fullname" $ }}-{{ lower $key }}
+  path: {{ tpl $secret.path $ }}
+  type: {{ tpl $secret.type $ }}
+  secrets:
+    {{- range $secret.keys }}
+    {{ . }}: VAULT
+    {{- end }}
+---
+{{- end }}
+{{- end }}
