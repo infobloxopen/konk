@@ -51,9 +51,9 @@ ingress:
   #      - chart-example.local
 
 konk:
-  create: false
   # The value below should be overriden by the konk-name
   name: ""
+  namespace: ""
   scope: ""
 
 service:
