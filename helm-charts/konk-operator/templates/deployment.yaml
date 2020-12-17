@@ -37,6 +37,8 @@ spec:
               value: {{ .Values.authURL | default "" }}
             - name: CERT_MANAGER_NAMESPACE
               value: {{ (index .Values "cert-manager").namespace }}
+            - name: SPACE
+              value: {{ .Values.space.enabled | default "" | quote }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       {{- with .Values.nodeSelector }}
