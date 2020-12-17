@@ -37,17 +37,17 @@ jobs:
         continue-on-error: true
       - name: Fetch tags
         run: |
-          pwd
           git fetch --prune --unshallow
       - name: Helm Lint
         run: |
           mkdir -p ~/.kube
           make helm-lint
       - uses: helm/kind-action@v1.1.0
+        timeout-minutes: 5
         with:
           config: ./src/github.com/${{ github.repository }}/test/kind.yaml
       - name: Deploy charts
-        timeout-minutes: 5
+        timeout-minutes: 2
         run: |
           kubectl cluster-info
           make deploy-cert-manager deploy-ingress-nginx
@@ -71,7 +71,6 @@ jobs:
       - name: Fetch tags
         if: ${{ matrix.isUpgrade }}
         run: |
-          pwd
           git fetch --prune --unshallow
       - name: Install/Upgrade konk-operator
         timeout-minutes: 3
@@ -79,7 +78,7 @@ jobs:
           make kind-load-konk KIND_NAME="chart-testing"
           make deploy-crds deploy-konk-operator
       - name: Test Konk
-        timeout-minutes: 4
+        timeout-minutes: 6
         run: |
           kubectl create ns $KONK_NAMESPACE || true
           kubectl apply -n $KONK_NAMESPACE -f examples/konk.yaml
@@ -94,20 +93,28 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: 1.15.x
-      - name: Test Extension APIServer
+      - name: Build Extension APIServer
         timeout-minutes: 7
         run: |
+          make kind-load-apiserver KIND_NAME="chart-testing"
+      - name: Deploy Extension APIServer
+        timeout-minutes: 4
+        run: |
           # deploy example-apiserver using a passed KONK reference
-          make deploy-apiserver KIND_NAME="chart-testing" KONK_NAME="runner-konk" KONK_NAMESPACE=$KONK_NAMESPACE
+          make deploy-example-apiserver KIND_NAME="chart-testing" \
+            HELM_SETFLAGS="--set=konk.name=runner-konk --set=konk.namespace=$KONK_NAMESPACE --set=konk.create=false --set=image.pullPolicy=IfNotPresent"
+
           POD_NAME=$(kubectl get pod -o name -l app.kubernetes.io/name=konk-service,app.kubernetes.io/component=apiservice )
           until kubectl exec -it $POD_NAME -- kubectl get contact
           do
             kubectl exec -it $POD_NAME -- kubectl describe apiservice v1alpha1.example.infoblox.com
             sleep 3
           done
+      - name: Test Extension APIServer
+        run: |
           make test-apiserver
           # Test konkservice deployed
-          make test-apiserver-api
+          make test-apiserver-konk-service
       - name: Test ingress
         timeout-minutes: 1
         run: |
@@ -117,11 +124,13 @@ jobs:
             sleep 3
           done
       - name: Print failure
-        timeout-minutes: 1
         if: ${{ failure() }}
         run: |
           git diff
           helm list
           kubectl describe po,ing,certificate,clusterissuer,issuer,konk,konkservice
-          kubectl get po,svc,ep,certificate,clusterissuer,issuer,ingress,secrets,configmap
+          kubectl get po,rs,svc,ep,certificate,clusterissuer,issuer,ingress,secrets,configmap -A
+          kubectl logs -l app.kubernetes.io/component=apiservice -n $KONK_NAMESPACE
           kubectl logs -l app.kubernetes.io/name=konk-operator
+          kubectl logs -l component=controller,app.kubernetes.io/name=example-apiserver
+          kubectl logs -l component=apiserver,app.kubernetes.io/name=example-apiserver -c example-apiserver

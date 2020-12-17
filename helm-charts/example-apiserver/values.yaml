@@ -115,9 +115,9 @@ konkservice:
 
 konk:
   # creates a Konk, useful when not using a shared Konk
-  create: false
+  create: true
   # specifies the name of the konk to use, especially useful when targeting a shared Konk,
   # but can also be used to customize the name of the Konk created by this chart.
-  name:
-  namespace:
+  name: ""
+  namespace: ""
   scope: cluster

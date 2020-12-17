@@ -6,8 +6,10 @@ apiVersion: konk.infoblox.com/v1alpha1
 kind: Konk
 metadata:
   name: {{ include "example-apiserver.konkname" . }}
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ include "example-apiserver.konknamespace" . }}
   labels:
     {{- include "example-apiserver.labels" . | nindent 4 }}
-spec: {}
+spec:
+  scope: {{ .Values.konk.scope }}
+---
 {{- end }}

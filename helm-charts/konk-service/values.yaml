@@ -53,6 +53,7 @@ ingress:
 konk:
   # The value below should be overriden by the konk-name
   name: ""
+  namespace: ""
   scope: ""
 
 service:
@@ -65,7 +66,7 @@ service:
 crds: null
 
 group:
-  name: example.com
+  name: example.infoblox.com
   kinds:
   - Test
   - Alpha
@@ -78,6 +79,6 @@ group:
   - patch
   - watch
 
-version:
+version: v1alpha1
 
 insecureSkipTLSVerify: false
