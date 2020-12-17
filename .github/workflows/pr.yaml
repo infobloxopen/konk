@@ -89,11 +89,6 @@ jobs:
           done
           make test-konk KONK_NAMESPACE=$KONK_NAMESPACE
           make test-konk-local
-
-          until kubectl wait -n $KONK_NAMESPACE --timeout=1m --for=condition=ready certificate -l component=proxy-client,app.kubernetes.io/name=konk
-          do
-            sleep 1
-          done
       - name: Setup Go
         uses: actions/setup-go@v2
         with:
@@ -105,7 +100,6 @@ jobs:
       - name: Deploy Extension APIServer
         timeout-minutes: 4
         run: |
-          kubectl
           # deploy example-apiserver using a passed KONK reference
           make deploy-example-apiserver KIND_NAME="chart-testing" \
             HELM_SETFLAGS="--set=konk.name=runner-konk --set=konk.namespace=$KONK_NAMESPACE --set=konk.create=false --set=image.pullPolicy=IfNotPresent"

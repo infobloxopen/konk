@@ -83,10 +83,3 @@ Templates konk-service name
 {{- define "example-apiserver.konk-service-name" -}}
 {{- .Values.konkservice.name | default (printf "%s-konk-service" .Release.Name) }}
 {{- end }}
-
-{{/*
-Templates konk-service namespace
-*/}}
-{{- define "example-apiserver.konk-service-namespace" -}}
-{{- .Values.konkservice.namespace | default .Release.Namespace }}
-{{- end }}
