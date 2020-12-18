@@ -39,6 +39,8 @@ spec:
               value: {{ (index .Values "cert-manager").namespace }}
             - name: SPACE
               value: {{ .Values.space.enabled | default "" | quote }}
+            - name: VAULT_PATH
+              value: {{ .Values.vaultCommon.imagepullsecret.path | default "" }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       {{- with .Values.nodeSelector }}

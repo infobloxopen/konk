@@ -65,3 +65,9 @@ crds:
 
 dashboards:
   create: false
+
+vaultCommon:
+  imagepullsecret:
+    path:
+    keys: []
+    type: kubernetes.io/dockerconfigjson

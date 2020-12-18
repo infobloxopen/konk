@@ -11,11 +11,9 @@ metadata:
 spec:
   secretName: {{ template "konk-service.fullname" $ }}-{{ lower $key }}
   path: {{ tpl $secret.path $ }}
-  type: {{ tpl $secret.type $ }}
+  type: kubernetes.io/dockerconfigjson
   secrets:
-    {{- range $secret.keys }}
-    {{ . }}: VAULT
-    {{- end }}
+    config: VAULT
 ---
 {{- end }}
 {{- end }}

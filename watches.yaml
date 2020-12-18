@@ -6,6 +6,7 @@
   overrideValues:
     certManager.namespace: $CERT_MANAGER_NAMESPACE
     space.enabled: $SPACE
+    vaultCommon.imagepullsecret.path: $VAULT_PATH
 - group: konk.infoblox.com
   version: v1alpha1
   kind: KonkService
@@ -13,6 +14,7 @@
   overrideValues:
     authURL: $AUTH_URL
     space.enabled: $SPACE
+    vaultCommon.imagepullsecret.path: $VAULT_PATH
 - group: konk.infoblox.com
   version: v1alpha1
   kind: Etcd
