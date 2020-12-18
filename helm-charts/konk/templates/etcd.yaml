@@ -8,6 +8,7 @@ metadata:
   labels:
     {{- include "konk.labels" $ | nindent 4 }}
 spec:
+  {{ toYaml . | nindent 2 }}
   auth:
     rbac:
       enabled: false
@@ -26,7 +27,5 @@ spec:
     enabled: false
   readinessProbe:
     enabled: false
-  resources: {{ toYaml .resources | nindent 4 }}
-  statefulset: {{ toYaml .statefulset | nindent 4 }}
 {{- end }}
 {{- end }}
