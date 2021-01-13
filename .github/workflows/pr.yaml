@@ -123,6 +123,10 @@ jobs:
           do
             sleep 3
           done
+      - name: Test delete
+        timeout-minutes: 1
+        run: |
+          kubectl delete konks,konkservices --all --all-namespaces
       - name: Print failure
         if: ${{ failure() }}
         run: |
