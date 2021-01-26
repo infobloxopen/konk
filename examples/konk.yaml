@@ -3,4 +3,5 @@ kind: Konk
 metadata:
   name: runner-konk
 spec:
+  replicaCount: 3
   scope: cluster
