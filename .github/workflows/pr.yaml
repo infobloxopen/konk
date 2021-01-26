@@ -14,6 +14,7 @@ jobs:
     timeout-minutes: 20
     defaults:
       run:
+        shell: bash -ex -o pipefail {0}
         working-directory: ./src/github.com/${{ github.repository }}
     env:
       GOPATH: ${{ github.workspace }}
@@ -126,7 +127,6 @@ jobs:
       - name: Test delete
         timeout-minutes: 1
         run: |
-          set -x
           helm list --all-namespaces
           kubectl delete konks,konkservices --all --all-namespaces
           [ -z "$(helm list --all-namespaces --filter '^runner-.*konk(-service)?$' | tee /dev/stderr | grep konk)" ]
