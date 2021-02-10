@@ -10,7 +10,7 @@ This repo provides a konk helm chart that can be used to deploy an instance of k
 
 ### Office Hour
 
-Office Hour 9am PST/12pm EST on Fridays landing on even days [https://infoblox.zoom.us/j/98130157567](https://infoblox.zoom.us/j/98130157567)
+Office Half Hour 9:30am PST/12:30pm EST on Fridays landing on even days [https://infoblox.zoom.us/j/98130157567](https://infoblox.zoom.us/j/98130157567)
 
 ## konk chart
 
