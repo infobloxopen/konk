@@ -9,16 +9,17 @@ import (
 	"github.com/infobloxopen/konk/test/apiserver/pkg/webhook"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
-	"sigs.k8s.io/controller-runtime/pkg/runtime/signals"
+	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
 )
 
 func main() {
 	var metricsAddr string
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	flag.Parse()
-	logf.SetLogger(logf.ZapLogger(false))
+	logf.SetLogger(zap.Logger(false))
 	log := logf.Log.WithName("entrypoint")
 
 	// Get a config to talk to the apiserver
