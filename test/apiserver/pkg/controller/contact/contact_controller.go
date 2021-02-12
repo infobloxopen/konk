@@ -72,7 +72,7 @@ type ReconcileContact struct {
 // and what is in the Contact.Spec
 // TODO(user): Modify this Reconcile function to implement your Controller logic.  The scaffolding writes
 // a Deployment as an example
-func (r *ReconcileContact) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+func (r *ReconcileContact) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
 	// Fetch the Contact instance
 	instance := &examplev1alpha1.Contact{}
 	err := r.Get(context.TODO(), request.NamespacedName, instance)
