@@ -6,7 +6,7 @@ import (
 	"k8s.io/apiserver/pkg/registry/generic"
 	"k8s.io/apiserver/pkg/registry/rest"
 	"k8s.io/klog"
-	"sigs.k8s.io/apiserver-builder-alpha/pkg/storage/filepath"
+	"sigs.k8s.io/apiserver-runtime/pkg/experimental/storage/filepath"
 )
 
 // See https://github.com/kubernetes-sigs/apiserver-builder-alpha/pull/533/files#diff-163ee78893222e626ff355526b0c37102559d5c551b0d4c6851e4da2c1ef06f9R12
