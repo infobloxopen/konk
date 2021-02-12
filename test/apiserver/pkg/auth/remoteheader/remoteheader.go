@@ -5,7 +5,7 @@ import (
 
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/klog"
-	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 var log = logf.Log.WithName("remoteheader")
