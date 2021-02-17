@@ -1,4 +1,4 @@
-FROM golang:1.16.0 AS builder
+FROM golang:1.16 AS builder
 WORKDIR /go/src/github.com/infobloxopen/konk/test/apiserver
 
 COPY go.mod .
