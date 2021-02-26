@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "konk-service.fullname" . }}-kubectl-apiservice-test
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "konk-service.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "konk-service.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: apiservice-test
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/apiservice-configmap.yaml") . | sha256sum }}
+        checksum/values: {{ print .Values | sha256sum }}
+      labels:
+        {{- include "konk-service.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: apiservice-test
+    spec:
+      serviceAccountName: {{ include "konk-service.serviceAccountName" . }}
+      containers:
+      - name: kind
+        securityContext:
+          {{- toYaml .Values.kind.securityContext | nindent 10 }}
+        image: "{{ .Values.kind.image.repository }}:{{ .Values.kind.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.kind.image.pullPolicy }}
+        command: ["/bin/bash", "-c"]
+        args:
+          - |
+            set -x
+            while true
+            do
+              date
+              kubectl get apiservice {{ .Values.version }}.{{ .Values.group.name }} && \
+              kubectl api-resources --api-group={{ .Values.group.name }}
+              echo $? > /tmp/healthy
+              sleep $[ 30 + ( $RANDOM % 5 ) ]
+            done
+        env:
+          - name: KUBECONFIG
+            value: /etc/kubernetes/admin.conf
+        resources:
+          {{- toYaml .Values.kind.resources | nindent 10 }}
+        volumeMounts:
+        - name: kubeconfig
+          mountPath: "/etc/kubernetes"
+          readOnly: true
+        - name: tmp
+          mountPath: "/tmp"
+        readinessProbe:
+          exec:
+            command: ["/bin/bash", "-c", "exit $(</tmp/healthy)"]
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: kubeconfig
+        secret:
+          secretName: {{ include "konk-service.fullname" . }}-kubeconfig
+      - name: tmp
+        emptyDir: {}
