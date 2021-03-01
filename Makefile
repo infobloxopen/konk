@@ -248,3 +248,13 @@ upgrade-etcd:
 	cd $(CHART_DIR) && \
 	rm -rf etcd* && \
 	helm pull --debug --untar --repo https://charts.bitnami.com/bitnami etcd
+
+clean:
+	rm -rf \
+	.image-* \
+	.kind-load-* \
+	*.tgz \
+	bin/ \
+	helm-charts/konk-operator/crds/ \
+	helm-charts/konk-operator/rbac \
+	test/apiserver/.image-*

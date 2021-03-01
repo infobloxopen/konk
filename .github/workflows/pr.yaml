@@ -116,6 +116,7 @@ jobs:
           make test-apiserver
           # Test konkservice deployed
           make test-apiserver-konk-service
+          kubectl wait --timeout=1m --for=condition=ready pod -l app.kubernetes.io/name=konk-service,app.kubernetes.io/component=apiservice-test
       - name: Test ingress
         timeout-minutes: 1
         run: |
