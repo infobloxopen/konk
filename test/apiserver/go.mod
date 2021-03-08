@@ -10,12 +10,11 @@ require (
 	github.com/go-logr/logr v0.3.0 // indirect
 	github.com/go-openapi/loads v0.20.2
 	github.com/go-openapi/spec v0.20.3
-	github.com/golang/protobuf v1.4.3 // indirect
 	github.com/google/uuid v1.1.2 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.0.1-0.20190723091251-e0797f438f94 // indirect
 	github.com/imdario/mergo v0.3.10 // indirect
 	github.com/onsi/ginkgo v1.15.1
-	github.com/onsi/gomega v1.10.5
+	github.com/onsi/gomega v1.11.0
 	github.com/prometheus/procfs v0.2.0 // indirect
 	github.com/spf13/cobra v1.1.1 // indirect
 	github.com/spf13/pflag v1.0.5
