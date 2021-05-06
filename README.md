@@ -58,13 +58,17 @@ spec:
       secretName: my-api.example.com-tls
 ```
 
-# Testing
-
 ## example apiserver chart
 
 Found in [helm-charts/example-apiserver](helm-charts/example-apiserver).
 
 This chart will deploy an example-apiserver instance, which is a reference implementation of an extension API server and its usage with konk. This chart requires an existing konk to be deployed in the cluster. This chart also assumes that the konk-operator has been deployed to the cluster, since it involves creating a `KonkService` CR.
+
+# Getting Started
+
+Add the konk repo:
+
+    helm repo add konk https://infobloxopen.github.io/konk
 
 ### Optional, stand up KIND
 
@@ -74,7 +78,7 @@ This chart will deploy an example-apiserver instance, which is a reference imple
 
 ### Install
 
-    helm install my-konk-operator ./helm-charts/konk-operator
+    helm install konk-operator konk/konk-operator --devel
 
 ### Create a konk
 
