@@ -21,7 +21,7 @@ jobs:
       KONK_NAMESPACE: baz
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v2.3.4
         with:
           path: ./src/github.com/${{ github.repository }}
           ref: ${{ matrix.ref }}
@@ -66,7 +66,7 @@ jobs:
           done
       - name: Checkout code
         if: ${{ matrix.isUpgrade }}
-        uses: actions/checkout@v2
+        uses: actions/checkout@v2.3.4
         with:
           path: ./src/github.com/${{ github.repository }}
       - name: Fetch tags
