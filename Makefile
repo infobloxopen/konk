@@ -1,6 +1,7 @@
 CHART_DIR	:= helm-charts
 GIT_VERSION	?= $(shell git describe --dirty=-unsupported --always --long --tags)
 HELM_IMAGE	?= infoblox/helm:3.2.4-5b243a2
+MINIKUBE        := $(HOME)/.minikube
 DOCKER_RUNNER	?= docker run --rm -i \
 			--entrypoint="" \
 			--network host \
@@ -8,9 +9,22 @@ DOCKER_RUNNER	?= docker run --rm -i \
 			-v $(dir $(KUBECONFIG)):/apps/.kube/ \
 			-v $(shell pwd):/apps \
 			$(HELM_IMAGE)
+DOCKER_RUNNER_MINI	?= docker run --rm -i \
+			--entrypoint="" \
+			--network host \
+			-e KUBECONFIG=/apps/.kube/$(notdir $(KUBECONFIG)) \
+			-v $(dir $(KUBECONFIG)):/apps/.kube/ \
+			-v $(shell pwd):/apps \
+			-v $(MINIKUBE)/profiles/minikube/:$(MINIKUBE)/profiles/minikube/ \
+            -v $(MINIKUBE)/ca.crt:$(MINIKUBE)/ca.crt \
+            -v $(MINIKUBE)/client.crt:$(MINIKUBE)/client.crt \
+            -v $(MINIKUBE)/client.key:$(MINIKUBE)/client.key \
+			$(HELM_IMAGE)
 HELM		?= $(DOCKER_RUNNER) \
 			helm
 HELM_CMD	?= $(DOCKER_RUNNER) \
+			/bin/bash -c
+HELM_CMD_MINI	?= $(DOCKER_RUNNER_MINI) \
 			/bin/bash -c
 K8S_RELEASE	?= v1.19.0
 KUBEADM		?= docker run --rm -it --entrypoint="" kindest/node:$(K8S_RELEASE) kubeadm
@@ -42,6 +56,14 @@ helm-lint-%:
 deploy-cert-manager:
 	$(HELM_CMD) "helm repo add jetstack https://charts.jetstack.io && helm upgrade -i --wait cert-manager --namespace cert-manager jetstack/cert-manager --version v1.0.1 \
 		--create-namespace \
+		--set installCRDs=true \
+		--set extraArgs[0]="--enable-certificate-owner-ref=true""
+
+# Run this only if your minikube does not have cert-manager already deployed
+deploy-cert-manager-minikube:
+	$(HELM_CMD_MINI) "helm repo add jetstack https://charts.jetstack.io && helm upgrade -i --wait cert-manager --namespace cert-manager jetstack/cert-manager --version v1.0.1 \
+		--create-namespace \
+		--kube-context minikube \
 		--set installCRDs=true \
 		--set extraArgs[0]="--enable-certificate-owner-ref=true""
 
