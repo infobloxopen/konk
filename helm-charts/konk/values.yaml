@@ -26,7 +26,7 @@ apiserver:
     # runAsUser: 1000
   startupProbe: true
   remoteHeaders:
-    requestheader-extra-headers-prefix: X-Remote-Extra-
+    requestheader-extra-headers-prefix: X-
     requestheader-group-headers: X-Remote-Group
     requestheader-username-headers: X-Remote-User
   extraFlags: {}
