@@ -99,7 +99,3 @@ for name in $FULLNAME-apiserver-cert $FULLNAME-etcd-cert $FULLNAME-ca $FULLNAME-
 do
   kubectl patch -n $NAMESPACE secret $name -p '{"metadata":{"ownerReferences":[{"apiVersion":"apps/v1", "kind":"Deployment", "name":"'${FULLNAME}'", "uid":"'${DEPLOYMENT_UID}'"}]}}'
 done
-if [ "$SCOPE" = "cluster" ]
-then
-  kubectl patch -n $CERT_MANAGER_NAMESPACE secret $FULLNAME-ca -p '{"metadata":{"ownerReferences":[{"apiVersion":"apps/v1", "kind":"Deployment", "name":"'${FULLNAME}'", "namespace":"'${NAMESPACE}'", "uid":"'${DEPLOYMENT_UID}'"}]}}'
-fi
