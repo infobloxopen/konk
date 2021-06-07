@@ -11,6 +11,12 @@ jobs:
         include:
           - isUpgrade: true
             ref: main
+        k8sVersion:
+          - v1.21.1
+          - v1.20.7
+          - v1.19.11
+          - v1.18.19
+          - v1.17.17
     timeout-minutes: 20
     defaults:
       run:
@@ -47,6 +53,8 @@ jobs:
         timeout-minutes: 5
         with:
           config: ./src/github.com/${{ github.repository }}/test/kind.yaml
+          node_image: kindest/node:${{ matrix.k8sVersion }}
+          version: v0.11.1
       - name: Deploy charts
         timeout-minutes: 2
         run: |
