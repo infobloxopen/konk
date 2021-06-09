@@ -17,6 +17,9 @@ serviceAccount:
 space:
   enabled: false
 
+# annotations to add to the APIService created in Konk by KonkService
+annotations: {}
+
 kind:
   image:
     repository: kindest/node

@@ -49,6 +49,10 @@ data:
     kind: APIService
     metadata:
       name: {{ .Values.version }}.{{ .Values.group.name }}
+      {{- with .Values.annotations }}
+      annotations:
+        {{ toYaml . | indent 4 }}
+      {{- end }}
     spec:
       {{- if .Values.insecureSkipTLSVerify }}
       insecureSkipTLSVerify: {{ .Values.insecureSkipTLSVerify }}
