@@ -26,10 +26,13 @@ This chart will deploy konk.
 ## konk operator
 
 konk-operator is generated with operator-sdk and implements a helm operator for the konk chart and the konk-service chart. Once deployed, `Konk` and `KonkService` resources can be created in the cluster and the operator will deploy a konk instance and a konk-service instance for each of them.
+konk-operator applies the contents of the CR `.spec` as values in the respective helm chart.
+
+[`Konk` spec doc](helm-charts/konk/values.yaml)
 
 [Example `Konk` CR](examples/konk.yaml)
 
-## konk service chart
+## konk-service chart
 
 Found in [helm-charts/konk-service](helm-charts/konk-service).
 
