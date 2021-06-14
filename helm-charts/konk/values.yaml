@@ -27,9 +27,15 @@ apiserver:
     # runAsUser: 1000
   startupProbe: true
   remoteHeaders:
+    # -- sets kube-apiserver's `--requestheader-extra-headers-prefix` option.
+    # See https://kubernetes.io/docs/reference/command-line-tools-reference/kube-apiserver/ for details.
     requestheader-extra-headers-prefix: X-Remote-Extra-
+    # -- sets kube-apiserver's `--requestheader-group-headers` option.
     requestheader-group-headers: X-Remote-Group
+    # -- sets kube-apiserver's `--requestheader-username-headers` option.
     requestheader-username-headers: X-Remote-User
+  # -- additional command line flags for kube-apiserver.
+  # See https://kubernetes.io/docs/reference/command-line-tools-reference/kube-apiserver/ for details.
   extraFlags: {}
   # -- specifies APIs unavailable in Konk.
   disabledAPIs:
