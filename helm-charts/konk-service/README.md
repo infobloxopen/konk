@@ -4,7 +4,7 @@
 
 Registers an aggregate API service in Konk
 
-## Values or `Konk-Service` `.spec`
+## Values or `KonkService` `.spec`
 
 When deploying with konk-operator, these configurations can be overridden in the `Konk-Service` `.spec`.
 

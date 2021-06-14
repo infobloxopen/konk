@@ -15,7 +15,7 @@
 {{ template "chart.requirementsSection" . }}
 
 {{ define "chart.valuesHeader" -}}
-## Values or `{{ .Name | title }}` `.spec`
+## Values or `{{ .Name | title | replace "-" "" }}` `.spec`
 
 When deploying with konk-operator, these configurations can be overridden in the `{{ .Name | title }}` `.spec`.
 
