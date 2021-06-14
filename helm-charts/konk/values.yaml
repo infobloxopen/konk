@@ -8,7 +8,8 @@ apiserver:
   image:
     repository: k8s.gcr.io/kube-apiserver
     pullPolicy: Always
-    # Overrides the image tag whose default is the chart appVersion.
+    # -- Overrides the image tag
+    # @default -- default is the chart appVersion.
     tag: ""
   resources:
     limits:
@@ -30,6 +31,7 @@ apiserver:
     requestheader-group-headers: X-Remote-Group
     requestheader-username-headers: X-Remote-User
   extraFlags: {}
+  # -- specifies APIs unavailable in Konk.
   disabledAPIs:
     - apps/v1
     - apps/v1beta1
@@ -69,7 +71,9 @@ etcd:
     # runAsNonRoot: true
     # runAsUser: 1000
 
-  # etcd operator options
+  # -- defines how Konk's internal etcd is deployed.
+  # `true`: etcd is deployed by konk-operator
+  # `false`: etcd is deployed as a sidecar of konk's kube-apiserver
   operator: true
   statefulset:
     replicaCount: 3
@@ -78,7 +82,8 @@ kind:
   image:
     repository: kindest/node
     pullPolicy: Always
-    # Overrides the image tag whose default is the chart appVersion.
+    # -- Overrides the image tag
+    # @default -- default is the chart appVersion.
     tag: ""
   resources:
     limits:
@@ -99,8 +104,8 @@ imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
-# scope can be cluster or namespace.
-# When scope is cluster, Certificates in any namespace can be signed by the konk's Issuer.
+# -- scope can be `cluster` or `namespace`.
+# When scope is `cluster`, Certificates in any namespace can be signed by the konk's Issuer.
 scope: namespace
 
 serviceAccount:
