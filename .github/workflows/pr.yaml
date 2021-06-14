@@ -150,3 +150,15 @@ jobs:
           kubectl logs -l app.kubernetes.io/name=konk-operator
           kubectl logs -l component=controller,app.kubernetes.io/name=example-apiserver
           kubectl logs -l component=apiserver,app.kubernetes.io/name=example-apiserver -c example-apiserver
+  readme:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - run: make chart-readmes
+      - name: commit changes
+        uses: EndBug/add-and-commit@v7
+        with:
+          message: update chart readme
+          add: helm-charts
