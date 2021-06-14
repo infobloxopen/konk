@@ -17,6 +17,12 @@ KUBEADM		?= docker run --rm -it --entrypoint="" kindest/node:$(K8S_RELEASE) kube
 KUBECONFIG	?= ${HOME}/.kube/config
 RELEASE_PREFIX	?= $(USER)
 
+CHART_READMES   ?= $(foreach chart,konk konk-service,$(CHART_DIR)/$(chart)/README.md)
+HELM_DOCS       ?= docker run --rm \
+			-v $(shell pwd):/helm-docs \
+			-u $(shell id -u) \
+			jnorwood/helm-docs:latest
+
 # KIND env variables
 KIND_NAME   	?= konk
 NODE_VERSION    ?= v1.19.0
@@ -222,6 +228,13 @@ kind-load-apiserver: $(KIND) .image-apiserver-${GIT_VERSION}
 		KIND=$(KIND) KIND_NAME=${KIND_NAME} \
 		IMAGE_TAG=${GIT_VERSION} \
 		BUILD_FLAGS="-mod=readonly"
+
+
+.PHONY: $(CHART_READMES)
+$(CHART_READMES):
+	$(HELM_DOCS) -c $(@D) -t ../README.md.gotmpl
+
+chart-readmes: $(CHART_READMES)
 
 deploy-ingress-nginx:
 	# avoids accidentally deploying ingress controller in shared clusters
