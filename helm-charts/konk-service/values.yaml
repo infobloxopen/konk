@@ -74,18 +74,16 @@ service:
 crds: null
 
 group:
+  # -- https://kubernetes.io/docs/reference/using-api/#api-groups
   name: example.infoblox.com
+  # -- resource types provided by your API service.
+  # This list is used to setup default RBAC policies.
   kinds:
-  - Test
-  - Alpha
+  - "*"
+  # -- actions to allow on your API service.
+  # This list is used to setup default RBAC policies.
   verbs:
-  - create
-  - update
-  - get
-  - list
-  - delete
-  - patch
-  - watch
+  - "*"
 
 version: v1alpha1
 

@@ -15,16 +15,9 @@ When deploying with `helm install`, these configurations are values and can be o
 | annotations | object | `{}` | annotations to add to the APIService created in Konk by KonkService |
 | crds | string | `nil` |  |
 | fullnameOverride | string | `""` |  |
-| group.kinds[0] | string | `"Test"` |  |
-| group.kinds[1] | string | `"Alpha"` |  |
-| group.name | string | `"example.infoblox.com"` |  |
-| group.verbs[0] | string | `"create"` |  |
-| group.verbs[1] | string | `"update"` |  |
-| group.verbs[2] | string | `"get"` |  |
-| group.verbs[3] | string | `"list"` |  |
-| group.verbs[4] | string | `"delete"` |  |
-| group.verbs[5] | string | `"patch"` |  |
-| group.verbs[6] | string | `"watch"` |  |
+| group.kinds | list | `["*"]` | resource types provided by your API service. This list is used to setup default RBAC policies. |
+| group.name | string | `"example.infoblox.com"` | https://kubernetes.io/docs/reference/using-api/#api-groups |
+| group.verbs | list | `["*"]` | actions to allow on your API service. This list is used to setup default RBAC policies. |
 | ingress.annotations | object | `{}` |  |
 | ingress.enabled | bool | `false` |  |
 | ingress.hosts[0].host | string | `"localhost"` |  |
