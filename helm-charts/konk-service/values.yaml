@@ -17,14 +17,14 @@ serviceAccount:
 space:
   enabled: false
 
-# annotations to add to the APIService created in Konk by KonkService
+# -- annotations to add to the APIService created in Konk by KonkService
 annotations: {}
 
 kind:
   image:
     repository: kindest/node
     pullPolicy: Always
-    # Overrides the image tag whose default is the chart appVersion.
+    # -- Overrides the image tag whose default is the chart appVersion.
     tag: v1.19.0
   resources: {}
     # We usually recommend not to specify default resources and to leave this as a conscious
@@ -57,33 +57,33 @@ ingress:
   #      - chart-example.local
 
 konk:
-  # The value below should be overriden by the konk-name
+  # konk.name -- should be set to the konk-name
   name: ""
   namespace: ""
+  # -- scope of the konk, must match `.scope` of the Konk
+  #
   scope: ""
 
 service:
-  # The value below should be overriden by service-name
+  # -- Required to be set to the name of the service to be registered in Konk
   name: test
-  # Optional reference to the secret the service's CA certs are stored in.
+  # -- Optional reference to the secret the service's CA certs are stored in.
   # When omitted, KonkService will generate a CA to be used by the APIService.
   caSecretName:
 
 crds: null
 
 group:
+  # -- https://kubernetes.io/docs/reference/using-api/#api-groups
   name: example.infoblox.com
+  # -- resource types provided by your API service.
+  # This list is used to setup default RBAC policies.
   kinds:
-  - Test
-  - Alpha
+  - "*"
+  # -- actions to allow on your API service.
+  # This list is used to setup default RBAC policies.
   verbs:
-  - create
-  - update
-  - get
-  - list
-  - delete
-  - patch
-  - watch
+  - "*"
 
 version: v1alpha1
 

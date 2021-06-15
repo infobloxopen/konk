@@ -28,7 +28,7 @@ This chart will deploy konk.
 konk-operator is generated with operator-sdk and implements a helm operator for the konk chart and the konk-service chart. Once deployed, `Konk` and `KonkService` resources can be created in the cluster and the operator will deploy a konk instance and a konk-service instance for each of them.
 konk-operator applies the contents of the CR `.spec` as values in the respective helm chart.
 
-[`Konk` spec doc](helm-charts/konk/values.yaml)
+[`Konk` spec doc](helm-charts/konk/README.md)
 
 [Example `Konk` CR](examples/konk.yaml)
 
@@ -38,7 +38,7 @@ Found in [helm-charts/konk-service](helm-charts/konk-service).
 
 The konk-service chart or `KonkService` CR will deploy the resources required to register an `APIService` in konk. It requires an existing konk to be deployed in the cluster. You need to specify the name of the konk and the name of the service that the `APIService` object being created should point to. This would be specified under `konk.name` and `service.name` in the `values.yaml` file. Also specify the `group` and `version` values to be populated in the generated APIService.
 
-[`KonkService` spec doc](helm-charts/konk-service/values.yaml)
+[`KonkService` spec doc](helm-charts/konk-service/README.md)
 
 [Example `KonkService`](examples/konk-service.yaml)
 

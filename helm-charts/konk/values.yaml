@@ -8,7 +8,8 @@ apiserver:
   image:
     repository: k8s.gcr.io/kube-apiserver
     pullPolicy: Always
-    # Overrides the image tag whose default is the chart appVersion.
+    # -- Overrides the image tag
+    # @default -- default is the chart appVersion.
     tag: ""
   resources:
     limits:
@@ -26,10 +27,17 @@ apiserver:
     # runAsUser: 1000
   startupProbe: true
   remoteHeaders:
+    # -- sets kube-apiserver's `--requestheader-extra-headers-prefix` option.
+    # See https://kubernetes.io/docs/reference/command-line-tools-reference/kube-apiserver/ for details.
     requestheader-extra-headers-prefix: X-Remote-Extra-
+    # -- sets kube-apiserver's `--requestheader-group-headers` option.
     requestheader-group-headers: X-Remote-Group
+    # -- sets kube-apiserver's `--requestheader-username-headers` option.
     requestheader-username-headers: X-Remote-User
+  # -- additional command line flags for kube-apiserver.
+  # See https://kubernetes.io/docs/reference/command-line-tools-reference/kube-apiserver/ for details.
   extraFlags: {}
+  # -- specifies APIs unavailable in Konk.
   disabledAPIs:
     - apps/v1
     - apps/v1beta1
@@ -69,7 +77,9 @@ etcd:
     # runAsNonRoot: true
     # runAsUser: 1000
 
-  # etcd operator options
+  # -- defines how Konk's internal etcd is deployed.
+  # `true`: etcd is deployed by konk-operator
+  # `false`: etcd is deployed as a sidecar of konk's kube-apiserver
   operator: true
   statefulset:
     replicaCount: 3
@@ -78,7 +88,8 @@ kind:
   image:
     repository: kindest/node
     pullPolicy: Always
-    # Overrides the image tag whose default is the chart appVersion.
+    # -- Overrides the image tag
+    # @default -- default is the chart appVersion.
     tag: ""
   resources:
     limits:
@@ -99,8 +110,8 @@ imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
-# scope can be cluster or namespace.
-# When scope is cluster, Certificates in any namespace can be signed by the konk's Issuer.
+# -- scope can be `cluster` or `namespace`.
+# When scope is `cluster`, Certificates in any namespace can be signed by the konk's Issuer.
 scope: namespace
 
 serviceAccount:

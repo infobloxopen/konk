@@ -1,0 +1,25 @@
+{{ template "chart.header" . }}
+
+{{ template "chart.deprecationWarning" . }}
+
+{{ template "chart.badgesSection" . }}
+
+{{ template "chart.description" . }}
+
+{{ template "chart.homepageLine" . }}
+
+{{ template "chart.maintainersSection" . }}
+
+{{ template "chart.sourcesSection" . }}
+
+{{ template "chart.requirementsSection" . }}
+
+{{ define "chart.valuesHeader" -}}
+## Values or `{{ .Name | title | replace "-" "" }}` `.spec`
+
+When deploying with konk-operator, these configurations can be overridden in the `{{ .Name | title }}` `.spec`.
+
+When deploying with `helm install`, these configurations are values and can be overridden in the [normal way](https://helm.sh/docs/helm/helm_install/#helm-install).
+{{ end }}
+
+{{ template "chart.valuesSection" . }}
