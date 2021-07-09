@@ -27,7 +27,7 @@ HELM_DOCS       ?= docker run --rm \
 KIND_NAME   	?= konk
 NODE_VERSION    ?= v1.19.0
 NODE_IMAGE      ?= kindest/node:${NODE_VERSION}
-KIND_VERSION    ?= v0.8.1
+KIND_VERSION    ?= v0.11.1
 KIND 			:= $(shell pwd)/bin/kind
 
 default: all
