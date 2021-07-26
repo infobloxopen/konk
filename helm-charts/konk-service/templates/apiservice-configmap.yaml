@@ -79,11 +79,11 @@ data:
         - {{ .Values.group.name }}
         resources:
         {{- range .Values.group.kinds }}
-        - {{ . }}
+        - {{ . | quote }}
         {{- end }}
         verbs:
         {{- range .Values.group.verbs }}
-        - {{ . }}
+        - {{ . | quote }}
         {{- end }}
 {{ if .Values.crds }}
 {{ .Values.crds | indent 2 }}
