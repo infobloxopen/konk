@@ -26,17 +26,15 @@ kind:
     pullPolicy: Always
     # -- Overrides the image tag whose default is the chart appVersion.
     tag: v1.19.0
-  resources: {}
+  resources:
     # We usually recommend not to specify default resources and to leave this as a conscious
     # choice for the user. This also increases chances charts run on environments with little
     # resources, such as Minikube. If you do want to specify resources, uncomment the following
     # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
-    # limits:
-    #   cpu: 100m
-    #   memory: 128Mi
-    # requests:
-    #   cpu: 100m
-    #   memory: 128Mi
+    limits:
+      memory: 128Mi
+    requests:
+      memory: 25Mi
   securityContext: {}
     # capabilities:
     #   drop:
