@@ -11,10 +11,10 @@ jobs:
         include:
           - isUpgrade: true
             ref: main
-          - ingressVersion: controller-v1.0.0
-            k8sVersion: v1.21.1
+          - ingressVersion: controller-v0.49.0
+            k8sVersion: v1.20.7
         ingressVersion:
-          - controller-v0.49.0
+          - controller-v1.0.0
         k8sVersion:
           - v1.22.1
           - v1.21.2
