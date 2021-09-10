@@ -11,6 +11,10 @@ jobs:
         include:
           - isUpgrade: true
             ref: main
+          - ingressVersion: controller-v1.0.0
+            k8sVersion: v1.21.1
+        ingressVersion:
+          - controller-v0.49.0
         k8sVersion:
           - v1.21.1
           - v1.20.7
@@ -59,7 +63,7 @@ jobs:
         timeout-minutes: 2
         run: |
           kubectl cluster-info
-          make deploy-cert-manager deploy-ingress-nginx
+          make deploy-cert-manager deploy-ingress-nginx INGRESS_VERSION=${{ matrix.ingressVersion }}
       - name: Install konk-operator
         if: ${{ matrix.isUpgrade }}
         timeout-minutes: 6
