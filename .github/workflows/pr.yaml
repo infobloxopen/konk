@@ -116,7 +116,7 @@ jobs:
         run: |
           # deploy example-apiserver using a passed KONK reference
           make deploy-example-apiserver KIND_NAME="chart-testing" \
-            HELM_SETFLAGS="--set=konk.name=runner-konk --set=konk.namespace=$KONK_NAMESPACE --set=konk.create=false --set=image.pullPolicy=IfNotPresent"
+            HELM_FLAGS="--set=konk.name=runner-konk --set=konk.namespace=$KONK_NAMESPACE --set=konk.create=false --set=image.pullPolicy=IfNotPresent"
 
           POD_NAME=$(kubectl get pod -o name -l app.kubernetes.io/name=konk-service,app.kubernetes.io/component=apiservice )
           until kubectl exec -it $POD_NAME -- kubectl get contact
@@ -162,7 +162,7 @@ jobs:
           kubectl logs -l component=controller,app.kubernetes.io/name=example-apiserver
           kubectl logs -l component=apiserver,app.kubernetes.io/name=example-apiserver -c example-apiserver
           kubectl logs -l app.kubernetes.io/component=controller -n ingress-nginx'
-          return 1
+          exit 1
   readme:
     runs-on: ubuntu-latest
     timeout-minutes: 2
