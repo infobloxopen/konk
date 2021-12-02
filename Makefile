@@ -27,7 +27,7 @@ HELM_DOCS       ?= docker run --rm \
 KIND_NAME   	?= konk
 NODE_VERSION    ?= v1.19.0
 NODE_IMAGE      ?= kindest/node:${NODE_VERSION}
-KIND_VERSION    ?= v0.8.1
+KIND_VERSION    ?= v0.11.1
 KIND 			:= $(shell pwd)/bin/kind
 
 default: all
@@ -46,7 +46,7 @@ helm-lint-%:
 
 # Run this only if your cluster does not have cert-manager already deployed
 deploy-cert-manager:
-	$(HELM_CMD) "helm repo add jetstack https://charts.jetstack.io && helm upgrade -i --wait cert-manager --namespace cert-manager jetstack/cert-manager --version v1.0.1 \
+	$(HELM_CMD) "helm repo add jetstack https://charts.jetstack.io && helm upgrade -i --wait cert-manager --namespace cert-manager jetstack/cert-manager --version v1.5.3 \
 		--create-namespace \
 		--set installCRDs=true \
 		--set extraArgs[0]="--enable-certificate-owner-ref=true""

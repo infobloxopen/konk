@@ -19,6 +19,7 @@ When deploying with `helm install`, these configurations are values and can be o
 | group.name | string | `"example.infoblox.com"` | https://kubernetes.io/docs/reference/using-api/#api-groups |
 | group.verbs | list | `["*"]` | actions to allow on your API service. This list is used to setup default RBAC policies. |
 | ingress.annotations | object | `{}` |  |
+| ingress.className | string | `""` |  |
 | ingress.enabled | bool | `false` |  |
 | ingress.hosts[0].host | string | `"localhost"` |  |
 | ingress.tls | list | `[]` |  |

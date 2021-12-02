@@ -6,6 +6,8 @@ metadata:
   labels:
     {{- include "example-apiserver.labels" . | nindent 4 }}
 spec:
+  ingress:
+    className: nginx
   konk:
     name: {{ include "example-apiserver.konkname" . }}
     namespace: {{ include "example-apiserver.konknamespace" . }}

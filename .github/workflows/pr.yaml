@@ -7,19 +7,20 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        isUpgrade: [true, false]
-        include:
-          - isUpgrade: true
-            ref: main
-          - ingressVersion: controller-v1.0.0
-            k8sVersion: v1.21.1
         ingressVersion:
-          - controller-v0.49.0
+          - "" # uses makefile default (stable version)
+        isUpgrade:
+          - false
         k8sVersion:
-          - v1.22.1
+          # - v1.22.4 # FIXME: example-apiserver still uses removed apiextensions.k8s.io/v1beta1/CustomResourceDefinition
           - v1.21.2
           - v1.20.7
-          - v1.19.11
+        include:
+          - isUpgrade: true
+            k8sVersion: v1.20.7
+            ref: main
+          - ingressVersion: controller-v0.49.0
+            k8sVersion: v1.20.7
     timeout-minutes: 20
     defaults:
       run:
@@ -62,7 +63,7 @@ jobs:
         timeout-minutes: 2
         run: |
           kubectl cluster-info
-          make deploy-cert-manager deploy-ingress-nginx INGRESS_VERSION=${{ matrix.ingressVersion }}
+          make deploy-cert-manager deploy-ingress-nginx ${{ matrix.ingressVersion && fromJSON('"INGRESS_VERSION="') }}${{ matrix.ingressVersion }}
       - name: Install konk-operator
         if: ${{ matrix.isUpgrade }}
         timeout-minutes: 6
@@ -114,7 +115,7 @@ jobs:
         run: |
           # deploy example-apiserver using a passed KONK reference
           make deploy-example-apiserver KIND_NAME="chart-testing" \
-            HELM_SETFLAGS="--set=konk.name=runner-konk --set=konk.namespace=$KONK_NAMESPACE --set=konk.create=false --set=image.pullPolicy=IfNotPresent"
+            HELM_FLAGS="--set=konk.name=runner-konk --set=konk.namespace=$KONK_NAMESPACE --set=konk.create=false --set=image.pullPolicy=IfNotPresent"
 
           POD_NAME=$(kubectl get pod -o name -l app.kubernetes.io/name=konk-service,app.kubernetes.io/component=apiservice )
           until kubectl exec -it $POD_NAME -- kubectl get contact
@@ -145,14 +146,22 @@ jobs:
       - name: Print failure
         if: ${{ failure() }}
         run: |
-          git diff
-          helm list
+          set +x
+          while read cmd
+          do
+            echo "::group::$cmd"
+            $cmd
+            echo "::endgroup::"
+          done <<< 'git diff
+          helm list --all-namespaces
           kubectl describe po,ing,certificate,clusterissuer,issuer,konk,konkservice -A
           kubectl get po,rs,svc,ep,certificate,clusterissuer,issuer,ingress,secrets,configmap -A
           kubectl logs -l app.kubernetes.io/component=apiservice -n $KONK_NAMESPACE
           kubectl logs -l app.kubernetes.io/name=konk-operator
           kubectl logs -l component=controller,app.kubernetes.io/name=example-apiserver
           kubectl logs -l component=apiserver,app.kubernetes.io/name=example-apiserver -c example-apiserver
+          kubectl logs -l app.kubernetes.io/component=controller -n ingress-nginx'
+          exit 1
   readme:
     runs-on: ubuntu-latest
     timeout-minutes: 2
