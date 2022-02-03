@@ -50,8 +50,7 @@ data:
     metadata:
       name: {{ .Values.version }}.{{ .Values.group.name }}
       {{- with .Values.annotations }}
-      annotations:
-        {{ toYaml . | indent 4 }}
+      annotations: {{ toYaml . | nindent 8 }}
       {{- end }}
     spec:
       {{- if .Values.insecureSkipTLSVerify }}
