@@ -8,6 +8,9 @@ metadata:
 spec:
   ingress:
     className: nginx
+  annotations:
+    annotation/one: annotation-value1
+    annotation/two: annotation-value2
   konk:
     name: {{ include "example-apiserver.konkname" . }}
     namespace: {{ include "example-apiserver.konknamespace" . }}
