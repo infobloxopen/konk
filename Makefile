@@ -46,7 +46,7 @@ helm-lint-%:
 
 # Run this only if your cluster does not have cert-manager already deployed
 deploy-cert-manager:
-	$(HELM_CMD) "helm repo add jetstack https://charts.jetstack.io && helm upgrade -i --wait cert-manager --namespace cert-manager jetstack/cert-manager --version v1.5.3 \
+	$(HELM_CMD) "helm repo add jetstack https://charts.jetstack.io && helm upgrade -i --wait cert-manager --namespace cert-manager jetstack/cert-manager --version '~v1.5' \
 		--create-namespace \
 		--set installCRDs=true \
 		--set extraArgs[0]="--enable-certificate-owner-ref=true""
