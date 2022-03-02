@@ -32,7 +32,7 @@ jobs:
       KONK_NAMESPACE: baz
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           path: ./src/github.com/${{ github.repository }}
           ref: ${{ matrix.ref }}
@@ -79,7 +79,7 @@ jobs:
           done
       - name: Checkout code
         if: ${{ matrix.isUpgrade }}
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           path: ./src/github.com/${{ github.repository }}
       - name: Fetch tags
@@ -168,7 +168,7 @@ jobs:
     timeout-minutes: 2
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - run: make chart-readmes
       - name: commit changes
         uses: EndBug/add-and-commit@v7
