@@ -171,7 +171,7 @@ jobs:
         uses: actions/checkout@v3
       - run: make chart-readmes
       - name: commit changes
-        uses: EndBug/add-and-commit@v7
+        uses: EndBug/add-and-commit@v9
         with:
           message: update chart readme
           add: helm-charts
