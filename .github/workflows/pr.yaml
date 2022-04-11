@@ -144,6 +144,24 @@ jobs:
           helm list --all-namespaces
           kubectl delete konks,konkservices --all --all-namespaces
           [ -z "$(helm list --all-namespaces --filter '^runner-.*konk(-service)?$' | tee /dev/stderr | grep konk)" ]
+      - name: Test Recreate
+        timeout-minutes: 5
+        run: |
+          kubectl apply -n $KONK_NAMESPACE -f examples/konk.yaml
+
+          # deploy example-apiserver using a passed KONK reference
+          make deploy-example-apiserver KIND_NAME="chart-testing" \
+            HELM_SETFLAGS="--set=konk.name=runner-konk --set=konk.namespace=$KONK_NAMESPACE --set=konk.create=false --set=image.pullPolicy=IfNotPresent"
+
+          kubectl wait -n $KONK_NAMESPACE --timeout=3m --for=condition=ready pod -l app.kubernetes.io/component=apiserver,app.kubernetes.io/name=konk
+          POD_NAME=$(kubectl get pod -o name -l app.kubernetes.io/name=konk-service,app.kubernetes.io/component=apiservice )
+          until kubectl exec -it $POD_NAME -- kubectl get contact
+          do
+            kubectl exec -it $POD_NAME -- kubectl describe apiservice v1alpha1.example.infoblox.com || true
+            sleep 3
+          done
+
+          kubectl wait --timeout=1m --for=condition=ready pod -l app.kubernetes.io/name=konk-service,app.kubernetes.io/component=apiservice-test
       - name: Print failure
         if: ${{ failure() }}
         run: |
