@@ -15,4 +15,5 @@ spec:
   - {{ .Values.service.name }}.{{ .Release.Namespace }}
   - {{ .Values.service.name }}.{{ .Release.Namespace }}.svc
   - {{ .Values.service.name }}.{{ .Release.Namespace }}.svc.cluster.local
+  revisionHistoryLimit: 1
 {{- end }}

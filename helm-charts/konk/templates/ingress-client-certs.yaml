@@ -31,4 +31,5 @@ spec:
   issuerRef:
     name: {{ include "konk.fullname" . }}-kubeadm-ca
     kind: {{ include "konk.scope" . }}Issuer
+  revisionHistoryLimit: 1
 ...
