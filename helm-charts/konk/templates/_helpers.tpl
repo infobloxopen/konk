@@ -89,7 +89,11 @@ Detect the version of cert manager crd that is installed
 Error if CRD is not available
 */}}
 {{- define "konk.certManagerApiVersion" -}}
-{{- if (.Capabilities.APIVersions.Has "cert-manager.io/v1alpha3") -}}
+{{- if (.Capabilities.APIVersions.Has "cert-manager.io/v1") -}}
+cert-manager.io/v1
+{{- else if (.Capabilities.APIVersions.Has "cert-manager.io/v1beta1") -}}
+cert-manager.io/v1beta1
+{{- else if (.Capabilities.APIVersions.Has "cert-manager.io/v1alpha3") -}}
 cert-manager.io/v1alpha3
 {{- else if (.Capabilities.APIVersions.Has "cert-manager.io/v1alpha2") -}}
 cert-manager.io/v1alpha2
