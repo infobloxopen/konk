@@ -26,6 +26,7 @@ spec:
     name: {{ include "konk.fullname" . }}-requestheader-self-signed
   commonName: "konk.infoblox"
   isCA: true
+  revisionHistoryLimit: 1
 ---
 
 # Create client certificates signed with above CA Certificate
@@ -63,4 +64,5 @@ spec:
   issuerRef:
     name: {{ include "konk.fullname" . }}-requestheader
     kind: Issuer
+  revisionHistoryLimit: 1
 ...

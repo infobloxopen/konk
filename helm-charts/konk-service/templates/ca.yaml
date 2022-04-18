@@ -23,6 +23,7 @@ spec:
     name: {{ include "konk-service.fullname" . }}-self-signed
   commonName: "konk-service.infoblox"
   isCA: true
+  revisionHistoryLimit: 1
 ---
 apiVersion: {{ include "konk-service.certManagerApiVersion" . }}
 kind: Issuer
