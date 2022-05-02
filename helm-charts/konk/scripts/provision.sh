@@ -41,30 +41,38 @@ kubeadm init phase certs etcd-server --config=/tmp/kubeadmcfg.yaml
 kubeadm init phase kubeconfig admin --control-plane-endpoint $FULLNAME.$NAMESPACE.svc
 find /etc/kubernetes/pki
 
-# replaces any existing etcd-cert
-if ! secret_not_found $FULLNAME-etcd-cert
+if secret_not_found $FULLNAME-etcd-cert
 then
-  kubectl -n $NAMESPACE delete secret $FULLNAME-etcd-cert
+  kubectl -n $NAMESPACE create secret generic $FULLNAME-etcd-cert \
+    --from-file=/etc/kubernetes/pki/etcd/ca.crt \
+    --from-file=/etc/kubernetes/pki/etcd/server.crt \
+    --from-file=/etc/kubernetes/pki/etcd/server.key
+  kubectl -n $NAMESPACE label secret $FULLNAME-etcd-cert $LABELS
+else
+  kubectl -n $NAMESPACE patch secret $FULLNAME-etcd-cert --type=json -p '[
+    {"op":"replace","path":"/data/server.crt","value":"'"$(base64 --wrap=0 < /etc/kubernetes/pki/etcd/server.crt)"'"},
+    {"op":"replace","path":"/data/server.key","value":"'"$(base64 --wrap=0 < /etc/kubernetes/pki/etcd/server.key)"'"}
+  ]'
 fi
-kubectl -n $NAMESPACE create secret generic $FULLNAME-etcd-cert \
-  --from-file=/etc/kubernetes/pki/etcd/ca.crt \
-  --from-file=/etc/kubernetes/pki/etcd/server.crt \
-  --from-file=/etc/kubernetes/pki/etcd/server.key
-kubectl -n $NAMESPACE label secret $FULLNAME-etcd-cert $LABELS
 
-# replaces any existing apiserver-cert
-if ! secret_not_found $FULLNAME-apiserver-cert
+if secret_not_found $FULLNAME-apiserver-cert
 then
-  kubectl -n $NAMESPACE delete secret $FULLNAME-apiserver-cert
+  kubectl -n $NAMESPACE create secret generic $FULLNAME-apiserver-cert \
+    --from-file=/etc/kubernetes/pki/apiserver.crt \
+    --from-file=/etc/kubernetes/pki/apiserver.key \
+    --from-file=/etc/kubernetes/pki/ca.crt \
+    --from-file=etcd-ca.crt=/etc/kubernetes/pki/etcd/ca.crt \
+    --from-file=/etc/kubernetes/pki/apiserver-etcd-client.crt \
+    --from-file=/etc/kubernetes/pki/apiserver-etcd-client.key
+  kubectl -n $NAMESPACE label secret $FULLNAME-apiserver-cert $LABELS
+else
+  kubectl -n $NAMESPACE patch secret $FULLNAME-apiserver-cert --type=json -p '[
+    {"op":"replace","path":"/data/apiserver.crt","value":"'"$(base64 --wrap=0 < /etc/kubernetes/pki/apiserver.crt)"'"},
+    {"op":"replace","path":"/data/apiserver.key","value":"'"$(base64 --wrap=0 < /etc/kubernetes/pki/apiserver.key)"'"},
+    {"op":"replace","path":"/data/apiserver-etcd-client.crt","value":"'"$(base64 --wrap=0 < /etc/kubernetes/pki/apiserver-etcd-client.crt)"'"},
+    {"op":"replace","path":"/data/apiserver-etcd-client.key","value":"'"$(base64 --wrap=0 < /etc/kubernetes/pki/apiserver-etcd-client.key)"'"}
+  ]'
 fi
-kubectl -n $NAMESPACE create secret generic $FULLNAME-apiserver-cert \
-  --from-file=/etc/kubernetes/pki/apiserver.crt \
-  --from-file=/etc/kubernetes/pki/apiserver.key \
-  --from-file=/etc/kubernetes/pki/ca.crt \
-  --from-file=etcd-ca.crt=/etc/kubernetes/pki/etcd/ca.crt \
-  --from-file=/etc/kubernetes/pki/apiserver-etcd-client.crt \
-  --from-file=/etc/kubernetes/pki/apiserver-etcd-client.key
-kubectl -n $NAMESPACE label secret $FULLNAME-apiserver-cert $LABELS
 
 if secret_not_found $FULLNAME-ca
 then
