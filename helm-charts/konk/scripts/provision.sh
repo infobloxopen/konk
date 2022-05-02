@@ -40,21 +40,6 @@ rm -f /etc/kubernetes/pki/etcd/server*
 kubeadm init phase certs etcd-server --config=/tmp/kubeadmcfg.yaml
 kubeadm init phase kubeconfig admin --control-plane-endpoint $FULLNAME.$NAMESPACE.svc
 find /etc/kubernetes/pki
-
-if secret_not_found $FULLNAME-etcd-cert
-then
-  kubectl -n $NAMESPACE create secret generic $FULLNAME-etcd-cert \
-    --from-file=/etc/kubernetes/pki/etcd/ca.crt \
-    --from-file=/etc/kubernetes/pki/etcd/server.crt \
-    --from-file=/etc/kubernetes/pki/etcd/server.key
-  kubectl -n $NAMESPACE label secret $FULLNAME-etcd-cert $LABELS
-else
-  kubectl -n $NAMESPACE patch secret $FULLNAME-etcd-cert --type=json -p '[
-    {"op":"replace","path":"/data/server.crt","value":"'"$(base64 --wrap=0 < /etc/kubernetes/pki/etcd/server.crt)"'"},
-    {"op":"replace","path":"/data/server.key","value":"'"$(base64 --wrap=0 < /etc/kubernetes/pki/etcd/server.key)"'"}
-  ]'
-fi
-
 if secret_not_found $FULLNAME-apiserver-cert
 then
   kubectl -n $NAMESPACE create secret generic $FULLNAME-apiserver-cert \
@@ -115,7 +100,7 @@ fi
 kubectl -n $NAMESPACE wait --timeout=3m --for=condition=progressing deployments.apps -l app.kubernetes.io/instance=$RELEASE
 
 DEPLOYMENT_UID=$(kubectl get deployments.apps -n $NAMESPACE $FULLNAME -o jsonpath='{.metadata.uid}')
-for name in $FULLNAME-apiserver-cert $FULLNAME-etcd-cert $FULLNAME-ca $FULLNAME-etcd-ca $FULLNAME-kubeconfig
+for name in $FULLNAME-apiserver-cert $FULLNAME-ca $FULLNAME-etcd-ca $FULLNAME-kubeconfig
 do
   kubectl patch -n $NAMESPACE secret $name -p '{"metadata":{"ownerReferences":[{"apiVersion":"apps/v1", "kind":"Deployment", "name":"'${FULLNAME}'", "uid":"'${DEPLOYMENT_UID}'"}]}}'
 done
