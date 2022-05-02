@@ -40,25 +40,32 @@ rm -f /etc/kubernetes/pki/etcd/server*
 kubeadm init phase certs etcd-server --config=/tmp/kubeadmcfg.yaml
 kubeadm init phase kubeconfig admin --control-plane-endpoint $FULLNAME.$NAMESPACE.svc
 find /etc/kubernetes/pki
-if secret_not_found $FULLNAME-etcd-cert
+
+# replaces any existing etcd-cert
+if ! secret_not_found $FULLNAME-etcd-cert
 then
-  kubectl -n $NAMESPACE create secret generic $FULLNAME-etcd-cert \
-    --from-file=/etc/kubernetes/pki/etcd/ca.crt \
-    --from-file=/etc/kubernetes/pki/etcd/server.crt \
-    --from-file=/etc/kubernetes/pki/etcd/server.key
-  kubectl -n $NAMESPACE label secret $FULLNAME-etcd-cert $LABELS
+  kubectl -n $NAMESPACE delete secret $FULLNAME-etcd-cert
 fi
-if secret_not_found $FULLNAME-apiserver-cert
+kubectl -n $NAMESPACE create secret generic $FULLNAME-etcd-cert \
+  --from-file=/etc/kubernetes/pki/etcd/ca.crt \
+  --from-file=/etc/kubernetes/pki/etcd/server.crt \
+  --from-file=/etc/kubernetes/pki/etcd/server.key
+kubectl -n $NAMESPACE label secret $FULLNAME-etcd-cert $LABELS
+
+# replaces any existing apiserver-cert
+if ! secret_not_found $FULLNAME-apiserver-cert
 then
-  kubectl -n $NAMESPACE create secret generic $FULLNAME-apiserver-cert \
-    --from-file=/etc/kubernetes/pki/apiserver.crt \
-    --from-file=/etc/kubernetes/pki/apiserver.key \
-    --from-file=/etc/kubernetes/pki/ca.crt \
-    --from-file=etcd-ca.crt=/etc/kubernetes/pki/etcd/ca.crt \
-    --from-file=/etc/kubernetes/pki/apiserver-etcd-client.crt \
-    --from-file=/etc/kubernetes/pki/apiserver-etcd-client.key
-  kubectl -n $NAMESPACE label secret $FULLNAME-apiserver-cert $LABELS
+  kubectl -n $NAMESPACE delete secret $FULLNAME-apiserver-cert
 fi
+kubectl -n $NAMESPACE create secret generic $FULLNAME-apiserver-cert \
+  --from-file=/etc/kubernetes/pki/apiserver.crt \
+  --from-file=/etc/kubernetes/pki/apiserver.key \
+  --from-file=/etc/kubernetes/pki/ca.crt \
+  --from-file=etcd-ca.crt=/etc/kubernetes/pki/etcd/ca.crt \
+  --from-file=/etc/kubernetes/pki/apiserver-etcd-client.crt \
+  --from-file=/etc/kubernetes/pki/apiserver-etcd-client.key
+kubectl -n $NAMESPACE label secret $FULLNAME-apiserver-cert $LABELS
+
 if secret_not_found $FULLNAME-ca
 then
   kubectl -n $NAMESPACE create secret tls $FULLNAME-ca \
