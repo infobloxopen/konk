@@ -8,10 +8,6 @@ konk does not start a kubelet and therefore does not support any resources that 
 
 This repo provides a konk helm chart that can be used to deploy an instance of konk with helm, and a konk-operator that watches for konk CRs and will deploy a konk instance for each of them.
 
-### Office Hour
-
-Office Half Hour 9:30am PST/12:30pm EST on Fridays landing on even days [https://infoblox.zoom.us/j/98130157567](https://infoblox.zoom.us/j/98130157567)
-
 ## konk chart
 
 Found in [helm-charts/konk](helm-charts/konk).
