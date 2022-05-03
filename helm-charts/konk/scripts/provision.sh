@@ -40,6 +40,7 @@ rm -f /etc/kubernetes/pki/etcd/server*
 kubeadm init phase certs etcd-server --config=/tmp/kubeadmcfg.yaml
 kubeadm init phase kubeconfig admin --control-plane-endpoint $FULLNAME.$NAMESPACE.svc
 find /etc/kubernetes/pki
+
 if secret_not_found $FULLNAME-etcd-cert
 then
   kubectl -n $NAMESPACE create secret generic $FULLNAME-etcd-cert \
@@ -47,7 +48,13 @@ then
     --from-file=/etc/kubernetes/pki/etcd/server.crt \
     --from-file=/etc/kubernetes/pki/etcd/server.key
   kubectl -n $NAMESPACE label secret $FULLNAME-etcd-cert $LABELS
+else
+  kubectl -n $NAMESPACE patch secret $FULLNAME-etcd-cert --type=json -p '[
+    {"op":"replace","path":"/data/server.crt","value":"'"$(base64 --wrap=0 < /etc/kubernetes/pki/etcd/server.crt)"'"},
+    {"op":"replace","path":"/data/server.key","value":"'"$(base64 --wrap=0 < /etc/kubernetes/pki/etcd/server.key)"'"}
+  ]'
 fi
+
 if secret_not_found $FULLNAME-apiserver-cert
 then
   kubectl -n $NAMESPACE create secret generic $FULLNAME-apiserver-cert \
@@ -58,7 +65,15 @@ then
     --from-file=/etc/kubernetes/pki/apiserver-etcd-client.crt \
     --from-file=/etc/kubernetes/pki/apiserver-etcd-client.key
   kubectl -n $NAMESPACE label secret $FULLNAME-apiserver-cert $LABELS
+else
+  kubectl -n $NAMESPACE patch secret $FULLNAME-apiserver-cert --type=json -p '[
+    {"op":"replace","path":"/data/apiserver.crt","value":"'"$(base64 --wrap=0 < /etc/kubernetes/pki/apiserver.crt)"'"},
+    {"op":"replace","path":"/data/apiserver.key","value":"'"$(base64 --wrap=0 < /etc/kubernetes/pki/apiserver.key)"'"},
+    {"op":"replace","path":"/data/apiserver-etcd-client.crt","value":"'"$(base64 --wrap=0 < /etc/kubernetes/pki/apiserver-etcd-client.crt)"'"},
+    {"op":"replace","path":"/data/apiserver-etcd-client.key","value":"'"$(base64 --wrap=0 < /etc/kubernetes/pki/apiserver-etcd-client.key)"'"}
+  ]'
 fi
+
 if secret_not_found $FULLNAME-ca
 then
   kubectl -n $NAMESPACE create secret tls $FULLNAME-ca \
