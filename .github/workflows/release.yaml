@@ -15,7 +15,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Install Helm
-        uses: azure/setup-helm@v2.1
+        uses: azure/setup-helm@v3.0
       - run: make package
       - run: git checkout gh-pages
       - name: Configure Git
