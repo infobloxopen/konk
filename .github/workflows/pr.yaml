@@ -169,9 +169,12 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          ref: ${{ github.head_ref }}
       - run: make chart-readmes
       - name: commit changes
         uses: EndBug/add-and-commit@v9
         with:
           message: update chart readme
           add: helm-charts
+          push: origin HEAD:${{ github.head_ref }}
