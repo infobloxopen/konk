@@ -31,7 +31,7 @@ When deploying with `helm install`, these configurations are values and can be o
 | kind.securityContext | object | `{}` |  |
 | konk.name | string | `""` | should be set to the konk-name |
 | konk.namespace | string | `""` |  |
-| konk.scope | string | `""` | scope of the konk, must match `.scope` of the Konk |
+| konk.scope | string | `""` | scope of the konk, must match `.scope` of the Konk  |
 | nameOverride | string | `""` |  |
 | service.caSecretName | string | `nil` | Optional reference to the secret the service's CA certs are stored in. When omitted, KonkService will generate a CA to be used by the APIService. |
 | service.name | string | `"test"` | Required to be set to the name of the service to be registered in Konk |
