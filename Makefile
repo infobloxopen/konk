@@ -236,7 +236,7 @@ $(CHART_READMES):
 
 chart-readmes: $(CHART_READMES)
 
-deploy-ingress-nginx: INGRESS_VERSION := $(shell curl -sS https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/stable.txt)
+deploy-ingress-nginx: INGRESS_VERSION := $(shell curl -sS https://api.github.com/repos/kubernetes/ingress-nginx/releases | jq '[.[] | select(.draft==false and .prerelease==false and (.tag_name | startswith("controller-"))) | .tag_name][0]' -r)
 deploy-ingress-nginx:
 	# avoids accidentally deploying ingress controller in shared clusters
 	kubectl config current-context | grep -v -E '(^[a-z]{3}-[0-9])|(infoblox.com$$)'
