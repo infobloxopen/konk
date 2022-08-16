@@ -9,7 +9,7 @@ require (
 	github.com/blang/semver v3.5.1+incompatible // indirect
 	github.com/go-logr/logr v0.3.0 // indirect
 	github.com/go-openapi/loads v0.21.2
-	github.com/go-openapi/spec v0.20.6
+	github.com/go-openapi/spec v0.20.7
 	github.com/google/uuid v1.1.2 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.0.1-0.20190723091251-e0797f438f94 // indirect
 	github.com/imdario/mergo v0.3.10 // indirect
