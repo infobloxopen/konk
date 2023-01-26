@@ -37,7 +37,12 @@ EOF
 
 kubeadm init phase certs all --apiserver-cert-extra-sans $FULLNAME,$FULLNAME.$NAMESPACE,$FULLNAME.$NAMESPACE.svc,$FULLNAME.$NAMESPACE.svc.cluster.local
 rm -f /etc/kubernetes/pki/etcd/server*
-kubeadm init phase certs etcd-server --config=/tmp/kubeadmcfg.yaml
+if ! kubeadm init phase certs etcd-server --config=/tmp/kubeadmcfg.yaml
+then
+  # kubernetes version might require a newer kubeadm spec
+  kubeadm config migrate --old-config /tmp/kubeadmcfg.yaml --new-config /tmp/newkubeadmcfg.yaml
+  kubeadm init phase certs etcd-server --config=/tmp/newkubeadmcfg.yaml
+fi
 kubeadm init phase kubeconfig admin --control-plane-endpoint $FULLNAME.$NAMESPACE.svc
 find /etc/kubernetes/pki
 
