@@ -51,6 +51,12 @@ jobs:
       - name: Fetch tags
         run: |
           git fetch --prune --unshallow
+      - name: ingress version
+        if: ${{ ! matrix.ingressVersion }}
+        run: |
+          echo "ingress_version=$(
+            curl -sS --header 'authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' https://api.github.com/repos/kubernetes/ingress-nginx/releases | jq '[.[] | select(.draft==false and .prerelease==false and (.tag_name | startswith("controller-"))) | .tag_name][0]' -r
+          )" >> $GITHUB_ENV
       - name: Helm Lint
         run: |
           mkdir -p ~/.kube
@@ -65,7 +71,7 @@ jobs:
         timeout-minutes: 2
         run: |
           kubectl cluster-info
-          make deploy-cert-manager deploy-ingress-nginx ${{ matrix.ingressVersion && fromJSON('"INGRESS_VERSION="') }}${{ matrix.ingressVersion }}
+          make deploy-cert-manager deploy-ingress-nginx INGRESS_VERSION=${{ matrix.ingressVersion || env.ingress_version }}
       - name: Install konk-operator
         if: ${{ matrix.isUpgrade }}
         timeout-minutes: 6
