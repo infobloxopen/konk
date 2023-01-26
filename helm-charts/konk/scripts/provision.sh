@@ -2,7 +2,7 @@
 set -xe
 
 secret_not_found () {
-  output=$(kubectl -n ${2:-$NAMESPACE} get secret $1 --ignore-not-found 2>&1 )
+  output=$(kubectl -n ${2:-$NAMESPACE} get secret $1 --ignore-not-found)
   echo "$output"
   [ "$output" = "" ]
 }
