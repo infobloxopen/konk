@@ -84,7 +84,7 @@ pipeline {
   }
   post {
     success {
-      finalizeBuild()
+      finalizeBuild('', getFileList("*.properties"))
     }
   }
 }
