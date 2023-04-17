@@ -1,5 +1,5 @@
 apiVersion: v2
-appVersion: v1.19.0
+appVersion: v1.25.8
 description: Registers an aggregate API service in Konk
 name: konk-service
 type: application

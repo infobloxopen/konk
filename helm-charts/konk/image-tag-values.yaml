@@ -1,7 +1,7 @@
-# kubernetes v1.19.0
+# kubernetes v1.25.8
 apiserver:
   image:
-    tag: v1.19.0
+    tag: v1.25.8
 etcd:
   image:
     tag: 3.4.9-1
