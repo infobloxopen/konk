@@ -12,7 +12,7 @@ HELM		?= $(DOCKER_RUNNER) \
 			helm
 HELM_CMD	?= $(DOCKER_RUNNER) \
 			/bin/bash -c
-K8S_RELEASE	?= v1.19.0
+K8S_RELEASE	?= v1.25.8
 KUBEADM		?= docker run --rm -it --entrypoint="" kindest/node:$(K8S_RELEASE) kubeadm
 KUBECONFIG	?= ${HOME}/.kube/config
 RELEASE_PREFIX	?= $(USER)
@@ -25,9 +25,9 @@ HELM_DOCS       ?= docker run --rm \
 
 # KIND env variables
 KIND_NAME   	?= konk
-NODE_VERSION    ?= v1.19.0
+NODE_VERSION    ?= v1.25.8
 NODE_IMAGE      ?= kindest/node:${NODE_VERSION}
-KIND_VERSION    ?= v0.11.1
+KIND_VERSION    ?= v0.18.0
 KIND 			:= $(shell pwd)/bin/kind
 
 default: all

@@ -1,5 +1,5 @@
 apiVersion: v2
-appVersion: v1.19.0
+appVersion: v1.25.8
 description: Deploys an instance of konk (kubernetes on kubernetes), typically run by konk-operator
 name: konk
 type: application
