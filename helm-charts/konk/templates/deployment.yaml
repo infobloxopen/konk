@@ -57,6 +57,9 @@ spec:
             - --proxy-client-cert-file=/etc/kubernetes/pki/proxyclient/tls.crt
             - --proxy-client-key-file=/etc/kubernetes/pki/proxyclient/tls.key
             - --requestheader-client-ca-file=/etc/kubernetes/pki/proxyclient/ca.crt
+            - --service-account-issuer=kubernetes.default.svc
+            - --service-account-key-file=/etc/kubernetes/pki/apiserver/apiserver.key
+            - --service-account-signing-key-file=/etc/kubernetes/pki/apiserver/apiserver.key
             - --tls-cert-file=/etc/kubernetes/pki/apiserver/apiserver.crt
             - --tls-private-key-file=/etc/kubernetes/pki/apiserver/apiserver.key
             {{- range $k, $v := .Values.apiserver.remoteHeaders }}
