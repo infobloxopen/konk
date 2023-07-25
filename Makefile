@@ -129,7 +129,7 @@ undeploy: kustomize
 	$(KUSTOMIZE) build config/default | kubectl delete -f -
 
 .image-${GIT_VERSION}:
-	docker build . -t ${IMG}
+	DOCKER_BUILDKIT=1 docker build . -t ${IMG}
 	touch $@
 
 # Build the docker image
