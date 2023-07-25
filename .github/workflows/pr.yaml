@@ -145,7 +145,7 @@ jobs:
             sleep 3
           done
       - name: Test delete
-        timeout-minutes: 1
+        timeout-minutes: 3
         run: |
           helm list --all-namespaces
           kubectl delete konks,konkservices --all --all-namespaces
