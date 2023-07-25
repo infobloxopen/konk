@@ -30,6 +30,24 @@ data:
     fi
     echo 'Done' > /tmp/healthy
 
+  delete-api-service.sh: |
+    #!/bin/bash
+    set -xe
+
+    CERT=$(cat certs/ca.crt | base64)
+    CERT=${CERT//$'\n'/}
+    cat /mounts/api-service.yaml.in | sed "s/{{` {{ SERVICENAME }} `}}/${SERVICENAME}/g" | sed "s/{{` {{ NAMESPACE }} `}}/${NAMESPACE}/g" | sed "s/{{` {{ CERT }} `}}/${CERT}/g" > /gen/api-service.yaml
+    delay=2
+    until kubectl delete -f /gen/api-service.yaml
+    do
+      sleep $delay
+      let delay="delay*2"
+      if [ "$delay" -gt "60" ]
+      then
+        delay=60
+      fi
+    done
+
   api-service.yaml.in: |
     apiVersion: v1
     kind: Namespace
