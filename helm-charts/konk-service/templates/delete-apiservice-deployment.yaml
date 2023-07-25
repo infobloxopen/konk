@@ -18,12 +18,7 @@ spec:
     command: ["/bin/bash", "-c"]
     args:
       - |
-        while true
-        do
-          /mounts/delete-api-service.sh
-          date
-          sleep 30
-        done
+        /mounts/delete-api-service.sh
     env:
       - name: SERVICENAME
         value: {{ .Values.service.name }}
