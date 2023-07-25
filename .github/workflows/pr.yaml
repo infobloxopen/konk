@@ -150,8 +150,8 @@ jobs:
           helm list --all-namespaces
           kubectl delete konks,konkservices --all --all-namespaces
           [ -z "$(helm list --all-namespaces --filter '^runner-.*konk(-service)?$' | tee /dev/stderr | grep konk)" ]
-      - name: Print failure
-        if: ${{ failure() }}
+      - name: Print debug
+        if: ${{ always() }}
         run: |
           set +x
           while read cmd
@@ -168,7 +168,6 @@ jobs:
           kubectl logs -l component=controller,app.kubernetes.io/name=example-apiserver
           kubectl logs -l component=apiserver,app.kubernetes.io/name=example-apiserver -c example-apiserver
           kubectl logs -l app.kubernetes.io/component=controller -n ingress-nginx'
-          exit 1
   readme:
     runs-on: ubuntu-latest
     timeout-minutes: 2
