@@ -7,14 +7,13 @@ require (
 	github.com/Azure/go-autorest/autorest v0.11.1 // indirect
 	github.com/Azure/go-autorest/autorest/adal v0.9.5 // indirect
 	github.com/blang/semver v3.5.1+incompatible // indirect
-	github.com/go-logr/logr v0.3.0 // indirect
 	github.com/go-openapi/loads v0.21.2
 	github.com/go-openapi/spec v0.20.9
 	github.com/google/uuid v1.1.2 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.0.1-0.20190723091251-e0797f438f94 // indirect
 	github.com/imdario/mergo v0.3.10 // indirect
 	github.com/onsi/ginkgo v1.16.5
-	github.com/onsi/gomega v1.19.0
+	github.com/onsi/gomega v1.27.10
 	github.com/prometheus/procfs v0.2.0 // indirect
 	github.com/spf13/cobra v1.1.1 // indirect
 	github.com/spf13/pflag v1.0.5
