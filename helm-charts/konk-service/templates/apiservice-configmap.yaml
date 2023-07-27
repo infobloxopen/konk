@@ -47,6 +47,7 @@ data:
         delay=60
       fi
     done
+    echo 'Done' > /tmp/healthy
 
   api-service.yaml.in: |
     apiVersion: v1
