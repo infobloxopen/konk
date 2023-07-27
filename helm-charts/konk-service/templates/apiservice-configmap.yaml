@@ -36,17 +36,8 @@ data:
 
     CERT=$(cat certs/ca.crt | base64)
     CERT=${CERT//$'\n'/}
-    cat /mounts/api-service.yaml.in | sed "s/{{` {{ SERVICENAME }} `}}/${SERVICENAME}/g" | sed "s/{{` {{ NAMESPACE }} `}}/${NAMESPACE}/g" | sed "s/{{` {{ CERT }} `}}/${CERT}/g" > /gen/api-service.yaml
-    delay=2
-    until kubectl delete -f /gen/api-service.yaml
-    do
-      sleep $delay
-      let delay="delay*2"
-      if [ "$delay" -gt "60" ]
-      then
-        delay=60
-      fi
-    done
+    cat /mounts/delete-api-service.yaml.in | sed "s/{{` {{ SERVICENAME }} `}}/${SERVICENAME}/g" | sed "s/{{` {{ NAMESPACE }} `}}/${NAMESPACE}/g" | sed "s/{{` {{ CERT }} `}}/${CERT}/g" > /gen/delete-api-service.yaml
+    kubectl delete -f /gen/delete-api-service.yaml
     echo 'Done' > /tmp/healthy
 
   api-service.yaml.in: |
@@ -55,6 +46,56 @@ data:
     metadata:
       name: {{` {{ NAMESPACE }} `}}
     ---
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: {{` {{ SERVICENAME }} `}}
+      namespace: {{` {{ NAMESPACE }} `}}
+    spec:
+      type: ExternalName
+      externalName: {{` {{ SERVICENAME }} `}}.{{` {{ NAMESPACE }} `}}
+    ---
+    apiVersion: apiregistration.k8s.io/v1
+    kind: APIService
+    metadata:
+      name: {{ .Values.version }}.{{ .Values.group.name }}
+      {{- with .Values.annotations }}
+      annotations: {{ toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- if .Values.insecureSkipTLSVerify }}
+      insecureSkipTLSVerify: {{ .Values.insecureSkipTLSVerify }}
+      {{- else }}
+      caBundle: {{` {{ CERT }} `}}
+      {{- end }}
+      group: {{ .Values.group.name }}
+      groupPriorityMinimum: 1000
+      service:
+        name: {{` {{ SERVICENAME }} `}}
+        namespace: {{` {{ NAMESPACE }} `}}
+      version: {{ .Values.version }}
+      versionPriority: 100
+    ---
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    metadata:
+      name: {{ .Values.group.name }}-edit
+      labels:
+        rbac.authorization.k8s.io/aggregate-to-edit: "true"
+        rbac.authorization.k8s.io/aggregate-to-admin: "true"
+    rules:
+      - apiGroups:
+        - {{ .Values.group.name }}
+        resources:
+        {{- range .Values.group.kinds }}
+        - {{ . | quote }}
+        {{- end }}
+        verbs:
+        {{- range .Values.group.verbs }}
+        - {{ . | quote }}
+        {{- end }}
+
+  delete-api-service.yaml.in: |
     apiVersion: v1
     kind: Service
     metadata:
