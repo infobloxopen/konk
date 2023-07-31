@@ -51,6 +51,9 @@ jobs:
       - name: Fetch tags
         run: |
           git fetch --prune --unshallow
+      - name: Free space by removing unnecessary files
+        run: |
+          sudo rm -rf /usr/local/lib/android
       - name: ingress version
         if: ${{ ! matrix.ingressVersion }}
         run: |
