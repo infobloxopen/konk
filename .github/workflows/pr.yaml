@@ -51,6 +51,9 @@ jobs:
       - name: Fetch tags
         run: |
           git fetch --prune --unshallow
+      - name: Free space by removing unnecessary files
+        run: |
+          sudo rm -rf /usr/local/lib/android
       - name: ingress version
         if: ${{ ! matrix.ingressVersion }}
         run: |
@@ -145,7 +148,7 @@ jobs:
             sleep 3
           done
       - name: Test delete
-        timeout-minutes: 1
+        timeout-minutes: 3
         run: |
           helm list --all-namespaces
           kubectl delete konks,konkservices --all --all-namespaces

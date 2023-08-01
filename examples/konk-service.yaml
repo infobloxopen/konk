@@ -2,6 +2,7 @@ apiVersion: konk.infoblox.com/v1alpha1
 kind: KonkService
 metadata:
   name: example-konkservice
+  namespace: test-konk
 spec:
   group:
     name: example.infoblox.com
