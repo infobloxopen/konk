@@ -99,8 +99,8 @@ then
     kubectl -n $CERT_MANAGER_NAMESPACE label secret $FULLNAME-ca $LABELS
   else
     kubectl -n $CERT_MANAGER_NAMESPACE patch secret $FULLNAME-ca --type=json -p '[
-      {"op":"replace","path":"/data/ca.crt","value":"'"$(base64 --wrap=0 < /etc/kubernetes/pki/ca.crt)"'"},
-      {"op":"replace","path":"/data/ca.key","value":"'"$(base64 --wrap=0 < /etc/kubernetes/pki/ca.key)"'"},
+      {"op":"replace","path":"/data/tls.crt","value":"'"$(base64 --wrap=0 < /etc/kubernetes/pki/ca.crt)"'"},
+      {"op":"replace","path":"/data/tls.key","value":"'"$(base64 --wrap=0 < /etc/kubernetes/pki/ca.key)"'"},
     ]'
   fi
 fi
