@@ -12,17 +12,17 @@ jobs:
         isUpgrade:
           - false
         k8sVersion:
-          - v1.26.0
-          - v1.25.3
-          - v1.24.7
-          - v1.23.13
-          - v1.22.15
+          - v1.28.0
+          - v1.27.3
+          - v1.26.6
+          - v1.25.11
+          - v1.24.15
         include:
           - isUpgrade: true
-            k8sVersion: v1.22.15
+            k8sVersion: v1.25.11
             ref: main
           - ingressVersion: controller-v1.2.1
-            k8sVersion: v1.22.15
+            k8sVersion: v1.25.11
     timeout-minutes: 20
     defaults:
       run:
