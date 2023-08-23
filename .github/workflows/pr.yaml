@@ -12,10 +12,8 @@ jobs:
         shell: bash -ex -o pipefail {0}
     steps:
       - name: Checkout code
-        if: ${{ matrix.isUpgrade }}
         uses: actions/checkout@v3
       - name: Fetch tags
-        if: ${{ matrix.isUpgrade }}
         run: |
           git fetch --prune --unshallow
       - name: Setup Go
