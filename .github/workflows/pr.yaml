@@ -37,15 +37,6 @@ jobs:
         with:
           path: ./src/github.com/${{ github.repository }}
           ref: ${{ matrix.ref }}
-      - name: Cache Go modules
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/go/pkg/mod
-            ${{ github.workspace }}/pkg/mod
-          key: ${{ runner.os }}-go-${{ matrix.isUpgrade }}-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
       - uses: satackey/action-docker-layer-caching@v0.0.11
         continue-on-error: true
       - name: Fetch tags
