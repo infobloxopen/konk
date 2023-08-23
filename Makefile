@@ -236,7 +236,7 @@ push-apiserver: image-apiserver
 image-apiserver: .image-apiserver-${GIT_VERSION}
 
 .image-apiserver-${GIT_VERSION}:
-	$(MAKE) -C test/apiserver kind-load \
+	$(MAKE) -C test/apiserver image \
 		KIND=$(KIND) KIND_NAME=${KIND_NAME} \
 		IMAGE_TAG=${GIT_VERSION} \
 		BUILD_FLAGS="-mod=readonly"
