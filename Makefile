@@ -228,10 +228,10 @@ kind-load-apiserver: $(KIND) image-apiserver
 		BUILD_FLAGS="-mod=readonly"
 
 pull-apiserver:
-	$(MAKE) -C test/apiserver docker-pull
+	$(MAKE) -C test/apiserver pull
 
 push-apiserver: image-apiserver
-	$(MAKE) -C test/apiserver docker-push
+	$(MAKE) -C test/apiserver push
 
 image-apiserver: .image-apiserver-${GIT_VERSION}
 

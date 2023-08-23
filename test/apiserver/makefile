@@ -57,6 +57,9 @@ image: .image-${IMAGE_TAG}
 
 push: image .push-${IMAGE_TAG}
 
+pull:
+	docker pull ${IMAGE}
+
 build: bin/apiserver bin/controller-manager
 
 vendor:
