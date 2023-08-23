@@ -1,5 +1,5 @@
 IMAGE_TAG   ?= $(shell git describe --tags --always)
-IMAGE_REPO  ?= infoblox/konk-apiserver-example
+IMAGE_REPO  ?= ${REGISTRY}infoblox/konk-apiserver-example
 IMAGE       := $(IMAGE_REPO):$(IMAGE_TAG)
 TEST_ENV    := GO111MODULE=off
 BUILD_FLAGS ?=

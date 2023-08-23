@@ -1,8 +1,7 @@
 name: PR
 on: pull_request
 jobs:
-  buildapiserver:
-    name: Build API Server
+  build-and-push-image:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -10,6 +9,11 @@ jobs:
     defaults:
       run:
         shell: bash -ex -o pipefail {0}
+    env:
+      REGISTRY: ghcr.io/
+    permissions:
+      contents: read
+      packages: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -22,6 +26,12 @@ jobs:
           go-version: 1.21.x
           cache-dependency-path: test/contact/go.sum
           go-version-file: 'test/contact/go.mod'
+      - name: Log in to the Container registry
+        uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build Extension APIServer
         timeout-minutes: 10
         run: |
@@ -29,7 +39,7 @@ jobs:
   end2end:
     name: End To End
     runs-on: ubuntu-latest
-    needs: [buildapiserver]
+    needs: [build-and-push-image]
     strategy:
       fail-fast: false
       matrix:
@@ -55,6 +65,7 @@ jobs:
         shell: bash -ex -o pipefail {0}
         working-directory: ./src/github.com/${{ github.repository }}
     env:
+      REGISTRY: ghcr.io/
       GOPATH: ${{ github.workspace }}
       KONK_NAMESPACE: baz
     steps:
@@ -129,6 +140,12 @@ jobs:
           done
           make test-konk KONK_NAMESPACE=$KONK_NAMESPACE
           make test-konk-local
+      - name: Log in to the Container registry
+        uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Deploy Extension APIServer
         timeout-minutes: 4
         run: |
