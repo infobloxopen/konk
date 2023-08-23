@@ -1,9 +1,41 @@
 name: PR
 on: pull_request
 jobs:
+  buildapiserver:
+    name: Build API Server
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+    timeout-minutes: 12
+    defaults:
+      run:
+        shell: bash -ex -o pipefail {0}
+        working-directory: ./src/github.com/${{ github.repository }}
+    steps:
+      - name: Checkout code
+        if: ${{ matrix.isUpgrade }}
+        uses: actions/checkout@v3
+        with:
+          path: ./src/github.com/${{ github.repository }}
+      - name: Fetch tags
+        if: ${{ matrix.isUpgrade }}
+        run: |
+          git fetch --prune --unshallow
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: 1.21.x
+          cache-dependency-path: test/contact/go.sum
+          go-version-file: 'test/contact/go.mod'
+      - name: Build Extension APIServer
+        timeout-minutes: 10
+        run: |
+          make image-apiserver
+          make push-apiserver
   end2end:
     name: End To End
     runs-on: ubuntu-latest
+    needs: [buildapiserver]
     strategy:
       fail-fast: false
       matrix:
@@ -103,19 +135,11 @@ jobs:
           done
           make test-konk KONK_NAMESPACE=$KONK_NAMESPACE
           make test-konk-local
-      - name: Setup Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: 1.21.x
-          cache-dependency-path: test/contact/go.sum
-          go-version-file: 'test/contact/go.mod'
-      - name: Build Extension APIServer
-        timeout-minutes: 10
-        run: |
-          make kind-load-apiserver KIND_NAME="chart-testing"
       - name: Deploy Extension APIServer
         timeout-minutes: 4
         run: |
+          # Pulls image that is pusehd from buildapiserver job
+          make pull-apiserver
           # deploy example-apiserver using a passed KONK reference
           make deploy-example-apiserver KIND_NAME="chart-testing" \
             HELM_FLAGS="--set=konk.name=runner-konk --set=konk.namespace=$KONK_NAMESPACE --set=konk.create=false --set=image.pullPolicy=IfNotPresent"
