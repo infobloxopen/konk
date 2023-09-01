@@ -11,7 +11,7 @@ spec:
   {{ toYaml . | nindent 2 }}
   auth:
     rbac:
-      enabled: false
+      create: false
     client:
       enableAuthentication: true
       secureTransport: true
