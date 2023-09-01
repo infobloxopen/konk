@@ -106,6 +106,10 @@ jobs:
           kubectl create ns $KONK_NAMESPACE || true
           kubectl apply -n $KONK_NAMESPACE -f examples/konk.yaml
           # FIXME: use the helm-operator status to detect installation was successful
+          until kubectl wait -n $KONK_NAMESPACE --timeout=3m --for=condition=ready pod -l app.kubernetes.io/name=etcd
+          do
+            sleep 1
+          done
           until kubectl wait -n $KONK_NAMESPACE --timeout=3m --for=condition=ready pod -l app.kubernetes.io/component=apiserver,app.kubernetes.io/name=konk
           do
             sleep 1
