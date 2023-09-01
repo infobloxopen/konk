@@ -188,7 +188,7 @@ jobs:
           helm list --all-namespaces
           kubectl describe po,ing,certificate,clusterissuer,issuer,konk,konkservice -A
           kubectl get po,rs,svc,ep,certificate,clusterissuer,issuer,ingress,secrets,configmap -A
-          kubectl logs -l app.kubernetes.io/component=apiservice -n $KONK_NAMESPACE
+          kubectl logs -l app.kubernetes.io/component=apiserver -n $KONK_NAMESPACE
           kubectl logs -l app.kubernetes.io/name=konk-operator
           kubectl logs -l component=controller,app.kubernetes.io/name=example-apiserver
           kubectl logs -l component=apiserver,app.kubernetes.io/name=example-apiserver -c example-apiserver
