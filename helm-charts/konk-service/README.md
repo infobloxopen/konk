@@ -27,7 +27,9 @@ When deploying with `helm install`, these configurations are values and can be o
 | kind.image.pullPolicy | string | `"Always"` |  |
 | kind.image.repository | string | `"kindest/node"` |  |
 | kind.image.tag | string | `"v1.25.8"` | Overrides the image tag whose default is the chart appVersion. |
-| kind.resources | object | `{}` |  |
+| kind.resources.limits.memory | string | `"4Gi"` |  |
+| kind.resources.requests.cpu | string | `"10m"` |  |
+| kind.resources.requests.memory | string | `"40Mi"` |  |
 | kind.securityContext | object | `{}` |  |
 | konk.name | string | `""` | should be set to the konk-name |
 | konk.namespace | string | `""` |  |

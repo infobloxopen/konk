@@ -21,8 +21,7 @@ When deploying with `helm install`, these configurations are values and can be o
 | apiserver.remoteHeaders.requestheader-extra-headers-prefix | string | `"X-Remote-Extra-"` | sets kube-apiserver's `--requestheader-extra-headers-prefix` option. See https://kubernetes.io/docs/reference/command-line-tools-reference/kube-apiserver/ for details. |
 | apiserver.remoteHeaders.requestheader-group-headers | string | `"X-Remote-Group"` | sets kube-apiserver's `--requestheader-group-headers` option. |
 | apiserver.remoteHeaders.requestheader-username-headers | string | `"X-Remote-User"` | sets kube-apiserver's `--requestheader-username-headers` option. |
-| apiserver.resources.limits.cpu | string | `"200m"` |  |
-| apiserver.resources.limits.memory | string | `"512Mi"` |  |
+| apiserver.resources.limits.memory | string | `"4Gi"` |  |
 | apiserver.resources.requests.cpu | string | `"20m"` |  |
 | apiserver.resources.requests.memory | string | `"160Mi"` |  |
 | apiserver.securityContext | object | `{}` |  |
@@ -33,8 +32,7 @@ When deploying with `helm install`, these configurations are values and can be o
 | autoscaling.targetCPUUtilizationPercentage | int | `80` |  |
 | certManager.namespace | string | `nil` |  |
 | etcd.operator | bool | `true` | defines how Konk's internal etcd is deployed. `true`: etcd is deployed by konk-operator `false`: etcd is deployed as a sidecar of konk's kube-apiserver |
-| etcd.resources.limits.cpu | string | `"200m"` |  |
-| etcd.resources.limits.memory | string | `"512Mi"` |  |
+| etcd.resources.limits.memory | string | `"4Gi"` |  |
 | etcd.resources.requests.cpu | string | `"10m"` |  |
 | etcd.resources.requests.memory | string | `"64Mi"` |  |
 | etcd.securityContext | object | `{}` |  |
@@ -50,8 +48,7 @@ When deploying with `helm install`, these configurations are values and can be o
 | kind.image.pullPolicy | string | `"Always"` |  |
 | kind.image.repository | string | `"kindest/node"` |  |
 | kind.image.tag | string | default is the chart appVersion. | Overrides the image tag |
-| kind.resources.limits.cpu | string | `"1000m"` |  |
-| kind.resources.limits.memory | string | `"512Mi"` |  |
+| kind.resources.limits.memory | string | `"4Gi"` |  |
 | kind.resources.requests.cpu | string | `"100m"` |  |
 | kind.resources.requests.memory | string | `"128Mi"` |  |
 | kind.securityContext | object | `{}` |  |
