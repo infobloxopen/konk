@@ -13,8 +13,7 @@ apiserver:
     tag: ""
   resources:
     limits:
-      cpu: 200m
-      memory: 512Mi
+      memory: 4Gi
     requests:
       cpu: 20m
       memory: 160Mi
@@ -64,8 +63,7 @@ etcd:
   #   tag: "3.4.9-1" # keep image versions in sync with `kubeadm config images list`
   resources:
     limits:
-      cpu: 200m
-      memory: 512Mi
+      memory: 4Gi
     requests:
       cpu: 10m
       memory: 64Mi
@@ -93,8 +91,7 @@ kind:
     tag: ""
   resources:
     limits:
-      cpu: 1000m
-      memory: 512Mi
+      memory: 4Gi
     requests:
       cpu: 100m
       memory: 128Mi
