@@ -45,8 +45,8 @@ jobs:
         kubectl logs -l app.kubernetes.io/name=etcd -n $KONK_NAMESPACE
         kubectl logs -l app.kubernetes.io/component=apiserver -n $KONK_NAMESPACE
         kubectl logs -l app.kubernetes.io/name=konk-operator
-        kubectl logs -l component=controller,app.kubernetes.io/name=example-apiserver
-        kubectl logs -l component=apiserver,app.kubernetes.io/name=example-apiserver -c example-apiserver
+        kubectl logs -l app.kubernetes.io/component=controller,app.kubernetes.io/name=example-apiserver
+        kubectl logs -l app.kubernetes.io/component=apiserver,app.kubernetes.io/name=example-apiserver -c example-apiserver
         kubectl logs -l app.kubernetes.io/component=controller -n ingress-nginx"
     steps:
       - name: Checkout code
