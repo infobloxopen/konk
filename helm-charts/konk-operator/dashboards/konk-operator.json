@@ -9,17 +9,18 @@
       "pluginName": "Prometheus"
     }
   ],
+  "__elements": {},
   "__requires": [
     {
       "type": "grafana",
       "id": "grafana",
       "name": "Grafana",
-      "version": "7.5.3"
+      "version": "9.3.6"
     },
     {
       "type": "panel",
       "id": "graph",
-      "name": "Graph",
+      "name": "Graph (old)",
       "version": ""
     },
     {
@@ -33,24 +34,37 @@
     "list": [
       {
         "builtIn": 1,
-        "datasource": "-- Grafana --",
+        "datasource": {
+          "type": "datasource",
+          "uid": "grafana"
+        },
         "enable": true,
         "hide": true,
         "iconColor": "rgba(0, 211, 255, 1)",
         "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
         "type": "dashboard"
       }
     ]
   },
   "editable": true,
-  "gnetId": null,
+  "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": null,
   "links": [],
+  "liveNow": false,
   "panels": [
     {
       "collapsed": false,
-      "datasource": "${DS_PROMETHEUS}",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -59,6 +73,15 @@
       },
       "id": 6,
       "panels": [],
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "refId": "A"
+        }
+      ],
       "title": "konk-operator",
       "type": "row"
     },
@@ -67,7 +90,10 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "${DS_PROMETHEUS}",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
       "fieldConfig": {
         "defaults": {
           "links": []
@@ -100,7 +126,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.5.3",
+      "pluginVersion": "9.3.6",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -110,15 +136,17 @@
       "steppedLine": false,
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
           "expr": "count(resource_created_at_seconds{group=\"konk.infoblox.com\",kind=\"Konk\"})",
           "instant": false,
           "refId": "A"
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "konk count",
       "tooltip": {
         "shared": true,
@@ -127,33 +155,25 @@
       },
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
       "yaxes": [
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -161,7 +181,10 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "${DS_PROMETHEUS}",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
       "fieldConfig": {
         "defaults": {
           "links": []
@@ -194,7 +217,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.5.3",
+      "pluginVersion": "9.3.6",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -204,15 +227,17 @@
       "steppedLine": false,
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
           "expr": "sum(rate(rest_client_requests_total{app_kubernetes_io_instance=\"konk-operator\"}[2m])) by (method, code)",
           "legendFormat": "{{method}} {{ code}}",
           "refId": "A"
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "kube api client requests",
       "tooltip": {
         "shared": true,
@@ -221,38 +246,32 @@
       },
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
       "yaxes": [
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
       "collapsed": false,
-      "datasource": "${DS_PROMETHEUS}",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -261,6 +280,15 @@
       },
       "id": 10,
       "panels": [],
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "refId": "A"
+        }
+      ],
       "title": "konks",
       "type": "row"
     },
@@ -308,7 +336,10 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "${DS_PROMETHEUS}",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
       "description": "negative numbers are not-ready pods",
       "fieldConfig": {
         "defaults": {
@@ -342,7 +373,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.5.3",
+      "pluginVersion": "9.3.6",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -352,10 +383,18 @@
       "steppedLine": false,
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
           "expr": "sum(kube_pod_status_ready{pod=~\".*-konk-[a-f0-9]+-[a-z0-9]+$\",condition=\"true\"}) by (namespace, pod, condition)",
           "refId": "A"
         },
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
           "expr": "sum(kube_pod_status_ready{pod=~\".*-konk-[a-f0-9]+-[a-z0-9]+$\",condition=\"false\"}) by (namespace, pod, condition) * -1",
           "refId": "B"
         }
@@ -370,9 +409,7 @@
           "visible": true
         }
       ],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "konks ready",
       "tooltip": {
         "shared": true,
@@ -381,37 +418,30 @@
       },
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
       "yaxes": [
         {
+          "$$hashKey": "object:51",
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         },
         {
+          "$$hashKey": "object:52",
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     }
   ],
-  "schemaVersion": 27,
+  "schemaVersion": 37,
   "style": "dark",
   "tags": [],
   "templating": {
@@ -438,5 +468,6 @@
   "timezone": "",
   "title": "konk",
   "uid": "8wi8LhdGk",
-  "version": 1
+  "version": 2,
+  "weekStart": ""
 }
