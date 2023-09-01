@@ -261,7 +261,7 @@ deploy-example-apiserver: kind-load-apiserver
 upgrade-etcd:
 	cd $(CHART_DIR) && \
 	rm -rf etcd* && \
-	helm pull --debug --untar --repo https://charts.bitnami.com/bitnami etcd
+	helm pull --debug --untar oci://registry-1.docker.io/bitnamicharts/etcd
 
 clean:
 	rm -rf \
