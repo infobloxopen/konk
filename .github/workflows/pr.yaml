@@ -31,6 +31,23 @@ jobs:
     env:
       GOPATH: ${{ github.workspace }}
       KONK_NAMESPACE: baz
+      PRINT_DEBUG: |
+        set +x
+        while read cmd
+        do
+          echo "::group::$cmd"
+          $cmd
+          echo "::endgroup::"
+        done <<< "git diff
+        helm list --all-namespaces
+        kubectl describe po,ing,certificate,clusterissuer,issuer,konk,konkservice -A
+        kubectl get po,rs,svc,ep,certificate,clusterissuer,issuer,ingress,secrets,configmap -A
+        kubectl logs -l app.kubernetes.io/name=etcd -n $KONK_NAMESPACE
+        kubectl logs -l app.kubernetes.io/component=apiserver -n $KONK_NAMESPACE
+        kubectl logs -l app.kubernetes.io/name=konk-operator
+        kubectl logs -l app.kubernetes.io/component=controller,app.kubernetes.io/name=example-apiserver
+        kubectl logs -l app.kubernetes.io/component=apiserver,app.kubernetes.io/name=example-apiserver -c example-apiserver
+        kubectl logs -l app.kubernetes.io/component=controller -n ingress-nginx"
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -106,6 +123,10 @@ jobs:
           kubectl create ns $KONK_NAMESPACE || true
           kubectl apply -n $KONK_NAMESPACE -f examples/konk.yaml
           # FIXME: use the helm-operator status to detect installation was successful
+          until kubectl wait -n $KONK_NAMESPACE --timeout=3m --for=condition=ready pod -l app.kubernetes.io/name=etcd
+          do
+            sleep 1
+          done
           until kubectl wait -n $KONK_NAMESPACE --timeout=3m --for=condition=ready pod -l app.kubernetes.io/component=apiserver,app.kubernetes.io/name=konk
           do
             sleep 1
@@ -147,6 +168,9 @@ jobs:
           do
             sleep 3
           done
+      - name: Print debug
+        if: ${{ always() }}
+        run: bash -c "$PRINT_DEBUG"
       - name: Test delete
         timeout-minutes: 3
         run: |
@@ -155,22 +179,7 @@ jobs:
           [ -z "$(helm list --all-namespaces --filter '^runner-.*konk(-service)?$' | tee /dev/stderr | grep konk)" ]
       - name: Print debug
         if: ${{ always() }}
-        run: |
-          set +x
-          while read cmd
-          do
-            echo "::group::$cmd"
-            $cmd
-            echo "::endgroup::"
-          done <<< 'git diff
-          helm list --all-namespaces
-          kubectl describe po,ing,certificate,clusterissuer,issuer,konk,konkservice -A
-          kubectl get po,rs,svc,ep,certificate,clusterissuer,issuer,ingress,secrets,configmap -A
-          kubectl logs -l app.kubernetes.io/component=apiservice -n $KONK_NAMESPACE
-          kubectl logs -l app.kubernetes.io/name=konk-operator
-          kubectl logs -l component=controller,app.kubernetes.io/name=example-apiserver
-          kubectl logs -l component=apiserver,app.kubernetes.io/name=example-apiserver -c example-apiserver
-          kubectl logs -l app.kubernetes.io/component=controller -n ingress-nginx'
+        run: bash -c "$PRINT_DEBUG"
   readme:
     runs-on: ubuntu-latest
     timeout-minutes: 2

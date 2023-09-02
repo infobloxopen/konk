@@ -1,6 +1,6 @@
 CHART_DIR	:= helm-charts
 GIT_VERSION	?= $(shell git describe --dirty=-unsupported --always --long --tags)
-HELM_IMAGE	?= infoblox/helm:3.2.4-5b243a2
+HELM_IMAGE	?= infoblox/helm:3
 DOCKER_RUNNER	?= docker run --rm -i \
 			--entrypoint="" \
 			--network host \

@@ -5,7 +5,7 @@ metadata:
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "example-apiserver.labels" . | nindent 4 }}
-    component: controller
+    app.kubernetes.io/component: controller
 spec:
 {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
@@ -13,6 +13,7 @@ spec:
   selector:
     matchLabels:
       {{- include "example-apiserver.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: controller
   template:
     metadata:
     {{- with .Values.podAnnotations }}
@@ -21,6 +22,7 @@ spec:
     {{- end }}
       labels:
         {{- include "example-apiserver.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: controller
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
