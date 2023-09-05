@@ -50,7 +50,7 @@ jobs:
         kubectl logs -l app.kubernetes.io/component=controller -n ingress-nginx"
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: ./src/github.com/${{ github.repository }}
           ref: ${{ matrix.ref }}
@@ -105,7 +105,7 @@ jobs:
           done
       - name: Checkout code
         if: ${{ matrix.isUpgrade }}
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: ./src/github.com/${{ github.repository }}
       - name: Fetch tags
@@ -185,7 +185,7 @@ jobs:
     timeout-minutes: 2
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.head_ref }}
       - run: make chart-readmes
