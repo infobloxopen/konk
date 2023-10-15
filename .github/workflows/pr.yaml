@@ -1,9 +1,45 @@
 name: PR
 on: pull_request
 jobs:
+  build-and-push-image:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+    timeout-minutes: 12
+    defaults:
+      run:
+        shell: bash -ex -o pipefail {0}
+    env:
+      REGISTRY: ghcr.io/
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Fetch tags
+        run: |
+          git fetch --prune --unshallow
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: 1.21.x
+          cache-dependency-path: test/contact/go.sum
+          go-version-file: 'test/contact/go.mod'
+      - name: Log in to the Container registry
+        uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build Extension APIServer
+        timeout-minutes: 10
+        run: |
+          make push-apiserver
   end2end:
     name: End To End
     runs-on: ubuntu-latest
+    needs: [build-and-push-image]
     strategy:
       fail-fast: false
       matrix:
@@ -29,6 +65,7 @@ jobs:
         shell: bash -ex -o pipefail {0}
         working-directory: ./src/github.com/${{ github.repository }}
     env:
+      REGISTRY: ghcr.io/
       GOPATH: ${{ github.workspace }}
       KONK_NAMESPACE: baz
       PRINT_DEBUG: |
@@ -54,15 +91,6 @@ jobs:
         with:
           path: ./src/github.com/${{ github.repository }}
           ref: ${{ matrix.ref }}
-      - name: Cache Go modules
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/go/pkg/mod
-            ${{ github.workspace }}/pkg/mod
-          key: ${{ runner.os }}-go-${{ matrix.isUpgrade }}-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
       - uses: satackey/action-docker-layer-caching@v0.0.11
         continue-on-error: true
       - name: Fetch tags
@@ -133,17 +161,20 @@ jobs:
           done
           make test-konk KONK_NAMESPACE=$KONK_NAMESPACE
           make test-konk-local
-      - name: Setup Go
-        uses: actions/setup-go@v4
+      - name: Log in to the Container registry
+        uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
         with:
-          go-version: 1.15.x
-      - name: Build Extension APIServer
-        timeout-minutes: 7
-        run: |
-          make kind-load-apiserver KIND_NAME="chart-testing"
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Deploy Extension APIServer
         timeout-minutes: 4
         run: |
+          # Pulls image that is pusehd from buildapiserver job
+          make pull-apiserver
+          # Sideload images into local kind
+          make kind-load-apiserver KIND_NAME="chart-testing"
+
           # deploy example-apiserver using a passed KONK reference
           make deploy-example-apiserver KIND_NAME="chart-testing" \
             HELM_FLAGS="--set=konk.name=runner-konk --set=konk.namespace=$KONK_NAMESPACE --set=konk.create=false --set=image.pullPolicy=IfNotPresent"
