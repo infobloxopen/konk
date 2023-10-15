@@ -1,0 +1,32 @@
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: {{ include "konk.fullname" . }}-apiserver-ca
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "konk.labels" . | nindent 4 }}
+spec:
+ ca:
+   secretName: {{ include "konk.fullname" . }}-apiserver-ca
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ include "konk.fullname" . }}-apiserver-cert
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "konk.labels" . | nindent 4 }}
+spec:
+  secretName: {{ include "konk.fullname" . }}-apiserver-cert
+  commonName: {{ include "konk.fullname" . }}
+  dnsNames:
+  - {{ include "konk.fullname" . }}-apiserver
+  - {{ include "konk.fullname" . }}
+  - {{ include "konk.fullname" . }}.{{ .Release.Namespace }}
+  - {{ include "konk.fullname" . }}.{{ .Release.Namespace }}.svc
+  - {{ include "konk.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local
+  issuerRef:
+    name: {{ include "konk.fullname" . }}-apiserver-ca
+    kind: Issuer
+  revisionHistoryLimit: 1
+...

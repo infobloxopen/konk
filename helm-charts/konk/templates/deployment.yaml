@@ -110,9 +110,9 @@ spec:
           command:
             - etcd
             - --advertise-client-urls=https://127.0.0.1:2379
-            - --cert-file=/etc/kubernetes/pki/apiserver/etcd/server.crt
+            - --cert-file=/etc/kubernetes/pki/apiserver/etcd/tls.crt
             - --client-cert-auth=true
-            - --key-file=/etc/kubernetes/pki/apiserver/etcd/server.key
+            - --key-file=/etc/kubernetes/pki/apiserver/etcd/tls.key
             - --listen-client-urls=https://127.0.0.1:2379
             - --listen-metrics-urls=http://0.0.0.0:2381
             - --name={{ .Chart.Name }}
