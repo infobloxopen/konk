@@ -26,13 +26,7 @@ metadata:
     nginx.ingress.kubernetes.io/auth-response-headers: Authorization,Request-Id
   {{- end }}
     nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
-    nginx.ingress.kubernetes.io/configuration-snippet: |
-      # workaround for ingress-nginx <0.31
-      # https://github.com/kubernetes/ingress-nginx/issues/4928#issuecomment-574331462
-      # https://github.com/kubernetes/ingress-nginx/commit/f9e410458c6cb4c243f301bdb5ffeed31bcc3f96
-      proxy_ssl_name "{{ $konkName }}";
-    # Enable to only support ingress-nginx >=0.31:
-    # nginx.ingress.kubernetes.io/proxy-ssl-name: {{ $konkName }}
+    nginx.ingress.kubernetes.io/proxy-ssl-name: {{ $konkName }}
     nginx.ingress.kubernetes.io/proxy-ssl-secret: {{ .Values.konk.namespace | default .Release.Namespace }}/{{ $konkName }}-ingress-client
     nginx.ingress.kubernetes.io/proxy-ssl-verify: "on"
   {{- with .Values.ingress.annotations }}
