@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ include "konk-service.fullname" . }}-delete-apiservice
+  name: {{ include "konk-service.fullname" . | trunc 43 | trimSuffix "-" }}-delete-apiservice
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "konk-service.labels" . | nindent 4 }}
