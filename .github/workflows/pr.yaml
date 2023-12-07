@@ -134,7 +134,7 @@ jobs:
           make test-konk KONK_NAMESPACE=$KONK_NAMESPACE
           make test-konk-local
       - name: Setup Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: 1.15.x
       - name: Build Extension APIServer
