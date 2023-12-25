@@ -8,7 +8,7 @@ require (
 	github.com/Azure/go-autorest/autorest/adal v0.9.5 // indirect
 	github.com/blang/semver v3.5.1+incompatible // indirect
 	github.com/go-logr/logr v0.3.0 // indirect
-	github.com/go-openapi/loads v0.21.4
+	github.com/go-openapi/loads v0.21.5
 	github.com/go-openapi/spec v0.20.13
 	github.com/grpc-ecosystem/go-grpc-middleware v1.0.1-0.20190723091251-e0797f438f94 // indirect
 	github.com/imdario/mergo v0.3.10 // indirect
