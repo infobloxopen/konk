@@ -81,7 +81,7 @@ jobs:
         run: |
           mkdir -p ~/.kube
           make helm-lint
-      - uses: helm/kind-action@v1.8.0
+      - uses: helm/kind-action@v1.9.0
         timeout-minutes: 5
         with:
           config: ./src/github.com/${{ github.repository }}/test/kind.yaml
