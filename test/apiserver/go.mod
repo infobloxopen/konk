@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/go-openapi/loads v0.21.6
-	github.com/go-openapi/spec v0.20.15
+	github.com/go-openapi/spec v0.21.0
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.19.0
 	github.com/spf13/pflag v1.0.5
@@ -43,10 +43,10 @@ require (
 	github.com/go-logr/zapr v0.2.0 // indirect
 	github.com/go-openapi/analysis v0.22.3 // indirect
 	github.com/go-openapi/errors v0.21.1 // indirect
-	github.com/go-openapi/jsonpointer v0.20.3 // indirect
-	github.com/go-openapi/jsonreference v0.20.5 // indirect
+	github.com/go-openapi/jsonpointer v0.21.0 // indirect
+	github.com/go-openapi/jsonreference v0.21.0 // indirect
 	github.com/go-openapi/strfmt v0.22.2 // indirect
-	github.com/go-openapi/swag v0.22.10 // indirect
+	github.com/go-openapi/swag v0.23.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
