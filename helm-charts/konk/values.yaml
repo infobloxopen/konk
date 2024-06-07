@@ -79,8 +79,7 @@ etcd:
   # `true`: etcd is deployed by konk-operator
   # `false`: etcd is deployed as a sidecar of konk's kube-apiserver
   operator: true
-  statefulset:
-    replicaCount: 3
+  replicaCount: 3
 
 kind:
   image:

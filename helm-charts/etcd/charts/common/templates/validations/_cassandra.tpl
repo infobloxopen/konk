@@ -14,7 +14,7 @@ Params:
   {{- $dbUserPrefix := include "common.cassandra.values.key.dbUser" . -}}
   {{- $valueKeyPassword := printf "%s.password" $dbUserPrefix -}}
 
-  {{- if and (not $existingSecret) (eq $enabled "true") -}}
+  {{- if and (or (not $existingSecret) (eq $existingSecret "\"\"")) (eq $enabled "true") -}}
     {{- $requiredPasswords := list -}}
 
     {{- $requiredPassword := dict "valueKey" $valueKeyPassword "secret" .secret "field" "cassandra-password" -}}
@@ -26,7 +26,7 @@ Params:
 {{- end -}}
 
 {{/*
-Auxiliar function to get the right value for existingSecret.
+Auxiliary function to get the right value for existingSecret.
 
 Usage:
 {{ include "common.cassandra.values.existingSecret" (dict "context" $) }}
@@ -42,7 +42,7 @@ Params:
 {{- end -}}
 
 {{/*
-Auxiliar function to get the right value for enabled cassandra.
+Auxiliary function to get the right value for enabled cassandra.
 
 Usage:
 {{ include "common.cassandra.values.enabled" (dict "context" $) }}
@@ -56,7 +56,7 @@ Usage:
 {{- end -}}
 
 {{/*
-Auxiliar function to get the right value for the key dbUser
+Auxiliary function to get the right value for the key dbUser
 
 Usage:
 {{ include "common.cassandra.values.key.dbUser" (dict "subchart" "true" "context" $) }}

@@ -118,18 +118,18 @@ jobs:
           make kind-load-konk KIND_NAME="chart-testing"
           make deploy-crds deploy-konk-operator
       - name: Test Konk
-        timeout-minutes: 6
+        timeout-minutes: 10
         run: |
           kubectl create ns $KONK_NAMESPACE || true
           kubectl apply -n $KONK_NAMESPACE -f examples/konk.yaml
           # FIXME: use the helm-operator status to detect installation was successful
-          until kubectl wait -n $KONK_NAMESPACE --timeout=3m --for=condition=ready pod -l app.kubernetes.io/name=etcd
+          until kubectl wait -n $KONK_NAMESPACE --timeout=1m --for=condition=ready pod -l app.kubernetes.io/name=etcd
           do
-            sleep 1
+            sleep 6
           done
-          until kubectl wait -n $KONK_NAMESPACE --timeout=3m --for=condition=ready pod -l app.kubernetes.io/component=apiserver,app.kubernetes.io/name=konk
+          until kubectl wait -n $KONK_NAMESPACE --timeout=1m --for=condition=ready pod -l app.kubernetes.io/component=apiserver,app.kubernetes.io/name=konk
           do
-            sleep 1
+            sleep 6
           done
           make test-konk KONK_NAMESPACE=$KONK_NAMESPACE
           make test-konk-local
