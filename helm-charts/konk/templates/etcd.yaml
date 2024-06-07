@@ -16,8 +16,8 @@ spec:
       enableAuthentication: true
       secureTransport: true
       existingSecret: {{ include "konk.fullname" $ }}-etcd-cert
-      certFilename: server.crt
-      certKeyFilename: server.key
+      certFilename: tls.crt
+      certKeyFilename: tls.key
   {{- if $.Values.space.enabled }}
   global:
     imagePullSecrets:

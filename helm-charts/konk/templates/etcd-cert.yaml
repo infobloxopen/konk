@@ -1,0 +1,28 @@
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: {{ include "konk.fullname" . }}-etcd-ca
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "konk.labels" . | nindent 4 }}
+spec:
+ ca:
+   secretName: {{ include "konk.fullname" . }}-etcd-ca
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ include "konk.fullname" . }}-etcd-cert
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "konk.labels" . | nindent 4 }}
+spec:
+  secretName: {{ include "konk.fullname" . }}-etcd-cert
+  commonName: {{ include "konk.fullname" . }}
+  dnsNames:
+  - {{ include "konk.fullname" . }}-etcd-headless
+  issuerRef:
+    name: {{ include "konk.fullname" . }}-etcd-ca
+    kind: Issuer
+  revisionHistoryLimit: 1
+...
