@@ -33,6 +33,9 @@ etcd:
     serverCertSANs:
     - localhost
     - $RELEASE-etcd-headless
+    - $RELEASE-etcd-0.$RELEASE-etcd-headless.$NAMESPACE.svc.cluster.local
+    - $RELEASE-etcd-1.$RELEASE-etcd-headless.$NAMESPACE.svc.cluster.local
+    - $RELEASE-etcd-2.$RELEASE-etcd-headless.$NAMESPACE.svc.cluster.local
 EOF
 
 kubeadm init phase certs all --apiserver-cert-extra-sans $FULLNAME,$FULLNAME.$NAMESPACE,$FULLNAME.$NAMESPACE.svc,$FULLNAME.$NAMESPACE.svc.cluster.local
