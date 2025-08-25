@@ -320,12 +320,12 @@
             "type": "query"
           }
         ],
-        "executionErrorState": "alerting",
+        "executionErrorState": "keep_state",
         "for": "5m",
         "frequency": "1m",
         "handler": 1,
         "name": "konks ready alert",
-        "noDataState": "keep_state",
+        "noDataState": "no_data",
         "notifications": [
           {
             "uid": "atlas-pager-duty"
@@ -387,7 +387,9 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "sum(kube_pod_status_ready{pod=~\".*-konk-[a-f0-9]+-[a-z0-9]+$\",condition=\"true\"}) by (namespace, pod, condition)",
+          "editorMode": "code",
+          "expr": "sum(kube_pod_status_ready{pod=~\".*-konk-[a-f0-9]+-[a-z0-9]+$\",condition=\"true\"}) by (namespace, pod, condition) or on() vector(0)",
+          "range": true,
           "refId": "A"
         },
         {
@@ -395,7 +397,9 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "sum(kube_pod_status_ready{pod=~\".*-konk-[a-f0-9]+-[a-z0-9]+$\",condition=\"false\"}) by (namespace, pod, condition) * -1",
+          "editorMode": "code",
+          "expr": "(sum(kube_pod_status_ready{pod=~\".*-konk-[a-f0-9]+-[a-z0-9]+$\",condition=\"false\"}) by (namespace, pod, condition) or on() vector(0)) * -1",
+          "range": true,
           "refId": "B"
         }
       ],
@@ -441,7 +445,8 @@
       }
     }
   ],
-  "schemaVersion": 37,
+  "refresh": "",
+  "schemaVersion": 38,
   "style": "dark",
   "tags": [],
   "templating": {
@@ -468,6 +473,6 @@
   "timezone": "",
   "title": "konk",
   "uid": "8wi8LhdGk",
-  "version": 2,
+  "version": 10185,
   "weekStart": ""
 }
