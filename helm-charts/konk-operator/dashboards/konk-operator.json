@@ -325,7 +325,7 @@
         "frequency": "1m",
         "handler": 1,
         "name": "konks ready alert",
-        "noDataState": "no_data",
+        "noDataState": "keep_state",
         "notifications": [
           {
             "uid": "atlas-pager-duty"
