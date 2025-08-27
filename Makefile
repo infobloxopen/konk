@@ -7,6 +7,7 @@ DOCKER_RUNNER	?= docker run --rm -i \
 			-e KUBECONFIG=/apps/.kube/$(notdir $(KUBECONFIG)) \
 			-v $(dir $(KUBECONFIG)):/apps/.kube/ \
 			-v $(shell pwd):/apps \
+			-w /apps \
 			$(HELM_IMAGE)
 HELM		?= $(DOCKER_RUNNER) \
 			helm
@@ -39,7 +40,9 @@ $(CHART_DIR)/konk/image-tag-values.yaml:
 	ETCD_VERSION=`echo "$$IMAGES" | grep etcd | cut -d: -f2` && \
 	echo "# kubernetes $(K8S_RELEASE)\napiserver:\n  image:\n    tag: $$APISERVER_VERSION\netcd:\n  image:\n    tag: $$ETCD_VERSION" | tee $@
 
-helm-lint: helm-lint-$(notdir $(CHART_DIR)/*)
+CHART_NAMES := $(shell find $(CHART_DIR) -maxdepth 1 -type d | grep -v '^$(CHART_DIR)$$' | xargs -I {} basename {})
+
+helm-lint: $(addprefix helm-lint-,$(CHART_NAMES))
 
 helm-lint-%:
 	$(HELM) lint $(CHART_DIR)/$*/ --set=isLint=true
