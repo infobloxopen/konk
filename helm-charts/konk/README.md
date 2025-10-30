@@ -31,6 +31,8 @@ When deploying with `helm install`, these configurations are values and can be o
 | autoscaling.minReplicas | int | `1` |  |
 | autoscaling.targetCPUUtilizationPercentage | int | `80` |  |
 | certManager.namespace | string | `nil` |  |
+| etcd.image.repository | string | `"bitnamilegacy/etcd"` |  |
+| etcd.image.tag | string | `"3.4.35-debian-12-r1"` |  |
 | etcd.operator | bool | `true` | defines how Konk's internal etcd is deployed. `true`: etcd is deployed by konk-operator `false`: etcd is deployed as a sidecar of konk's kube-apiserver |
 | etcd.resources.limits.memory | string | `"4Gi"` |  |
 | etcd.resources.requests.cpu | string | `"10m"` |  |
