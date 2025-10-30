@@ -56,11 +56,10 @@ certManager:
   namespace:
 
 etcd:
-  # only override "image:" when "operator: false"
-  # image:
-  #   repository: k8s.gcr.io/etcd
-  #   pullPolicy: Always
-  #   tag: "3.4.9-1" # keep image versions in sync with `kubeadm config images list`
+  image:
+    repository: bitnamilegacy/etcd
+    # pullPolicy: Always
+    tag: "3.4.35-debian-12-r1" # keep image versions in sync with `kubeadm config images list`
   resources:
     limits:
       memory: 4Gi
