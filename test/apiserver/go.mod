@@ -9,9 +9,9 @@ require (
 	github.com/onsi/gomega v1.19.0
 	github.com/spf13/pflag v1.0.5
 	golang.org/x/net v0.24.0
-	k8s.io/apimachinery v0.19.2
+	k8s.io/apimachinery v0.19.6
 	k8s.io/apiserver v0.19.2
-	k8s.io/client-go v0.19.2
+	k8s.io/client-go v0.19.6
 	k8s.io/klog v1.0.0
 	k8s.io/kube-openapi v0.0.0-20201113171705-d219536bb9fd
 	sigs.k8s.io/apiserver-builder-alpha v1.18.1-0.20201012071248-ca5d7287e44a
@@ -97,7 +97,7 @@ require (
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/api v0.19.2 // indirect
+	k8s.io/api v0.19.6 // indirect
 	k8s.io/apiextensions-apiserver v0.19.2 // indirect
 	k8s.io/component-base v0.19.2 // indirect
 	k8s.io/klog/v2 v2.4.0 // indirect
