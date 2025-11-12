@@ -13,10 +13,8 @@ Params:
   {{- $enabled := include "common.postgresql.values.enabled" . -}}
   {{- $valueKeyPostgresqlPassword := include "common.postgresql.values.key.postgressPassword" . -}}
   {{- $valueKeyPostgresqlReplicationEnabled := include "common.postgresql.values.key.replicationPassword" . -}}
-
-  {{- if and (not $existingSecret) (eq $enabled "true") -}}
+  {{- if and (or (not $existingSecret) (eq $existingSecret "\"\"")) (eq $enabled "true") -}}
     {{- $requiredPasswords := list -}}
-
     {{- $requiredPostgresqlPassword := dict "valueKey" $valueKeyPostgresqlPassword "secret" .secret "field" "postgresql-password" -}}
     {{- $requiredPasswords = append $requiredPasswords $requiredPostgresqlPassword -}}
 
@@ -31,7 +29,7 @@ Params:
 {{- end -}}
 
 {{/*
-Auxiliar function to decide whether evaluate global values.
+Auxiliary function to decide whether evaluate global values.
 
 Usage:
 {{ include "common.postgresql.values.use.global" (dict "key" "key-of-global" "context" $) }}
@@ -47,7 +45,7 @@ Params:
 {{- end -}}
 
 {{/*
-Auxiliar function to get the right value for existingSecret.
+Auxiliary function to get the right value for existingSecret.
 
 Usage:
 {{ include "common.postgresql.values.existingSecret" (dict "context" $) }}
@@ -63,7 +61,7 @@ Usage:
 {{- end -}}
 
 {{/*
-Auxiliar function to get the right value for enabled postgresql.
+Auxiliary function to get the right value for enabled postgresql.
 
 Usage:
 {{ include "common.postgresql.values.enabled" (dict "context" $) }}
@@ -77,7 +75,7 @@ Usage:
 {{- end -}}
 
 {{/*
-Auxiliar function to get the right value for the key postgressPassword.
+Auxiliary function to get the right value for the key postgressPassword.
 
 Usage:
 {{ include "common.postgresql.values.key.postgressPassword" (dict "subchart" "true" "context" $) }}
@@ -99,7 +97,7 @@ Params:
 {{- end -}}
 
 {{/*
-Auxiliar function to get the right value for enabled.replication.
+Auxiliary function to get the right value for enabled.replication.
 
 Usage:
 {{ include "common.postgresql.values.enabled.replication" (dict "subchart" "true" "context" $) }}
@@ -115,7 +113,7 @@ Params:
 {{- end -}}
 
 {{/*
-Auxiliar function to get the right value for the key replication.password.
+Auxiliary function to get the right value for the key replication.password.
 
 Usage:
 {{ include "common.postgresql.values.key.replicationPassword" (dict "subchart" "true" "context" $) }}

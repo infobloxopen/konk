@@ -34,11 +34,11 @@ When deploying with `helm install`, these configurations are values and can be o
 | etcd.image.repository | string | `"bitnamilegacy/etcd"` |  |
 | etcd.image.tag | string | `"3.4.35-debian-12-r1"` |  |
 | etcd.operator | bool | `true` | defines how Konk's internal etcd is deployed. `true`: etcd is deployed by konk-operator `false`: etcd is deployed as a sidecar of konk's kube-apiserver |
+| etcd.replicaCount | int | `3` |  |
 | etcd.resources.limits.memory | string | `"4Gi"` |  |
 | etcd.resources.requests.cpu | string | `"10m"` |  |
 | etcd.resources.requests.memory | string | `"64Mi"` |  |
 | etcd.securityContext | object | `{}` |  |
-| etcd.statefulset.replicaCount | int | `3` |  |
 | fullnameOverride | string | `""` |  |
 | imagePullSecrets | list | `[]` |  |
 | ingress.annotations."nginx.ingress.kubernetes.io/backend-protocol" | string | `"HTTPS"` |  |
