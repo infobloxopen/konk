@@ -12,9 +12,6 @@ RUN git clone --depth 1 --branch v1.42.0 https://github.com/operator-framework/o
     go mod tidy && \
     make build/helm-operator
 
-# Extract helm-operator binary
-FROM quay.io/operator-framework/helm-operator:v1.42.0 AS original
-
 # Final stage with distroless base
 FROM gcr.io/distroless/static-debian12:nonroot
 
