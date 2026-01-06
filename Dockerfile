@@ -8,7 +8,7 @@ RUN apk add --no-cache git make bash
 WORKDIR /workspace
 RUN git clone --depth 1 --branch v1.42.0 https://github.com/operator-framework/operator-sdk.git && \
     cd operator-sdk && \
-    go get golang.org/x/crypto@v0.45.0 && \
+    go get -u golang.org/x/crypto && \
     go mod tidy && \
     make build/helm-operator
 
