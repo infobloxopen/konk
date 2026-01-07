@@ -110,7 +110,7 @@ kind:
   image:
     repository: kindest/node
     pullPolicy: Always
-    tag: v1.25.8
+    tag: v1.35.0
 
 konkservice:
   ingress:
