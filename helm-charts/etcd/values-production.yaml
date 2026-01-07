@@ -8,13 +8,13 @@
 #     - myRegistryKeySecretName
 #   storageClass: myStorageClass
 
-## Bitnami etcd image version
-## ref: https://hub.docker.com/r/bitnami/etcd/tags/
+## CoreOS etcd image version
+## ref: https://quay.io/repository/coreos/etcd?tab=tags
 ##
 image:
-  registry: docker.io
-  repository: bitnami/etcd
-  tag: 3.4.14-debian-10-r0
+  registry: quay.io
+  repository: coreos/etcd
+  tag: v3.6.7
   ## Specify a imagePullPolicy
   ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
   ## ref: http://kubernetes.io/docs/user-guide/images/#pre-pulling-images
