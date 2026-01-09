@@ -12,9 +12,9 @@
 ## ref: https://hub.docker.com/r/bitnami/etcd/tags/
 ##
 image:
-  registry: cgr.dev
-  repository: infoblox.com/etcd
-  tag: latest
+  registry: gcr.io
+  repository: etcd-development/etcd
+  tag: v3.6.7
   ## Specify a imagePullPolicy
   ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
   ## ref: http://kubernetes.io/docs/user-guide/images/#pre-pulling-images
