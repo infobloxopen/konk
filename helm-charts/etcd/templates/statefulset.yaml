@@ -147,6 +147,17 @@ spec:
               protocol: TCP
           {{- if .Values.livenessProbe.enabled }}
           livenessProbe:
+            {{- if and .Values.auth.client.secureTransport .Values.auth.client.enableAuthentication }}
+            exec:
+              command:
+                - etcdctl
+                - endpoint
+                - health
+                - --endpoints=https://127.0.0.1:{{ .Values.service.port }}
+                - --cacert=/etc/etcd/certs/client/{{ .Values.auth.client.caFilename }}
+                - --cert=/etc/etcd/certs/client/{{ .Values.auth.client.certFilename }}
+                - --key=/etc/etcd/certs/client/{{ .Values.auth.client.certKeyFilename }}
+            {{- else }}
             httpGet:
               path: /health?serializable=true
               port: client
@@ -155,6 +166,7 @@ spec:
               {{- else }}
               scheme: HTTP
               {{- end }}
+            {{- end }}
             initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
             periodSeconds: {{ .Values.livenessProbe.periodSeconds }}
             timeoutSeconds: {{ .Values.livenessProbe.timeoutSeconds }}
@@ -163,6 +175,17 @@ spec:
           {{- end }}
           {{- if .Values.readinessProbe.enabled }}
           readinessProbe:
+            {{- if and .Values.auth.client.secureTransport .Values.auth.client.enableAuthentication }}
+            exec:
+              command:
+                - etcdctl
+                - endpoint
+                - health
+                - --endpoints=https://127.0.0.1:{{ .Values.service.port }}
+                - --cacert=/etc/etcd/certs/client/{{ .Values.auth.client.caFilename }}
+                - --cert=/etc/etcd/certs/client/{{ .Values.auth.client.certFilename }}
+                - --key=/etc/etcd/certs/client/{{ .Values.auth.client.certKeyFilename }}
+            {{- else }}
             httpGet:
               path: /health?serializable=true
               port: client
@@ -171,6 +194,7 @@ spec:
               {{- else }}
               scheme: HTTP
               {{- end }}
+            {{- end }}
             initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }}
             periodSeconds: {{ .Values.readinessProbe.periodSeconds }}
             timeoutSeconds: {{ .Values.readinessProbe.timeoutSeconds }}
@@ -179,6 +203,17 @@ spec:
           {{- end }}
           {{- if .Values.startupProbe.enabled }}
           startupProbe:
+            {{- if and .Values.auth.client.secureTransport .Values.auth.client.enableAuthentication }}
+            exec:
+              command:
+                - etcdctl
+                - endpoint
+                - health
+                - --endpoints=https://127.0.0.1:{{ .Values.service.port }}
+                - --cacert=/etc/etcd/certs/client/{{ .Values.auth.client.caFilename }}
+                - --cert=/etc/etcd/certs/client/{{ .Values.auth.client.certFilename }}
+                - --key=/etc/etcd/certs/client/{{ .Values.auth.client.certKeyFilename }}
+            {{- else }}
             httpGet:
               path: /health?serializable=true
               port: client
@@ -187,6 +222,7 @@ spec:
               {{- else }}
               scheme: HTTP
               {{- end }}
+            {{- end }}
             initialDelaySeconds: {{ .Values.startupProbe.initialDelaySeconds }}
             periodSeconds: {{ .Values.startupProbe.periodSeconds }}
             timeoutSeconds: {{ .Values.startupProbe.timeoutSeconds }}
