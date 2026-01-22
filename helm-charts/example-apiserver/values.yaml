@@ -13,7 +13,7 @@ image:
 etcd:
   image:
     repository: harbor.services.sdp.infoblox.com/infobloxcto-cgr/etcd
-    tag: v3.6.7-r1
+    tag: v3.6.7-r1-dev
   imagePullPolicy: IfNotPresent
   svc:
     protocol: http

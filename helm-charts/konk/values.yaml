@@ -59,7 +59,7 @@ etcd:
   image:
     repository: harbor.services.sdp.infoblox.com/infobloxcto-cgr/etcd
     # pullPolicy: Always
-    tag: "v3.6.7-r1" # keep image versions in sync with `kubeadm config images list`
+    tag: "v3.6.7-r1-dev" # keep image versions in sync with `kubeadm config images list`
   resources:
     limits:
       memory: 4Gi

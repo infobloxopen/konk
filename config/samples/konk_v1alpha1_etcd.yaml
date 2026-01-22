@@ -42,7 +42,7 @@ spec:
     pullPolicy: IfNotPresent
     registry: harbor.services.sdp.infoblox.com
     repository: infobloxcto-cgr/etcd
-    tag: v3.6.7-r1
+    tag: v3.6.7-r1-dev
   livenessProbe:
     enabled: true
     failureThreshold: 5

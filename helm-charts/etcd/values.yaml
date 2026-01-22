@@ -8,13 +8,13 @@
 #     - myRegistryKeySecretName
 #   storageClass: myStorageClass
 
-## Bitnami etcd image version
-## ref: https://hub.docker.com/r/bitnami/etcd/tags/
+## Chainguard etcd image version
+## ref: https://images.chainguard.dev/directory/image/etcd/overview
 ##
 image:
   registry: harbor.services.sdp.infoblox.com
   repository: infobloxcto-cgr/etcd
-  tag: v3.6.7-r1
+  tag: v3.6.7-r1-dev
   ## Specify a imagePullPolicy
   ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
   ## ref: http://kubernetes.io/docs/user-guide/images/#pre-pulling-images
