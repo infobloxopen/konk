@@ -68,7 +68,7 @@ spec:
             - /bin/bash
             - -ec
             - |
-              chown -R {{ .Values.securityContext.runAsUser }}:{{ .Values.securityContext.fsGroup }} /bitnami/etcd
+              chown -R {{ .Values.securityContext.runAsUser }}:{{ .Values.securityContext.fsGroup }} /var/lib/etcd
           securityContext:
             runAsUser: 0
           {{- if .Values.volumePermissions.resources }}
@@ -76,7 +76,7 @@ spec:
           {{- end }}
           volumeMounts:
             - name: data
-              mountPath: /bitnami/etcd
+              mountPath: /var/lib/etcd
       {{- end }}
       containers:
         # Variables to populate static cluster
@@ -123,7 +123,7 @@ spec:
             - name: ETCD_NAME
               value: "$(MY_POD_NAME)"
             - name: ETCD_DATA_DIR
-              value: /bitnami/etcd/data
+              value: /var/lib/etcd/data
             - name: ETCD_ADVERTISE_CLIENT_URLS
               value: "{{ $etcdClientProtocol }}://$(MY_POD_NAME).{{ $etcdHeadlessServiceName }}.{{ .Release.Namespace }}.svc.{{ $clusterDomain }}:{{ .Values.service.port }}"
             - name: ETCD_LISTEN_CLIENT_URLS
@@ -168,17 +168,17 @@ spec:
               value: "true"
             {{- else if .Values.auth.client.secureTransport }}
             - name: ETCD_CERT_FILE
-              value: "/opt/bitnami/etcd/certs/client/{{ .Values.auth.client.certFilename }}"
+              value: "/etc/etcd/certs/client/{{ .Values.auth.client.certFilename }}"
             - name: ETCD_KEY_FILE
-              value: "/opt/bitnami/etcd/certs/client/{{ .Values.auth.client.certKeyFilename }}"
+              value: "/etc/etcd/certs/client/{{ .Values.auth.client.certKeyFilename }}"
             {{- if .Values.auth.client.enableAuthentication }}
             - name: ETCD_CLIENT_CERT_AUTH
               value: "true"
             - name: ETCD_TRUSTED_CA_FILE
-              value: "/opt/bitnami/etcd/certs/client/{{ .Values.auth.client.caFilename | default "ca.crt"}}"
+              value: "/etc/etcd/certs/client/{{ .Values.auth.client.caFilename | default "ca.crt"}}"
             {{- else if .Values.auth.client.caFilename }}
             - name: ETCD_TRUSTED_CA_FILE
-              value: "/opt/bitnami/etcd/certs/client/{{ .Values.auth.client.caFilename | default "ca.crt"}}"
+              value: "/etc/etcd/certs/client/{{ .Values.auth.client.caFilename | default "ca.crt"}}"
             {{- end }}
             {{- end }}
             {{- if and .Values.auth.peer.secureTransport .Values.auth.peer.useAutoTLS }}
@@ -186,17 +186,17 @@ spec:
               value: "true"
             {{- else if .Values.auth.peer.secureTransport }}
             - name: ETCD_PEER_CERT_FILE
-              value: "/opt/bitnami/etcd/certs/peer/{{ .Values.auth.peer.certFilename }}"
+              value: "/etc/etcd/certs/peer/{{ .Values.auth.peer.certFilename }}"
             - name: ETCD_PEER_KEY_FILE
-              value: "/opt/bitnami/etcd/certs/peer/{{ .Values.auth.peer.certKeyFilename }}"
+              value: "/etc/etcd/certs/peer/{{ .Values.auth.peer.certKeyFilename }}"
             {{- if .Values.auth.peer.enableAuthentication }}
             - name: ETCD_PEER_CLIENT_CERT_AUTH
               value: "true"
             - name: ETCD_PEER_TRUSTED_CA_FILE
-              value: "/opt/bitnami/etcd/certs/peer/{{ .Values.auth.peer.caFilename | default "ca.crt"}}"
+              value: "/etc/etcd/certs/peer/{{ .Values.auth.peer.caFilename | default "ca.crt"}}"
             {{- else if .Values.auth.peer.caFilename }}
             - name: ETCD_PEER_TRUSTED_CA_FILE
-              value: "/opt/bitnami/etcd/certs/peer/{{ .Values.auth.peer.caFilename | default "ca.crt"}}"
+              value: "/etc/etcd/certs/peer/{{ .Values.auth.peer.caFilename | default "ca.crt"}}"
             {{- end }}
             {{- end }}
           ports:
@@ -237,7 +237,7 @@ spec:
               mountPath: /scripts/probes.sh
               subPath: probes.sh
             - name: data
-              mountPath: /bitnami/etcd
+              mountPath: /var/lib/etcd
             {{- if .Values.startFromSnapshot.enabled }}
             - name: init-snapshot-volume
               mountPath: /init-snapshot
@@ -248,16 +248,16 @@ spec:
             {{- end }}
             {{- if .Values.configFileConfigMap }}
             - name: etcd-config
-              mountPath: /opt/bitnami/etcd/conf/
+              mountPath: /etc/etcd/conf/
             {{- end }}
             {{- if or .Values.auth.client.enableAuthentication (and .Values.auth.client.secureTransport (not .Values.auth.client.useAutoTLS )) }}
             - name: etcd-client-certs
-              mountPath: /opt/bitnami/etcd/certs/client/
+              mountPath: /etc/etcd/certs/client/
               readOnly: true
             {{- end }}
             {{- if or .Values.auth.peer.enableAuthentication (and .Values.auth.peer.secureTransport (not .Values.auth.peer.useAutoTLS )) }}
             - name: etcd-peer-certs
-              mountPath: /opt/bitnami/etcd/certs/peer/
+              mountPath: /etc/etcd/certs/peer/
               readOnly: true
             {{- end }}
       volumes:

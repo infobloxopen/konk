@@ -39,17 +39,17 @@ spec:
                 value: "3"
               {{- if .Values.auth.client.secureTransport }}
               - name: ETCD_CERT_FILE
-                value: "/opt/bitnami/etcd/certs/client/{{ .Values.auth.client.certFilename }}"
+                value: "/etc/etcd/certs/client/{{ .Values.auth.client.certFilename }}"
               - name: ETCD_KEY_FILE
-                value: "/opt/bitnami/etcd/certs/client/{{ .Values.auth.client.certKeyFilename }}"
+                value: "/etc/etcd/certs/client/{{ .Values.auth.client.certKeyFilename }}"
               {{- if .Values.auth.client.enableAuthentication }}
               - name: ETCD_CLIENT_CERT_AUTH
                 value: "true"
               - name: ETCD_TRUSTED_CA_FILE
-                value: "/opt/bitnami/etcd/certs/client/{{ .Values.auth.client.caFilename | default "ca.crt"}}"
+                value: "/etc/etcd/certs/client/{{ .Values.auth.client.caFilename | default "ca.crt"}}"
               {{- else if .Values.auth.client.caFilename }}
               - name: ETCD_TRUSTED_CA_FILE
-                value: "/opt/bitnami/etcd/certs/client/{{ .Values.auth.client.caFilename | default "ca.crt"}}"
+                value: "/etc/etcd/certs/client/{{ .Values.auth.client.caFilename | default "ca.crt"}}"
               {{- end }}
               {{- end }}
               {{- if .Values.auth.rbac.enabled }}
@@ -70,7 +70,7 @@ spec:
                   mountPath: /snapshots
                 {{- if .Values.auth.client.secureTransport }}
                 - name: certs
-                  mountPath: /opt/bitnami/etcd/certs/client
+                  mountPath: /etc/etcd/certs/client
                   readOnly: true
                 {{- end }}
           volumes:
