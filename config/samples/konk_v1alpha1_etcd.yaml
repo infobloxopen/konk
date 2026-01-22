@@ -40,9 +40,9 @@ spec:
   image:
     debug: false
     pullPolicy: IfNotPresent
-    registry: docker.io
-    repository: bitnami/etcd
-    tag: 3.4.13-debian-10-r69
+    registry: harbor.services.sdp.infoblox.com
+    repository: infobloxcto-cgr/etcd
+    tag: v3.6.7-r1
   livenessProbe:
     enabled: true
     failureThreshold: 5

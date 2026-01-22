@@ -12,8 +12,8 @@ image:
 
 etcd:
   image:
-    repository: quay.io/coreos/etcd
-    tag: v3.4.13
+    repository: harbor.services.sdp.infoblox.com/infobloxcto-cgr/etcd
+    tag: v3.6.7-r1
   imagePullPolicy: IfNotPresent
   svc:
     protocol: http

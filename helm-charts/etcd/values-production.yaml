@@ -12,9 +12,9 @@
 ## ref: https://hub.docker.com/r/bitnami/etcd/tags/
 ##
 image:
-  registry: docker.io
-  repository: bitnami/etcd
-  tag: 3.4.14-debian-10-r0
+  registry: harbor.services.sdp.infoblox.com
+  repository: infobloxcto-cgr/etcd
+  tag: v3.6.7-r1
   ## Specify a imagePullPolicy
   ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
   ## ref: http://kubernetes.io/docs/user-guide/images/#pre-pulling-images
