@@ -92,13 +92,7 @@ spec:
             - name: ETCD_INITIAL_CLUSTER_TOKEN
               value: {{ .Values.etcd.initialClusterToken | quote }}
             - name: ETCD_INITIAL_CLUSTER_STATE
-              {{- if .Values.etcd.initialClusterState }}
-              value: {{ .Values.etcd.initialClusterState | quote }}
-              {{- else if .Release.IsInstall }}
-              value: "new"
-              {{- else }}
-              value: "existing"
-              {{- end }}
+              value: {{ .Values.etcd.initialClusterState | default "new" | quote }}
             {{- end }}
             {{- if .Values.etcd.autoCompactionMode }}
             - name: ETCD_AUTO_COMPACTION_MODE
