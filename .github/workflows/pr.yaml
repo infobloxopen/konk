@@ -16,9 +16,11 @@ jobs:
           - v1.31.4
           - v1.25.11
         include:
-          - isUpgrade: true
-            k8sVersion: v1.25.11
-            ref: main
+          # BREAKING CHANGE: Upgrade test disabled due to etcd chart migration
+          # from Bitnami to upstream etcd. In-place upgrades are not supported.
+          # - isUpgrade: true
+          #   k8sVersion: v1.25.11
+          #   ref: main
           - ingressVersion: controller-v1.2.1
             k8sVersion: v1.25.11
     timeout-minutes: 20
