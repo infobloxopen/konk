@@ -1,6 +1,6 @@
 # konk-service
 
-![Version: 0.1.0](https://img.shields.io/badge/Version-0.1.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v1.25.8](https://img.shields.io/badge/AppVersion-v1.25.8-informational?style=flat-square)
+![Version: 0.1.0](https://img.shields.io/badge/Version-0.1.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v1.35.0](https://img.shields.io/badge/AppVersion-v1.35.0-informational?style=flat-square)
 
 Registers an aggregate API service in Konk
 
@@ -26,7 +26,7 @@ When deploying with `helm install`, these configurations are values and can be o
 | insecureSkipTLSVerify | bool | `false` |  |
 | kind.image.pullPolicy | string | `"Always"` |  |
 | kind.image.repository | string | `"kindest/node"` |  |
-| kind.image.tag | string | `"v1.25.8"` | Overrides the image tag whose default is the chart appVersion. |
+| kind.image.tag | string | `"v1.35.0"` | Overrides the image tag whose default is the chart appVersion. |
 | kind.resources.limits.memory | string | `"4Gi"` |  |
 | kind.resources.requests.cpu | string | `"10m"` |  |
 | kind.resources.requests.memory | string | `"40Mi"` |  |
