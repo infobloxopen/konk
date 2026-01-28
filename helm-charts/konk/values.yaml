@@ -10,7 +10,7 @@ apiserver:
     pullPolicy: Always
     # -- Overrides the image tag
     # @default -- default is the chart appVersion.
-    tag: ""
+    tag: "v1.35.0"
   resources:
     limits:
       memory: 4Gi
