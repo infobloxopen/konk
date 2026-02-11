@@ -6,7 +6,7 @@ replicaCount: 1
 
 apiserver:
   image:
-    repository: k8s.gcr.io/kube-apiserver
+    repository: infobloxcto-cgr/kubernetes-kube-apiserver
     pullPolicy: Always
     # -- Overrides the image tag
     # @default -- default is the chart appVersion.

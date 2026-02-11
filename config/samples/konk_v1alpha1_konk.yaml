@@ -8,8 +8,8 @@ spec:
   apiserver:
     image:
       pullPolicy: IfNotPresent
-      repository: k8s.gcr.io/kube-apiserver
-      tag: ""
+      repository: infobloxcto-cgr/kubernetes-kube-apiserver
+      tag: "v1.35.0"
     resources: {}
     securityContext: {}
   autoscaling:
@@ -31,8 +31,8 @@ spec:
       nginx.ingress.kubernetes.io/backend-protocol: HTTPS
     enabled: false
     hosts:
-    - host: chart-example.local
-      paths: []
+      - host: chart-example.local
+        paths: []
     tls: []
   nameOverride: ""
   nodeSelector: {}
@@ -47,5 +47,3 @@ spec:
     create: true
     name: ""
   tolerations: []
-  
-  
