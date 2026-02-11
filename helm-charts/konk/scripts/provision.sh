@@ -26,7 +26,7 @@ then
 fi
 
 cat << EOF > /tmp/kubeadmcfg.yaml
-apiVersion: "kubeadm.k8s.io/v1beta2"
+apiVersion: "kubeadm.k8s.io/v1beta4"
 kind: ClusterConfiguration
 etcd:
   local:
