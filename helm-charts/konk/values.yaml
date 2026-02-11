@@ -56,30 +56,44 @@ certManager:
   namespace:
 
 etcd:
+  # etcd image configuration - uses upstream etcd from gcr.io
   image:
-    repository: bitnamilegacy/etcd
-    # pullPolicy: Always
-    tag: "3.4.35-debian-12-r1" # keep image versions in sync with `kubeadm config images list`
+    registry: gcr.io
+    repository: etcd-development/etcd
+    tag: "v3.6.7"
+    pullPolicy: IfNotPresent
   resources:
     limits:
       memory: 4Gi
     requests:
       cpu: 10m
       memory: 64Mi
-  securityContext: {}
-    # capabilities:
-    #   drop:
-    #   - ALL
-    # readOnlyRootFilesystem: true
-    # runAsNonRoot: true
-    # runAsUser: 1000
+  securityContext:
+    enabled: true
+    fsGroup: 1001
+    runAsUser: 1001
+    runAsNonRoot: true
+  containerSecurityContext:
+    enabled: true
+    runAsUser: 1001
+    runAsNonRoot: true
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
 
   # -- defines how Konk's internal etcd is deployed.
   # `true`: etcd is deployed by konk-operator
   # `false`: etcd is deployed as a sidecar of konk's kube-apiserver
   operator: true
-  statefulset:
-    replicaCount: 3
+  
+  # Number of etcd replicas
+  replicaCount: 3
+  
+  # Persistence settings
+  persistence:
+    enabled: true
+    size: 8Gi
 
 kind:
   image:
