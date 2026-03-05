@@ -16,7 +16,7 @@ When deploying with `helm install`, these configurations are values and can be o
 | apiserver.disabledAPIs | list | `["apps/v1","apps/v1beta1","autoscaling/v1","autoscaling/v2beta1","autoscaling/v2beta2","batch/v1","batch/v1beta1","networking.k8s.io/v1","networking.k8s.io/v1beta1","storage.k8s.io/v1","storage.k8s.io/v1beta1"]` | specifies APIs unavailable in Konk. |
 | apiserver.extraFlags | object | `{}` | additional command line flags for kube-apiserver. See https://kubernetes.io/docs/reference/command-line-tools-reference/kube-apiserver/ for details. |
 | apiserver.image.pullPolicy | string | `"IfNotPresent"` |  |
-| apiserver.image.repository | string | `"infoblox/kubernetes"` |  |
+| apiserver.image.repository | string | `"infoblox/konk-app"` |  |
 | apiserver.image.tag | string | default is the chart appVersion. | Overrides the image tag |
 | apiserver.remoteHeaders.requestheader-extra-headers-prefix | string | `"X-Remote-Extra-"` | sets kube-apiserver's `--requestheader-extra-headers-prefix` option. See https://kubernetes.io/docs/reference/command-line-tools-reference/kube-apiserver/ for details. |
 | apiserver.remoteHeaders.requestheader-group-headers | string | `"X-Remote-Group"` | sets kube-apiserver's `--requestheader-group-headers` option. |
