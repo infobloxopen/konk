@@ -1,0 +1,20 @@
+# Stage 1: Build the Go provisioner
+FROM golang:1.25.5-alpine AS builder
+
+WORKDIR /workspace
+COPY cmd/provision/go.mod cmd/provision/go.sum* ./
+RUN go mod download || true
+COPY cmd/provision/*.go ./
+RUN go mod tidy && CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /provision .
+
+# Stage 2: Get statically-built kubeadm (built by make docker-build-kubeadm)
+ARG KUBEADM_IMG=infoblox/kubeadm:v1.25.8
+FROM ${KUBEADM_IMG} AS kubeadm
+
+# Stage 3: Final distroless image (static — all binaries are statically linked)
+FROM gcr.io/distroless/static-debian12
+
+COPY --from=builder /provision /usr/local/bin/provision
+COPY --from=kubeadm /kubeadm /usr/local/bin/kubeadm
+
+ENTRYPOINT ["/usr/local/bin/provision"]
