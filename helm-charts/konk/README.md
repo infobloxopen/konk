@@ -59,17 +59,14 @@ When deploying with `helm install`, these configurations are values and can be o
 | ingress.hosts[0].host | string | `"chart-example.local"` |  |
 | ingress.hosts[0].paths | list | `[]` |  |
 | ingress.tls | list | `[]` |  |
-| kind.image.pullPolicy | string | `"Always"` |  |
-| kind.image.repository | string | `"kindest/node"` |  |
+| kind | object | `{"image":{"pullPolicy":"Always","repository":"kindest/node","tag":""},"resources":{"limits":{"memory":"4Gi"},"requests":{"cpu":"100m","memory":"128Mi"}},"securityContext":{}}` | kind image used for test pods (contains kubectl / bash) |
 | kind.image.tag | string | default is the chart appVersion. | Overrides the image tag |
-| kind.resources.limits.memory | string | `"4Gi"` |  |
-| kind.resources.requests.cpu | string | `"100m"` |  |
-| kind.resources.requests.memory | string | `"128Mi"` |  |
-| kind.securityContext | object | `{}` |  |
 | nameOverride | string | `""` |  |
 | nodeSelector | object | `{}` |  |
 | podAnnotations | object | `{}` |  |
 | podSecurityContext | object | `{}` |  |
+| provision | object | `{"image":{"pullPolicy":"IfNotPresent","repository":"infoblox/konk-provision","tag":""},"resources":{"limits":{"memory":"256Mi"},"requests":{"cpu":"100m","memory":"128Mi"}},"securityContext":{"readOnlyRootFilesystem":false,"runAsNonRoot":false}}` | provision is the init container that generates certs and kubeconfigs |
+| provision.image.tag | string | default is the chart appVersion. | Overrides the image tag |
 | replicaCount | int | `1` |  |
 | scope | string | `"namespace"` | scope can be `cluster` or `namespace`. When scope is `cluster`, Certificates in any namespace can be signed by the konk's Issuer. |
 | service.port | int | `6443` |  |
