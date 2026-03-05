@@ -29,6 +29,9 @@ helm-charts/konk-operator/rbac
 
 # generated files
 /.image-*
+/.provision-image-*
+/.kubernetes-image-*
+/.kubeadm-image-*
 /bin/
 /.kind-load-*
 cmd/provision/provision
