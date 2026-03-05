@@ -1,3 +1,6 @@
+# Global ARG must be declared before any FROM to use in FROM lines
+ARG KUBERNETES_IMG=infoblox/konk-app:latest
+
 # Stage 1: Build the Go provisioner
 FROM golang:1.25.5-alpine AS builder
 
@@ -8,7 +11,6 @@ COPY cmd/provision/*.go ./
 RUN go mod tidy && CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /provision .
 
 # Stage 2: Get statically-built kubeadm (built by make docker-build-kubernetes)
-ARG KUBERNETES_IMG=infoblox/kubernetes:v1.25.8
 FROM ${KUBERNETES_IMG} AS kubernetes
 
 # Stage 3: Final distroless image (static — all binaries are statically linked)

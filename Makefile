@@ -26,9 +26,10 @@ HELM_DOCS       ?= docker run --rm \
 
 # KIND env variables
 KIND_NAME   	?= konk
-NODE_VERSION    ?= v1.25.8
+NODE_VERSION    ?= v1.31.4
 NODE_IMAGE      ?= kindest/node:${NODE_VERSION}
-KIND_VERSION    ?= v0.18.0
+KIND_VERSION    ?= v0.25.0
+KIND_ARCH       ?= $(shell uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/')
 KIND 			:= $(shell pwd)/bin/kind
 
 default: all
@@ -37,7 +38,7 @@ default: all
 $(CHART_DIR)/konk/image-tag-values.yaml:
 	@IMAGES=`$(KUBEADM) config images list` && \
 	ETCD_VERSION=`echo "$$IMAGES" | grep etcd | cut -d: -f2` && \
-	echo "# kubernetes $(K8S_RELEASE)\napiserver:\n  image:\n    tag: $(K8S_RELEASE)\netcd:\n  image:\n    tag: $$ETCD_VERSION\nprovision:\n  image:\n    tag: $(GIT_VERSION)" | tee $@
+	echo "# kubernetes $(K8S_RELEASE)\napiserver:\n  image:\n    tag: $(K8S_RELEASE)-$(GIT_SHORT)\netcd:\n  image:\n    tag: $$ETCD_VERSION\nprovision:\n  image:\n    tag: $(GIT_VERSION)" | tee $@
 
 CHART_NAMES := $(shell find $(CHART_DIR) -maxdepth 1 -type d | grep -v '^$(CHART_DIR)$$' | xargs -I {} basename {})
 
@@ -107,7 +108,8 @@ BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
 # Image URL to use all building/pushing image targets
 IMG ?= infoblox/konk:$(GIT_VERSION)
 PROVISION_IMG ?= infoblox/konk-provision:$(GIT_VERSION)
-KUBERNETES_IMG ?= infoblox/kubernetes:$(K8S_RELEASE)
+GIT_SHORT ?= g$(shell git rev-parse --short HEAD)
+KUBERNETES_IMG ?= infoblox/konk-app:$(K8S_RELEASE)-$(GIT_SHORT)
 
 all: docker-build
 
@@ -144,14 +146,14 @@ docker-push:
 	docker push ${IMG}
 
 # Build patched kubernetes (kubeadm + kube-apiserver) from source with upgraded deps
-.kubernetes-image-${K8S_RELEASE}:
+.kubernetes-image-${K8S_RELEASE}-${GIT_SHORT}:
 	DOCKER_BUILDKIT=1 docker build \
 		--build-arg K8S_VERSION=$(K8S_RELEASE) \
 		-t ${KUBERNETES_IMG} \
 		build/kubernetes/
 	touch $@
 
-docker-build-kubernetes: .kubernetes-image-${K8S_RELEASE}
+docker-build-kubernetes: .kubernetes-image-${K8S_RELEASE}-${GIT_SHORT}
 
 # Regenerate build/kubernetes/go.mod with latest dependency versions.
 # Review the diff and commit the result.
@@ -163,7 +165,7 @@ docker-push-kubernetes:
 	docker push ${KUBERNETES_IMG}
 
 # Build the provision docker image (depends on kubernetes build)
-.provision-image-${GIT_VERSION}: .kubernetes-image-${K8S_RELEASE}
+.provision-image-${GIT_VERSION}: .kubernetes-image-${K8S_RELEASE}-${GIT_SHORT}
 	DOCKER_BUILDKIT=1 docker build \
 		--build-arg KUBERNETES_IMG=${KUBERNETES_IMG} \
 		-f Dockerfile.provision . -t ${PROVISION_IMG}
@@ -241,20 +243,22 @@ manifests: $(KUSTOMIZE)
 # kind
 bin/kind-${KIND_VERSION}:
 	mkdir -p bin
-	curl -Lo bin/kind-${KIND_VERSION} https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-$(shell uname)-amd64
+	curl -Lo bin/kind-${KIND_VERSION} https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-$(shell uname | tr '[:upper:]' '[:lower:]')-${KIND_ARCH}
 	chmod +x bin/kind-${KIND_VERSION}
 
 $(shell pwd)/bin/kind: bin/kind-${KIND_VERSION}
 	ln -sf $(shell pwd)/$< bin/kind
 
 kind: $(KIND)
-	$(KIND) create cluster -v 1 --name ${KIND_NAME} --config=test/kind.yaml
+	$(KIND) create cluster -v 1 --name ${KIND_NAME} --image ${NODE_IMAGE} --config=test/kind.yaml
+	@# Increase inotify limits to prevent "too many open files" in kube-proxy
+	docker exec ${KIND_NAME}-control-plane sysctl -w fs.inotify.max_user_watches=524288 fs.inotify.max_user_instances=1024
 
 kind-destroy: $(KIND)
 	$(KIND) delete cluster --name ${KIND_NAME}
 
-kind-load-konk: $(KIND) docker-build
-	$(KIND) load docker-image ${IMG} --name ${KIND_NAME}
+kind-load-konk: $(KIND) docker-build docker-build-kubernetes docker-build-provision
+	$(KIND) load docker-image ${IMG} ${KUBERNETES_IMG} ${PROVISION_IMG} --name ${KIND_NAME}
 
 kind-load-apiserver: QUAY_IMG=$(shell $(HELM) template helm-charts/example-apiserver | awk '/image: quay/ {print $$2}')
 kind-load-apiserver: $(KIND) .image-apiserver-${GIT_VERSION}

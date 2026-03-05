@@ -15,6 +15,13 @@ K8S_VERSION="${1:-${K8S_VERSION:-v1.25.8}}"
 GO_VERSION="${2:-${GO_VERSION:-1.25.5}}"
 
 # Packages to upgrade – add new entries here as vulnerabilities are discovered.
+# NOTE: google.golang.org/grpc is excluded because latest versions pull in
+# OpenTelemetry v1.x which conflicts with k8s 1.25.x replace directives
+# that pin otel to v0.20.0. Upgrading grpc would require upgrading all
+# otel packages, which is invasive for this k8s version.
+# NOTE: google.golang.org/protobuf is excluded because v1.34+ removed
+# deprecated descriptor fields that github.com/golang/protobuf still uses
+# in k8s 1.25.x (Default_FileOptions_PhpGenericServices etc).
 PACKAGES=(
   golang.org/x/crypto
   golang.org/x/net
@@ -24,8 +31,6 @@ PACKAGES=(
   golang.org/x/oauth2
   golang.org/x/sync
   golang.org/x/time
-  google.golang.org/protobuf
-  google.golang.org/grpc
   github.com/golang-jwt/jwt/v4
 )
 

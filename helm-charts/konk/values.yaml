@@ -6,7 +6,7 @@ replicaCount: 1
 
 apiserver:
   image:
-    repository: infoblox/kubernetes
+    repository: infoblox/konk-app
     pullPolicy: IfNotPresent
     # -- Overrides the image tag
     # @default -- default is the chart appVersion.
