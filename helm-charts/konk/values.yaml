@@ -95,6 +95,25 @@ etcd:
     enabled: true
     size: 8Gi
 
+# -- provision is the init container that generates certs and kubeconfigs
+provision:
+  image:
+    repository: infoblox/konk-provision
+    pullPolicy: IfNotPresent
+    # -- Overrides the image tag
+    # @default -- default is the chart appVersion.
+    tag: ""
+  resources:
+    limits:
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+  securityContext:
+    readOnlyRootFilesystem: false
+    runAsNonRoot: false
+
+# -- kind image used for test pods (contains kubectl / bash)
 kind:
   image:
     repository: kindest/node

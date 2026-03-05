@@ -38,7 +38,7 @@ $(CHART_DIR)/konk/image-tag-values.yaml:
 	@IMAGES=`$(KUBEADM) config images list` && \
 	APISERVER_VERSION=`echo "$$IMAGES" | grep apiserver | cut -d: -f2` && \
 	ETCD_VERSION=`echo "$$IMAGES" | grep etcd | cut -d: -f2` && \
-	echo "# kubernetes $(K8S_RELEASE)\napiserver:\n  image:\n    tag: $$APISERVER_VERSION\netcd:\n  image:\n    tag: $$ETCD_VERSION" | tee $@
+	echo "# kubernetes $(K8S_RELEASE)\napiserver:\n  image:\n    tag: $$APISERVER_VERSION\netcd:\n  image:\n    tag: $$ETCD_VERSION\nprovision:\n  image:\n    tag: $(GIT_VERSION)" | tee $@
 
 CHART_NAMES := $(shell find $(CHART_DIR) -maxdepth 1 -type d | grep -v '^$(CHART_DIR)$$' | xargs -I {} basename {})
 
@@ -107,6 +107,9 @@ BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
 
 # Image URL to use all building/pushing image targets
 IMG ?= infoblox/konk:$(GIT_VERSION)
+PROVISION_IMG ?= infoblox/konk-provision:$(GIT_VERSION)
+KUBEADM_IMG ?= infoblox/kubeadm:$(K8S_RELEASE)
+CRYPTO_VERSION ?= v0.45.0
 
 all: docker-build
 
@@ -141,6 +144,34 @@ docker-build: .image-${GIT_VERSION}
 # Push the docker image
 docker-push:
 	docker push ${IMG}
+
+# Build kubeadm from source with patched x/crypto
+.kubeadm-image-${K8S_RELEASE}:
+	DOCKER_BUILDKIT=1 docker build \
+		--build-arg K8S_VERSION=$(K8S_RELEASE) \
+		--build-arg CRYPTO_VERSION=$(CRYPTO_VERSION) \
+		-t ${KUBEADM_IMG} \
+		build/kubeadm/
+	touch $@
+
+docker-build-kubeadm: .kubeadm-image-${K8S_RELEASE}
+
+# Push the kubeadm docker image
+docker-push-kubeadm:
+	docker push ${KUBEADM_IMG}
+
+# Build the provision docker image (depends on kubeadm build)
+.provision-image-${GIT_VERSION}: .kubeadm-image-${K8S_RELEASE}
+	DOCKER_BUILDKIT=1 docker build \
+		--build-arg KUBEADM_IMG=${KUBEADM_IMG} \
+		-f Dockerfile.provision . -t ${PROVISION_IMG}
+	touch $@
+
+docker-build-provision: .provision-image-${GIT_VERSION}
+
+# Push the provision docker image
+docker-push-provision:
+	docker push ${PROVISION_IMG}
 
 PATH  := $(PATH):$(shell pwd)/bin
 SHELL := env PATH="$(PATH)" /bin/sh

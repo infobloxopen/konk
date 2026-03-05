@@ -31,3 +31,4 @@ helm-charts/konk-operator/rbac
 /.image-*
 /bin/
 /.kind-load-*
+cmd/provision/provision
