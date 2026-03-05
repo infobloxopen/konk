@@ -7,14 +7,14 @@ RUN go mod download || true
 COPY cmd/provision/*.go ./
 RUN go mod tidy && CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /provision .
 
-# Stage 2: Get statically-built kubeadm (built by make docker-build-kubeadm)
-ARG KUBEADM_IMG=infoblox/kubeadm:v1.25.8
-FROM ${KUBEADM_IMG} AS kubeadm
+# Stage 2: Get statically-built kubeadm (built by make docker-build-kubernetes)
+ARG KUBERNETES_IMG=infoblox/kubernetes:v1.25.8
+FROM ${KUBERNETES_IMG} AS kubernetes
 
 # Stage 3: Final distroless image (static — all binaries are statically linked)
 FROM gcr.io/distroless/static-debian12
 
 COPY --from=builder /provision /usr/local/bin/provision
-COPY --from=kubeadm /kubeadm /usr/local/bin/kubeadm
+COPY --from=kubernetes /usr/local/bin/kubeadm /usr/local/bin/kubeadm
 
 ENTRYPOINT ["/usr/local/bin/provision"]
