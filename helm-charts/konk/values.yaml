@@ -86,10 +86,22 @@ etcd:
   # `true`: etcd is deployed by konk-operator
   # `false`: etcd is deployed as a sidecar of konk's kube-apiserver
   operator: true
-  
-  # Number of etcd replicas
-  replicaCount: 3
-  
+
+  # Number of etcd replicas.
+  # Single-node (1) is the safe default. Increase to 3 only when you want HA etcd
+  # AND the etcd image is available in the cluster's image registry (e.g. Harbor proxy).
+  replicaCount: 1
+
+  # etcd initial cluster state.
+  # Leave empty ("") to let the chart auto-detect: "new" on first install, "existing" on upgrades.
+  # Set to "new" only when bootstrapping a brand-new cluster with no existing PVCs.
+  # Set to "existing" when rejoining a running cluster (e.g. after a pod restart or scale-up).
+  initialClusterState: ""
+
+  # forceNewCluster forces etcd to bootstrap a new single-member cluster from existing data.
+  # WARNING: only use this for disaster recovery — it discards raft history.
+  forceNewCluster: false
+
   # Persistence settings
   persistence:
     enabled: true

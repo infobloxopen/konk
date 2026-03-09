@@ -22,7 +22,15 @@ replicaCount: 1
 ## @section etcd configuration
 etcd:
   # Initial cluster state: "new" or "existing"
+  # Set to "new" when bootstrapping a fresh cluster (e.g., scaling from 1 to 3 replicas
+  # with empty PVCs). Set to "existing" when rejoining a running cluster.
+  # Leave empty to use auto-detection: "new" on fresh install, "existing" on upgrades.
   initialClusterState: ""
+  # Force new cluster bootstrap. Set to true only when scaling up replicas with fresh/empty
+  # PVCs (e.g., upgrading from single-node to multi-node etcd). This sets
+  # ETCD_INITIAL_CLUSTER_STATE=new even during Helm upgrades.
+  # IMPORTANT: Reset this back to false after the cluster has successfully bootstrapped.
+  forceNewCluster: false
   # Initial cluster token
   initialClusterToken: "etcd-cluster"
   # Data directory inside the container

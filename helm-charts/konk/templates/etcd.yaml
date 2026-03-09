@@ -8,7 +8,7 @@ metadata:
   labels:
     {{- include "konk.labels" $ | nindent 4 }}
 spec:
-  {{ toYaml . | nindent 2 }}
+  {{- omit . "statefulset" "operator" | toYaml | nindent 2 }}
   auth:
     rbac:
       enabled: false

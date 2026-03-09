@@ -86,7 +86,6 @@ spec:
               value: "{{ include "etcd.peerProtocol" . }}://0.0.0.0:{{ .Values.service.peerPort }}"
             - name: ETCD_INITIAL_ADVERTISE_PEER_URLS
               value: "{{ include "etcd.peerProtocol" . }}://$(ETCD_NAME).{{ include "etcd.headlessServiceName" . }}.{{ .Release.Namespace }}.svc.{{ .Values.clusterDomain }}:{{ .Values.service.peerPort }}"
-            {{- if gt (int .Values.replicaCount) 1 }}
             - name: ETCD_INITIAL_CLUSTER
               value: {{ include "etcd.initialCluster" . | quote }}
             - name: ETCD_INITIAL_CLUSTER_TOKEN
@@ -94,12 +93,11 @@ spec:
             - name: ETCD_INITIAL_CLUSTER_STATE
               {{- if .Values.etcd.initialClusterState }}
               value: {{ .Values.etcd.initialClusterState | quote }}
-              {{- else if .Release.IsInstall }}
+              {{- else if or .Release.IsInstall (and .Values.etcd.forceNewCluster (eq .Values.etcd.forceNewCluster true)) }}
               value: "new"
               {{- else }}
               value: "existing"
               {{- end }}
-            {{- end }}
             {{- if .Values.etcd.autoCompactionMode }}
             - name: ETCD_AUTO_COMPACTION_MODE
               value: {{ .Values.etcd.autoCompactionMode | quote }}
