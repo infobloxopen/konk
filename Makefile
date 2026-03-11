@@ -14,7 +14,7 @@ HELM		?= $(DOCKER_RUNNER) \
 HELM_CMD	?= $(DOCKER_RUNNER) \
 			/bin/bash -c
 K8S_RELEASE	?= v1.25.8
-KUBEADM		?= docker run --rm -it --entrypoint="" kindest/node:$(K8S_RELEASE) kubeadm
+KUBEADM		?= docker run --rm -it --entrypoint="" ${KUBERNETES_IMG} kubeadm
 KUBECONFIG	?= ${HOME}/.kube/config
 RELEASE_PREFIX	?= $(USER)
 
@@ -110,6 +110,7 @@ IMG ?= infoblox/konk:$(GIT_VERSION)
 PROVISION_IMG ?= infoblox/konk-provision:$(GIT_VERSION)
 GIT_SHORT ?= g$(shell git rev-parse --short HEAD)
 KUBERNETES_IMG ?= infoblox/konk-app:$(K8S_RELEASE)-$(GIT_SHORT)
+TOOLS_IMG ?= infoblox/konk-tools:$(K8S_RELEASE)-$(GIT_SHORT)
 
 all: docker-build
 
@@ -176,6 +177,22 @@ docker-build-provision: .provision-image-${GIT_VERSION}
 # Push the provision docker image
 docker-push-provision:
 	docker push ${PROVISION_IMG}
+
+# Build the konk-tools docker image (distroless kubectl + busybox shell)
+# Replaces kindest/node for all kubectl utility containers
+.tools-image-${K8S_RELEASE}-${GIT_SHORT}:
+	DOCKER_BUILDKIT=1 docker build \
+		--build-arg K8S_VERSION=$(K8S_RELEASE) \
+		-f images/konk-tools/Dockerfile \
+		-t ${TOOLS_IMG} \
+		.
+	touch $@
+
+docker-build-tools: .tools-image-${K8S_RELEASE}-${GIT_SHORT}
+
+# Push the konk-tools docker image
+docker-push-tools:
+	docker push ${TOOLS_IMG}
 
 PATH  := $(PATH):$(shell pwd)/bin
 SHELL := env PATH="$(PATH)" /bin/sh
@@ -257,8 +274,8 @@ kind: $(KIND)
 kind-destroy: $(KIND)
 	$(KIND) delete cluster --name ${KIND_NAME}
 
-kind-load-konk: $(KIND) docker-build docker-build-kubernetes docker-build-provision
-	$(KIND) load docker-image ${IMG} ${KUBERNETES_IMG} ${PROVISION_IMG} --name ${KIND_NAME}
+kind-load-konk: $(KIND) docker-build docker-build-kubernetes docker-build-provision docker-build-tools
+	$(KIND) load docker-image ${IMG} ${KUBERNETES_IMG} ${PROVISION_IMG} ${TOOLS_IMG} --name ${KIND_NAME}
 
 kind-load-apiserver: QUAY_IMG=$(shell $(HELM) template helm-charts/example-apiserver | awk '/image: quay/ {print $$2}')
 kind-load-apiserver: $(KIND) .image-apiserver-${GIT_VERSION}
@@ -307,6 +324,9 @@ clean:
 	rm -rf \
 	.image-* \
 	.kind-load-* \
+	.kubernetes-image-* \
+	.provision-image-* \
+	.tools-image-* \
 	*.tgz \
 	bin/ \
 	helm-charts/konk-operator/crds/ \

@@ -24,13 +24,13 @@ When deploying with `helm install`, these configurations are values and can be o
 | ingress.hosts[0].host | string | `"localhost"` |  |
 | ingress.tls | list | `[]` |  |
 | insecureSkipTLSVerify | bool | `false` |  |
-| kind.image.pullPolicy | string | `"Always"` |  |
-| kind.image.repository | string | `"kindest/node"` |  |
-| kind.image.tag | string | `"v1.25.8"` | Overrides the image tag whose default is the chart appVersion. |
-| kind.resources.limits.memory | string | `"4Gi"` |  |
+| kind.image.pullPolicy | string | `"IfNotPresent"` |  |
+| kind.image.repository | string | `"infoblox/konk-tools"` |  |
+| kind.image.tag | string | `""` | Overrides the image tag whose default is the chart appVersion. |
+| kind.resources.limits.memory | string | `"256Mi"` |  |
 | kind.resources.requests.cpu | string | `"10m"` |  |
-| kind.resources.requests.memory | string | `"40Mi"` |  |
-| kind.securityContext | object | `{}` |  |
+| kind.resources.requests.memory | string | `"32Mi"` |  |
+| kind.securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true,"runAsNonRoot":true}` |  |
 | konk.name | string | `""` | should be set to the konk-name |
 | konk.namespace | string | `""` |  |
 | konk.scope | string | `""` | scope of the konk, must match `.scope` of the Konk  |

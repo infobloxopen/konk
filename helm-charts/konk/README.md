@@ -59,7 +59,7 @@ When deploying with `helm install`, these configurations are values and can be o
 | ingress.hosts[0].host | string | `"chart-example.local"` |  |
 | ingress.hosts[0].paths | list | `[]` |  |
 | ingress.tls | list | `[]` |  |
-| kind | object | `{"image":{"pullPolicy":"Always","repository":"kindest/node","tag":""},"resources":{"limits":{"memory":"4Gi"},"requests":{"cpu":"100m","memory":"128Mi"}},"securityContext":{}}` | kind image used for test pods (contains kubectl / bash) |
+| kind | object | `{"image":{"pullPolicy":"IfNotPresent","repository":"infoblox/konk-tools","tag":""},"resources":{"limits":{"memory":"256Mi"},"requests":{"cpu":"10m","memory":"32Mi"}},"securityContext":{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true,"runAsNonRoot":true}}` | konk-tools image used for test pods (contains kubectl + busybox shell) |
 | kind.image.tag | string | default is the chart appVersion. | Overrides the image tag |
 | nameOverride | string | `""` |  |
 | nodeSelector | object | `{}` |  |

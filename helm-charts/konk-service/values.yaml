@@ -20,25 +20,27 @@ space:
 # -- annotations to add to the APIService created in Konk by KonkService
 annotations: {}
 
+# -- konk-tools image used for kubectl utility containers (replaces kindest/node)
+# Contains only statically-linked kubectl + busybox shell on distroless base.
 kind:
   image:
-    repository: kindest/node
-    pullPolicy: Always
+    repository: infoblox/konk-tools
+    pullPolicy: IfNotPresent
     # -- Overrides the image tag whose default is the chart appVersion.
-    tag: v1.25.8
+    tag: ""
   resources:
     limits:
-      memory: 4Gi
+      memory: 256Mi
     requests:
       cpu: 10m
-      memory: 40Mi
-  securityContext: {}
-    # capabilities:
-    #   drop:
-    #   - ALL
-    # readOnlyRootFilesystem: true
-    # runAsNonRoot: true
-    # runAsUser: 1000
+      memory: 32Mi
+  securityContext:
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
 
 ingress:
   enabled: false

@@ -113,27 +113,28 @@ provision:
     readOnlyRootFilesystem: false
     runAsNonRoot: false
 
-# -- kind image used for test pods (contains kubectl / bash)
+# -- konk-tools image used for test pods (contains kubectl + busybox shell)
+# Replaces the old kindest/node image to eliminate ~112 CVEs from the node base image.
 kind:
   image:
-    repository: kindest/node
-    pullPolicy: Always
+    repository: infoblox/konk-tools
+    pullPolicy: IfNotPresent
     # -- Overrides the image tag
     # @default -- default is the chart appVersion.
     tag: ""
   resources:
     limits:
-      memory: 4Gi
+      memory: 256Mi
     requests:
-      cpu: 100m
-      memory: 128Mi
-  securityContext: {}
-    # capabilities:
-    #   drop:
-    #   - ALL
-    # readOnlyRootFilesystem: true
-    # runAsNonRoot: true
-    # runAsUser: 1000
+      cpu: 10m
+      memory: 32Mi
+  securityContext:
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
 
 imagePullSecrets: []
 nameOverride: ""
