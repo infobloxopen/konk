@@ -1,29 +1,14 @@
-ARG GO_VERSION=1.25.5
-ARG K8S_VERSION=v1.25.8
+ARG KUBECTL_VERSION=v1.32.3
 
-# Stage 1: Build kubectl from patched kubernetes source
-FROM golang:${GO_VERSION}-alpine AS k8s-builder
-ARG K8S_VERSION
+# Stage 1: Download pre-built kubectl binary (officially patched, no CVEs)
+FROM alpine:3.21 AS downloader
+ARG KUBECTL_VERSION
+ARG TARGETARCH=amd64
 
-RUN apk add --no-cache git bash make rsync
-
-WORKDIR /workspace
-RUN git clone --depth 1 --branch ${K8S_VERSION} https://github.com/kubernetes/kubernetes.git
-
-WORKDIR /workspace/kubernetes
-
-# Copy pre-computed patched go.mod with pinned dependency upgrades.
-# Same patched deps as the kubeadm/kube-apiserver build.
-COPY build/kubernetes/go.mod go.mod
-
-RUN go mod tidy && \
-    go mod vendor
-
-# Build kubectl as a fully static binary
-RUN CGO_ENABLED=0 GOOS=linux go build \
-    -ldflags="-s -w -extldflags '-static'" \
-    -o /kubectl \
-    ./cmd/kubectl
+RUN apk add --no-cache curl && \
+    curl -fsSL "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/${TARGETARCH}/kubectl" \
+      -o /kubectl && \
+    chmod +x /kubectl
 
 # Stage 2: Get busybox static binary for bash-like shell scripting
 FROM busybox:1.37-musl AS busybox
@@ -32,7 +17,7 @@ FROM busybox:1.37-musl AS busybox
 FROM gcr.io/distroless/static-debian12
 
 # Copy statically-linked kubectl
-COPY --from=k8s-builder /kubectl /usr/local/bin/kubectl
+COPY --from=downloader /kubectl /usr/local/bin/kubectl
 
 # Copy busybox for shell scripting (bash-compatible via sh/ash)
 # The konk-service templates use /bin/bash -c, so symlink bash -> busybox

@@ -182,10 +182,9 @@ docker-push-provision:
 # Replaces kindest/node for all kubectl utility containers
 .tools-image-${K8S_RELEASE}-${GIT_SHORT}:
 	DOCKER_BUILDKIT=1 docker build \
-		--build-arg K8S_VERSION=$(K8S_RELEASE) \
 		-f images/konk-tools/Dockerfile \
 		-t ${TOOLS_IMG} \
-		.
+		images/konk-tools/
 	touch $@
 
 docker-build-tools: .tools-image-${K8S_RELEASE}-${GIT_SHORT}
