@@ -10,7 +10,7 @@ metadata:
 spec:
   containers:
   - name: wget
-    image: {{ .Values.kind.image.repository }}:{{ .Values.kind.image.tag }}
+    image: "{{ .Values.kind.image.repository }}:{{ .Values.kind.image.tag | default .Chart.AppVersion }}"
     command:
     - /bin/bash
     - -cx

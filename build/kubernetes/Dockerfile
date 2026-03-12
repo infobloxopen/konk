@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.6
 ARG GO_VERSION=1.25.5
 ARG K8S_VERSION=v1.25.8
 
@@ -25,7 +26,7 @@ RUN sed -i 's/WarnAfter jwt\.NumericDate/WarnAfter *jwt.NumericDate/' pkg/servic
 # Patch CVE-2023-45142: Remove otelhttp dependency from kube-apiserver.
 # Replace otelhttp usages with no-op passthroughs in both files that import it,
 # then drop the module from go.mod so it is not vendored into the binary at all.
-RUN cat > staging/src/k8s.io/apiserver/pkg/endpoints/filters/traces.go << 'PATCH'
+RUN <<'PATCH' cat > staging/src/k8s.io/apiserver/pkg/endpoints/filters/traces.go
 package filters
 
 import (
@@ -39,7 +40,7 @@ func WithTracing(handler http.Handler, tp trace.TracerProvider) http.Handler {
 }
 PATCH
 
-RUN cat > staging/src/k8s.io/component-base/tracing/utils.go << 'PATCH'
+RUN <<'PATCH' cat > staging/src/k8s.io/component-base/tracing/utils.go
 package tracing
 
 import (

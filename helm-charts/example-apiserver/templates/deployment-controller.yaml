@@ -33,7 +33,7 @@ spec:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       initContainers:
       - name: kubectl
-        image: "{{ .Values.kind.image.repository }}:{{ .Values.kind.image.tag }}"
+        image: "{{ .Values.kind.image.repository }}:{{ .Values.kind.image.tag | default .Chart.AppVersion }}"
         imagePullPolicy: {{ .Values.kind.image.pullPolicy }}
         command:
         - /bin/bash
