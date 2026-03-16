@@ -12,5 +12,5 @@ spec:
     - inputName: "DS_PROMETHEUS"
       datasourceName: "Prometheus"
   json: |-
-    {{- .Files.Get "dashboards/konk-operator.json" | nindent 4  }}
+    {{- .Files.Get "dashboards/konk-operator.json" | replace "${DS_PROMETHEUS_UID}" .Values.dashboards.prometheusUid | nindent 4  }}
 {{- end }}
