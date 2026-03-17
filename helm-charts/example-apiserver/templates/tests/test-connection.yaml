@@ -9,38 +9,22 @@ metadata:
     "helm.sh/hook": test
 spec:
   containers:
-  - name: wget
-    image: {{ .Values.kind.image.repository }}:{{ .Values.kind.image.tag }}
-    command:
-    - /bin/bash
-    - -cx
+  - name: example-test
+    image: "{{ .Values.kind.image.repository }}:{{ .Values.kind.image.tag | default .Chart.AppVersion }}"
+    command: ["/usr/local/bin/konk-service", "example-test"]
     env:
     - name: KUBECONFIG
       value: /kubeconfig/admin.conf
-    args:
-    - |
-      until kubectl cluster-info
-      do
-        sleep 1s
-      done
-      # verify api server is responding
-      until kubectl get contact
-      do
-        sleep 1s
-      done
-
-      # HEREDOC in a variable is ugly code
-      # TODO: make this retry
-      cat <<EOF | kubectl create -f -
-      apiVersion: example.infoblox.com/v1alpha1
-      kind: Contact
-      metadata:
-        name: contact-example
-      spec:
-      EOF
-
-      kubectl get contact contact-example
-      kubectl delete contact contact-example
+    - name: GROUP
+      value: example.infoblox.com
+    - name: VERSION
+      value: v1alpha1
+    - name: KIND
+      value: Contact
+    - name: RESOURCE
+      value: contacts
+    - name: SAMPLE_NAME
+      value: contact-example
     volumeMounts:
     - name: kubeconfig
       mountPath: /kubeconfig

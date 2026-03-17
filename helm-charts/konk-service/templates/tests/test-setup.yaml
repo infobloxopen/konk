@@ -10,25 +10,18 @@ metadata:
     "helm.sh/hook": test
 spec:
   containers:
-  - name: kubectl
-    image: {{ .Values.kind.image.repository }}:{{ .Values.kind.image.tag }}
-    command:
-    - /bin/bash
-    - -cx
+  - name: test-setup
+    image: "{{ .Values.kind.image.repository }}:{{ .Values.kind.image.tag | default .Chart.AppVersion }}"
+    command: ["/usr/local/bin/konk-service", "test-setup"]
     env:
     - name: KUBECONFIG
       value: /kubeconfig/admin.conf
-    args:
-    - |
-      kubectl auth can-i create apiservice
-      kubectl auth can-i create crd
-      {{- range .Values.group.kinds }}
-      until kubectl get {{ . }}.{{ $.Values.group.name}}
-      do
-      sleep 3s
-      done
-      {{- end }}
-
+    - name: GROUP
+      value: {{ .Values.group.name }}
+    - name: VERSION
+      value: {{ .Values.version }}
+    - name: KINDS
+      value: {{ join "," .Values.group.kinds | quote }}
     volumeMounts:
     - name: kubeconfig
       mountPath: /kubeconfig
