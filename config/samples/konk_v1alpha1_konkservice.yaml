@@ -8,8 +8,8 @@ spec:
   fullnameOverride: ""
   kind:
     image:
-      pullPolicy: Always
-      repository: kindest/node
+      pullPolicy: IfNotPresent
+      repository: infoblox/konk-service
       tag: ""
     resources: {}
     securityContext: {}
@@ -22,5 +22,3 @@ spec:
     annotations: {}
     create: false
     name: ""
-  
-  

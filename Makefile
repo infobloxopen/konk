@@ -14,7 +14,7 @@ HELM		?= $(DOCKER_RUNNER) \
 HELM_CMD	?= $(DOCKER_RUNNER) \
 			/bin/bash -c
 K8S_RELEASE	?= v1.25.8
-KUBEADM		?= docker run --rm -it --entrypoint="" kindest/node:$(K8S_RELEASE) kubeadm
+KUBEADM		?= docker run --rm -it --entrypoint="" ${KUBERNETES_IMG} kubeadm
 KUBECONFIG	?= ${HOME}/.kube/config
 RELEASE_PREFIX	?= $(USER)
 
@@ -108,6 +108,7 @@ BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
 # Image URL to use all building/pushing image targets
 IMG ?= infoblox/konk:$(GIT_VERSION)
 PROVISION_IMG ?= infoblox/konk-provision:$(GIT_VERSION)
+KONK_SERVICE_IMG ?= infoblox/konk-service:$(GIT_VERSION)
 GIT_SHORT ?= g$(shell git rev-parse --short HEAD)
 KUBERNETES_IMG ?= infoblox/konk-app:$(K8S_RELEASE)-$(GIT_SHORT)
 
@@ -176,6 +177,18 @@ docker-build-provision: .provision-image-${GIT_VERSION}
 # Push the provision docker image
 docker-push-provision:
 	docker push ${PROVISION_IMG}
+
+# Build the konk-service docker image (Go binary replacing shell-based konk-tools for konk-service chart)
+.konk-service-image-${GIT_VERSION}:
+	DOCKER_BUILDKIT=1 docker build \
+		-f Dockerfile.konk-service . -t ${KONK_SERVICE_IMG}
+	touch $@
+
+docker-build-konk-service: .konk-service-image-${GIT_VERSION}
+
+# Push the konk-service docker image
+docker-push-konk-service:
+	docker push ${KONK_SERVICE_IMG}
 
 PATH  := $(PATH):$(shell pwd)/bin
 SHELL := env PATH="$(PATH)" /bin/sh
@@ -257,8 +270,15 @@ kind: $(KIND)
 kind-destroy: $(KIND)
 	$(KIND) delete cluster --name ${KIND_NAME}
 
-kind-load-konk: $(KIND) docker-build docker-build-kubernetes docker-build-provision
-	$(KIND) load docker-image ${IMG} ${KUBERNETES_IMG} ${PROVISION_IMG} --name ${KIND_NAME}
+kind-load-konk: $(KIND) docker-build docker-build-kubernetes docker-build-provision docker-build-konk-service
+	@# Tag images with the chart appVersion so the operator's embedded chart can find them
+	docker tag ${KUBERNETES_IMG} infoblox/konk-app:$(K8S_RELEASE)
+	docker tag ${PROVISION_IMG} infoblox/konk-provision:$(K8S_RELEASE)
+	docker tag ${KONK_SERVICE_IMG} infoblox/konk-service:$(K8S_RELEASE)
+	$(KIND) load docker-image ${IMG} ${KUBERNETES_IMG} ${PROVISION_IMG} ${KONK_SERVICE_IMG} \
+		infoblox/konk-app:$(K8S_RELEASE) infoblox/konk-provision:$(K8S_RELEASE) \
+		infoblox/konk-service:$(K8S_RELEASE) \
+		--name ${KIND_NAME}
 
 kind-load-apiserver: QUAY_IMG=$(shell $(HELM) template helm-charts/example-apiserver | awk '/image: quay/ {print $$2}')
 kind-load-apiserver: $(KIND) .image-apiserver-${GIT_VERSION}
@@ -276,7 +296,7 @@ $(CHART_READMES):
 
 chart-readmes: $(CHART_READMES)
 
-deploy-ingress-nginx: INGRESS_VERSION := $(shell curl -sS https://api.github.com/repos/kubernetes/ingress-nginx/releases | jq '[.[] | select(.draft==false and .prerelease==false and (.tag_name | startswith("controller-"))) | .tag_name][0]' -r)
+deploy-ingress-nginx: INGRESS_VERSION = $(shell curl -sS https://api.github.com/repos/kubernetes/ingress-nginx/releases | jq '[.[] | select(.draft==false and .prerelease==false and (.tag_name | startswith("controller-"))) | .tag_name][0]' -r)
 deploy-ingress-nginx:
 	# avoids accidentally deploying ingress controller in shared clusters
 	kubectl config current-context | grep -v -E '(^[a-z]{3}-[0-9])|(infoblox.com$$)'
@@ -293,9 +313,10 @@ deploy-ingress-nginx:
 deploy-example-apiserver: HELM_FLAGS ?=--set=image.pullPolicy=IfNotPresent
 deploy-example-apiserver: kind-load-apiserver
 	$(HELM) upgrade --debug -i \
-	 	--wait $(RELEASE_PREFIX)-apiserver \
+	 	--wait --timeout=8m $(RELEASE_PREFIX)-apiserver \
 	 	$(CHART_DIR)/example-apiserver \
 		--set=image.tag=$(GIT_VERSION) \
+		--set=kind.image.tag=$(K8S_RELEASE) \
 	 	$(HELM_FLAGS)
 
 upgrade-etcd:
@@ -307,6 +328,9 @@ clean:
 	rm -rf \
 	.image-* \
 	.kind-load-* \
+	.kubernetes-image-* \
+	.provision-image-* \
+	.konk-service-image-* \
 	*.tgz \
 	bin/ \
 	helm-charts/konk-operator/crds/ \
