@@ -1,6 +1,10 @@
 package example
 
 import (
+	"context"
+
+	"k8s.io/apimachinery/pkg/apis/meta/internalversion"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apiserver/pkg/registry/generic"
@@ -29,18 +33,64 @@ func NewContactREST(getter generic.RESTOptionsGetter) rest.Storage {
 		func() runtime.Object { return &ContactList{} },
 	)
 	return &hackFilepath{
-		Storage: bugged,
+		storage: bugged,
 		hackNS:  true,
 	}
 }
 
-var _ rest.Scoper = &hackFilepath{}
-
+// hackFilepath wraps the FilepathREST storage and overrides NamespaceScoped.
+// It explicitly delegates every REST interface so that the apiserver framework
+// can discover supported verbs via type assertions on this wrapper.
 type hackFilepath struct {
-	rest.Storage
-	hackNS bool
+	storage rest.Storage
+	hackNS  bool
+}
+
+var _ rest.Storage = &hackFilepath{}
+var _ rest.Scoper = &hackFilepath{}
+var _ rest.Creater = &hackFilepath{}
+var _ rest.Updater = &hackFilepath{}
+var _ rest.GracefulDeleter = &hackFilepath{}
+var _ rest.CollectionDeleter = &hackFilepath{}
+var _ rest.Getter = &hackFilepath{}
+var _ rest.Lister = &hackFilepath{}
+
+func (h *hackFilepath) New() runtime.Object {
+	return h.storage.New()
 }
 
 func (h *hackFilepath) NamespaceScoped() bool {
 	return h.hackNS
+}
+
+func (h *hackFilepath) Get(ctx context.Context, name string, options *metav1.GetOptions) (runtime.Object, error) {
+	return h.storage.(rest.Getter).Get(ctx, name, options)
+}
+
+func (h *hackFilepath) NewList() runtime.Object {
+	return h.storage.(rest.Lister).NewList()
+}
+
+func (h *hackFilepath) List(ctx context.Context, options *internalversion.ListOptions) (runtime.Object, error) {
+	return h.storage.(rest.Lister).List(ctx, options)
+}
+
+func (h *hackFilepath) ConvertToTable(ctx context.Context, object runtime.Object, tableOptions runtime.Object) (*metav1.Table, error) {
+	return h.storage.(rest.Lister).ConvertToTable(ctx, object, tableOptions)
+}
+
+func (h *hackFilepath) Create(ctx context.Context, obj runtime.Object, createValidation rest.ValidateObjectFunc, options *metav1.CreateOptions) (runtime.Object, error) {
+	return h.storage.(rest.Creater).Create(ctx, obj, createValidation, options)
+}
+
+func (h *hackFilepath) Update(ctx context.Context, name string, objInfo rest.UpdatedObjectInfo, createValidation rest.ValidateObjectFunc, updateValidation rest.ValidateObjectUpdateFunc, forceAllowCreate bool, options *metav1.UpdateOptions) (runtime.Object, bool, error) {
+	return h.storage.(rest.Updater).Update(ctx, name, objInfo, createValidation, updateValidation, forceAllowCreate, options)
+}
+
+func (h *hackFilepath) Delete(ctx context.Context, name string, deleteValidation rest.ValidateObjectFunc, options *metav1.DeleteOptions) (runtime.Object, bool, error) {
+	return h.storage.(rest.GracefulDeleter).Delete(ctx, name, deleteValidation, options)
+}
+
+func (h *hackFilepath) DeleteCollection(ctx context.Context, deleteValidation rest.ValidateObjectFunc, options *metav1.DeleteOptions, listOptions *internalversion.ListOptions) (runtime.Object, error) {
+	return h.storage.(rest.CollectionDeleter).DeleteCollection(ctx, deleteValidation, options, listOptions)
 }

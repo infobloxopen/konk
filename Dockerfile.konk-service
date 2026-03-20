@@ -1,0 +1,17 @@
+# Stage 1: Build the Go konk-service binary
+FROM golang:1.25.5-alpine AS builder
+
+WORKDIR /workspace
+COPY cmd/konk-service/go.mod cmd/konk-service/go.sum* ./
+RUN go mod download || true
+COPY cmd/konk-service/*.go ./
+RUN go mod tidy && CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /konk-service .
+
+# Stage 2: Final distroless image — no shell, no busybox, just the Go binary
+# Use :nonroot tag so the image runs as UID 65534, required by
+# runAsNonRoot: true in the konk-service security context.
+FROM gcr.io/distroless/static-debian12:nonroot
+
+COPY --from=builder /konk-service /usr/local/bin/konk-service
+
+ENTRYPOINT ["/usr/local/bin/konk-service"]

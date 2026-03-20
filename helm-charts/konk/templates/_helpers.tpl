@@ -25,6 +25,8 @@ If release name contains chart name it will be used as a full name.
 {{- "template-konk" }}
         {{- else if (eq "testRelease" .Release.Name) }}
 {{- "lint-konk" }}
+        {{- else if (eq "test-release" .Release.Name) }}
+{{- "lint-konk" }}
         {{- else }}
 {{- fail (printf "release name (%s) must include a -konk suffix:" .Release.Name) }}
         {{- end }}
