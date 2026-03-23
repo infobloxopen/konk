@@ -36,7 +36,9 @@ default: all
 
 .PHONY: $(CHART_DIR)/konk/image-tag-values.yaml
 $(CHART_DIR)/konk/image-tag-values.yaml:
-	@printf "# kubernetes $(K8S_RELEASE)\napiserver:\n  image:\n    tag: $(K8S_RELEASE)-$(GIT_SHORT)\nprovision:\n  image:\n    tag: $(GIT_VERSION)\nkind:\n  image:\n    tag: $(GIT_VERSION)\n" | tee $@
+	@IMAGES=`$(KUBEADM) config images list` && \
+	ETCD_VERSION=`echo "$$IMAGES" | grep etcd | cut -d: -f2` && \
+	echo "# kubernetes $(K8S_RELEASE)\napiserver:\n  image:\n    tag: $(K8S_RELEASE)-$(GIT_SHORT)\netcd:\n  image:\n    tag: $$ETCD_VERSION\nprovision:\n  image:\n    tag: $(GIT_VERSION)" | tee $@
 
 CHART_NAMES := $(shell find $(CHART_DIR) -maxdepth 1 -type d | grep -v '^$(CHART_DIR)$$' | xargs -I {} basename {})
 
@@ -133,7 +135,7 @@ deploy: kustomize
 undeploy: kustomize
 	$(KUSTOMIZE) build config/default | kubectl delete -f -
 
-.image-${GIT_VERSION}: $(CHART_DIR)/konk/image-tag-values.yaml
+.image-${GIT_VERSION}:
 	DOCKER_BUILDKIT=1 docker build . -t ${IMG}
 	touch $@
 

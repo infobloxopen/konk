@@ -1,13 +1,7 @@
 # kubernetes v1.25.8
 apiserver:
   image:
-    tag: v1.32.12-g9fefaa7
+    tag: v1.25.8
 etcd:
   image:
-    tag: v3.6.8
-provision:
-  image:
-    tag: v0.2.1-150-g9fefaa7-j11
-kind:
-  image:
-    tag: v0.2.1-150-g9fefaa7-j11
+    tag: 3.4.9-1
