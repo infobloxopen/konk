@@ -1,4 +1,3 @@
-
 # Binaries for programs and plugins
 *.exe
 *.exe~
@@ -29,5 +28,12 @@ helm-charts/konk-operator/rbac
 
 # generated files
 /.image-*
+/.provision-image-*
+/.kubernetes-image-*
+/.kubeadm-image-*
+/.tools-image-*
+/.konk-service-image-*
 /bin/
 /.kind-load-*
+cmd/provision/provision
+cmd/konk-service/konk-service

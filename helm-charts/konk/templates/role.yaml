@@ -18,4 +18,5 @@ rules:
     - delete
     - list
     - patch
+    - update
     - watch

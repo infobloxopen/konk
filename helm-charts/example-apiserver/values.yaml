@@ -108,9 +108,9 @@ apiserver:
 
 kind:
   image:
-    repository: kindest/node
-    pullPolicy: Always
-    tag: v1.25.8
+    repository: infoblox/konk-service
+    pullPolicy: IfNotPresent
+    tag: ""
 
 konkservice:
   ingress:

@@ -15,8 +15,8 @@ When deploying with `helm install`, these configurations are values and can be o
 | affinity | object | `{}` |  |
 | apiserver.disabledAPIs | list | `["apps/v1","apps/v1beta1","autoscaling/v1","autoscaling/v2beta1","autoscaling/v2beta2","batch/v1","batch/v1beta1","networking.k8s.io/v1","networking.k8s.io/v1beta1","storage.k8s.io/v1","storage.k8s.io/v1beta1"]` | specifies APIs unavailable in Konk. |
 | apiserver.extraFlags | object | `{}` | additional command line flags for kube-apiserver. See https://kubernetes.io/docs/reference/command-line-tools-reference/kube-apiserver/ for details. |
-| apiserver.image.pullPolicy | string | `"Always"` |  |
-| apiserver.image.repository | string | `"k8s.gcr.io/kube-apiserver"` |  |
+| apiserver.image.pullPolicy | string | `"IfNotPresent"` |  |
+| apiserver.image.repository | string | `"infoblox/konk-app"` |  |
 | apiserver.image.tag | string | default is the chart appVersion. | Overrides the image tag |
 | apiserver.remoteHeaders.requestheader-extra-headers-prefix | string | `"X-Remote-Extra-"` | sets kube-apiserver's `--requestheader-extra-headers-prefix` option. See https://kubernetes.io/docs/reference/command-line-tools-reference/kube-apiserver/ for details. |
 | apiserver.remoteHeaders.requestheader-group-headers | string | `"X-Remote-Group"` | sets kube-apiserver's `--requestheader-group-headers` option. |
@@ -59,17 +59,14 @@ When deploying with `helm install`, these configurations are values and can be o
 | ingress.hosts[0].host | string | `"chart-example.local"` |  |
 | ingress.hosts[0].paths | list | `[]` |  |
 | ingress.tls | list | `[]` |  |
-| kind.image.pullPolicy | string | `"Always"` |  |
-| kind.image.repository | string | `"kindest/node"` |  |
+| kind | object | `{"image":{"pullPolicy":"IfNotPresent","repository":"infoblox/konk-service","tag":""},"resources":{"limits":{"memory":"256Mi"},"requests":{"cpu":"10m","memory":"32Mi"}},"securityContext":{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true,"runAsNonRoot":true}}` | konk-service Go binary image used for test pods (replaces shell-based konk-tools) Contains a single statically-linked Go binary on a distroless base. No shell, no busybox — all kubectl/shell logic is implemented in Go. |
 | kind.image.tag | string | default is the chart appVersion. | Overrides the image tag |
-| kind.resources.limits.memory | string | `"4Gi"` |  |
-| kind.resources.requests.cpu | string | `"100m"` |  |
-| kind.resources.requests.memory | string | `"128Mi"` |  |
-| kind.securityContext | object | `{}` |  |
 | nameOverride | string | `""` |  |
 | nodeSelector | object | `{}` |  |
 | podAnnotations | object | `{}` |  |
 | podSecurityContext | object | `{}` |  |
+| provision | object | `{"image":{"pullPolicy":"IfNotPresent","repository":"infoblox/konk-provision","tag":""},"resources":{"limits":{"memory":"256Mi"},"requests":{"cpu":"100m","memory":"128Mi"}},"securityContext":{"readOnlyRootFilesystem":false,"runAsNonRoot":false}}` | provision is the init container that generates certs and kubeconfigs |
+| provision.image.tag | string | default is the chart appVersion. | Overrides the image tag |
 | replicaCount | int | `1` |  |
 | scope | string | `"namespace"` | scope can be `cluster` or `namespace`. When scope is `cluster`, Certificates in any namespace can be signed by the konk's Issuer. |
 | service.port | int | `6443` |  |
