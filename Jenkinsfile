@@ -54,6 +54,7 @@ pipeline {
         anyOf {
           branch 'main'
           branch 'ci'
+          branch 'release/*'
         }
       }
       steps {
