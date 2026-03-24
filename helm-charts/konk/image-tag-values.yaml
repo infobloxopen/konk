@@ -1,7 +1,13 @@
-# kubernetes v1.25.8
+# kubernetes $(K8S_RELEASE)
 apiserver:
   image:
-    tag: v1.25.8
+    tag: $(K8S_RELEASE)-$(GIT_SHORT)
 etcd:
   image:
-    tag: 3.4.9-1
+    tag: $(ETCD_VERSION)
+provision:
+  image:
+    tag: $(GIT_VERSION)
+kind:
+  image:
+    tag: $(GIT_VERSION)

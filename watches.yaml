@@ -3,6 +3,8 @@
   version: v1alpha1
   kind: Konk
   chart: helm-charts/konk
+  valuesFiles:
+    - helm-charts/konk/image-tag-values.yaml
   overrideValues:
     certManager.namespace: $CERT_MANAGER_NAMESPACE
     space.enabled: $SPACE
