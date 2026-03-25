@@ -16,13 +16,9 @@ WORKDIR /workspace/kubernetes
 # Regenerate with: make update-kubernetes-deps
 COPY go.mod go.mod
 
-# Patch source compatibility for golang-jwt/jwt/v4 v4.5.x:
-# NumericDate changed from value to pointer type in v4.5.x
-# 1. Change struct field WarnAfter from value to pointer type
-# 2. Fix the comparison of the *NumericDate variable (not the int64 parameter)
-RUN sed -i 's/WarnAfter jwt\.NumericDate/WarnAfter *jwt.NumericDate/' pkg/serviceaccount/claims.go && \
-    sed -i '/private\.Kubernetes\.WarnAfter/{n;s/if warnafter != 0/if warnafter != nil/;}' pkg/serviceaccount/claims.go
-
+# k8s 1.32+ uses go workspaces (go.work); disable it so go mod operates
+# on the single go.mod we copied in rather than the workspace.
+ENV GOWORK=off
 RUN go mod tidy && \
     go mod vendor
 
