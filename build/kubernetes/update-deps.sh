@@ -11,7 +11,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-K8S_VERSION="${1:-${K8S_VERSION:-v1.25.8}}"
+K8S_VERSION="${1:-${K8S_VERSION:-v1.32.4}}"
 GO_VERSION="${2:-${GO_VERSION:-1.25.5}}"
 
 # Packages to upgrade – add new entries here as vulnerabilities are discovered.
