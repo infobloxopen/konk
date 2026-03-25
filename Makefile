@@ -110,6 +110,7 @@ PROVISION_IMG ?= ghcr.io/infobloxopen/konk-provision:$(GIT_VERSION)
 KONK_SERVICE_IMG ?= ghcr.io/infobloxopen/konk-service:$(GIT_VERSION)
 GIT_SHORT ?= g$(shell git rev-parse --short HEAD)
 KUBERNETES_IMG ?= ghcr.io/infobloxopen/konk-app:$(K8S_RELEASE)-$(GIT_SHORT)
+ETCD_IMG ?= gcr.io/etcd-development/etcd:$(ETCD_VERSION)
 
 all: docker-build
 
@@ -274,9 +275,12 @@ kind-load-konk: $(KIND) docker-build docker-build-kubernetes docker-build-provis
 	docker tag ${KUBERNETES_IMG} ghcr.io/infobloxopen/konk-app:$(K8S_RELEASE)
 	docker tag ${PROVISION_IMG} ghcr.io/infobloxopen/konk-provision:$(K8S_RELEASE)
 	docker tag ${KONK_SERVICE_IMG} ghcr.io/infobloxopen/konk-service:$(K8S_RELEASE)
+	@# Pre-pull etcd so kind nodes don't have to fetch from gcr.io at runtime
+	docker pull ${ETCD_IMG}
 	$(KIND) load docker-image ${IMG} ${KUBERNETES_IMG} ${PROVISION_IMG} ${KONK_SERVICE_IMG} \
 		ghcr.io/infobloxopen/konk-app:$(K8S_RELEASE) ghcr.io/infobloxopen/konk-provision:$(K8S_RELEASE) \
 		ghcr.io/infobloxopen/konk-service:$(K8S_RELEASE) \
+		${ETCD_IMG} \
 		--name ${KIND_NAME}
 
 kind-load-apiserver: QUAY_IMG=$(shell $(HELM) template helm-charts/example-apiserver | awk '/image: quay/ {print $$2}')
