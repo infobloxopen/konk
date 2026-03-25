@@ -42,7 +42,6 @@ jobs:
         make docker-push-provision
         make docker-push-konk-service
     - name: Tag :latest and push to GHCR
-      if: github.ref == 'refs/heads/main'
       env:
         BUILDKIT_PROGRESS: plain
       run: |
