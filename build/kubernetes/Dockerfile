@@ -23,21 +23,6 @@ COPY go.mod go.mod
 RUN sed -i 's/WarnAfter jwt\.NumericDate/WarnAfter *jwt.NumericDate/' pkg/serviceaccount/claims.go && \
     sed -i '/private\.Kubernetes\.WarnAfter/{n;s/if warnafter != 0/if warnafter != nil/;}' pkg/serviceaccount/claims.go
 
-# Patch CVE-2023-45142: Remove otelhttp dependency from kube-apiserver.
-# Replace otelhttp usages with no-op passthroughs in both files that import it,
-# then drop the module from go.mod so it is not vendored into the binary at all.
-# Patch files live in build/kubernetes/patches/ (not inlined) for readability.
-COPY patches/traces.go staging/src/k8s.io/apiserver/pkg/endpoints/filters/traces.go
-COPY patches/utils.go  staging/src/k8s.io/component-base/tracing/utils.go
-
-# Drop otelhttp from go.mod so it is not vendored at all
-RUN go mod edit \
-    -droprequire go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp \
-    -dropreplace go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp && \
-    go mod edit \
-    -droprequire go.opentelemetry.io/contrib \
-    -dropreplace go.opentelemetry.io/contrib
-
 RUN go mod tidy && \
     go mod vendor
 
