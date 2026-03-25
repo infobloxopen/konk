@@ -25,7 +25,7 @@ annotations: {}
 # No shell, no busybox — all kubectl/shell logic is implemented in Go.
 kind:
   image:
-    repository: infoblox/konk-service
+    repository: ghcr.io/infobloxopen/konk-service
     pullPolicy: IfNotPresent
     # -- Overrides the image tag whose default is the chart appVersion.
     tag: ""

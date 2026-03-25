@@ -33,13 +33,6 @@ pipeline {
       steps {
         withDockerRegistry([credentialsId: "dockerhub-bloxcicd", url: ""]) {
           sh '''
-            sudo add-apt-repository ppa:longsleep/golang-backports
-            sudo apt-get update
-            sudo apt-get install -y golang-go
-            make docker-build docker-push
-            make docker-build-kubernetes docker-push-kubernetes
-            make docker-build-provision docker-push-provision
-            make docker-build-konk-service docker-push-konk-service
             make -C test/apiserver push
           '''
         }

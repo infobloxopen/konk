@@ -6,7 +6,7 @@ replicaCount: 1
 
 apiserver:
   image:
-    repository: infoblox/konk-app
+    repository: ghcr.io/infobloxopen/konk-app
     pullPolicy: IfNotPresent
     # -- Overrides the image tag
     # @default -- default is the chart appVersion.
@@ -98,7 +98,7 @@ etcd:
 # -- provision is the init container that generates certs and kubeconfigs
 provision:
   image:
-    repository: infoblox/konk-provision
+    repository: ghcr.io/infobloxopen/konk-provision
     pullPolicy: IfNotPresent
     # -- Overrides the image tag
     # @default -- default is the chart appVersion.
@@ -118,7 +118,7 @@ provision:
 # No shell, no busybox — all kubectl/shell logic is implemented in Go.
 kind:
   image:
-    repository: infoblox/konk-service
+    repository: ghcr.io/infobloxopen/konk-service
     pullPolicy: IfNotPresent
     # -- Overrides the image tag
     # @default -- default is the chart appVersion.
