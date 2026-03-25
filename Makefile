@@ -105,11 +105,11 @@ endif
 BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
 
 # Image URL to use all building/pushing image targets
-IMG ?= infoblox/konk:$(GIT_VERSION)
-PROVISION_IMG ?= infoblox/konk-provision:$(GIT_VERSION)
-KONK_SERVICE_IMG ?= infoblox/konk-service:$(GIT_VERSION)
+IMG ?= ghcr.io/infobloxopen/konk:$(GIT_VERSION)
+PROVISION_IMG ?= ghcr.io/infobloxopen/konk-provision:$(GIT_VERSION)
+KONK_SERVICE_IMG ?= ghcr.io/infobloxopen/konk-service:$(GIT_VERSION)
 GIT_SHORT ?= g$(shell git rev-parse --short HEAD)
-KUBERNETES_IMG ?= infoblox/konk-app:$(K8S_RELEASE)-$(GIT_SHORT)
+KUBERNETES_IMG ?= ghcr.io/infobloxopen/konk-app:$(K8S_RELEASE)-$(GIT_SHORT)
 
 all: docker-build
 
@@ -271,12 +271,12 @@ kind-destroy: $(KIND)
 
 kind-load-konk: $(KIND) docker-build docker-build-kubernetes docker-build-provision docker-build-konk-service
 	@# Tag images with the chart appVersion so the operator's embedded chart can find them
-	docker tag ${KUBERNETES_IMG} infoblox/konk-app:$(K8S_RELEASE)
-	docker tag ${PROVISION_IMG} infoblox/konk-provision:$(K8S_RELEASE)
-	docker tag ${KONK_SERVICE_IMG} infoblox/konk-service:$(K8S_RELEASE)
+	docker tag ${KUBERNETES_IMG} ghcr.io/infobloxopen/konk-app:$(K8S_RELEASE)
+	docker tag ${PROVISION_IMG} ghcr.io/infobloxopen/konk-provision:$(K8S_RELEASE)
+	docker tag ${KONK_SERVICE_IMG} ghcr.io/infobloxopen/konk-service:$(K8S_RELEASE)
 	$(KIND) load docker-image ${IMG} ${KUBERNETES_IMG} ${PROVISION_IMG} ${KONK_SERVICE_IMG} \
-		infoblox/konk-app:$(K8S_RELEASE) infoblox/konk-provision:$(K8S_RELEASE) \
-		infoblox/konk-service:$(K8S_RELEASE) \
+		ghcr.io/infobloxopen/konk-app:$(K8S_RELEASE) ghcr.io/infobloxopen/konk-provision:$(K8S_RELEASE) \
+		ghcr.io/infobloxopen/konk-service:$(K8S_RELEASE) \
 		--name ${KIND_NAME}
 
 kind-load-apiserver: QUAY_IMG=$(shell $(HELM) template helm-charts/example-apiserver | awk '/image: quay/ {print $$2}')
