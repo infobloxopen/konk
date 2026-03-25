@@ -108,7 +108,7 @@ apiserver:
 
 kind:
   image:
-    repository: infoblox/konk-service
+    repository: ghcr.io/infobloxopen/konk-service
     pullPolicy: IfNotPresent
     tag: ""
 
