@@ -38,7 +38,7 @@ default: all
 
 .PHONY: $(CHART_DIR)/konk/image-tag-values.yaml
 $(CHART_DIR)/konk/image-tag-values.yaml:
-	@printf "# kubernetes $(K8S_RELEASE)\napiserver:\n  image:\n    tag: $(K8S_RELEASE)-$(GIT_SHORT)\netcd:\n  image:\n    tag: $(ETCD_VERSION)\nprovision:\n  image:\n    tag: $(GIT_VERSION)\nkind:\n  image:\n    tag: $(GIT_VERSION)\n" | tee $@
+	@printf "# kubernetes $(K8S_RELEASE)\napiserver:\n  image:\n    tag: $(K8S_RELEASE)-$(GIT_SHORT)\netcd:\n  image:\n    tag: $(ETCD_VERSION)\nprovision:\n  image:\n    tag: $(K8S_RELEASE)-$(GIT_SHORT)\nkind:\n  image:\n    tag: $(K8S_RELEASE)-$(GIT_SHORT)\n" | tee $@
 
 CHART_NAMES := $(shell find $(CHART_DIR) -maxdepth 1 -type d | grep -v '^$(CHART_DIR)$$' | xargs -I {} basename {})
 
@@ -271,13 +271,13 @@ kind-destroy: $(KIND)
 	$(KIND) delete cluster --name ${KIND_NAME}
 
 kind-load-konk: $(KIND) docker-build docker-build-kubernetes docker-build-provision docker-build-konk-service
-	@# Tag images with the chart appVersion so the operator's embedded chart can find them
-	docker tag ${KUBERNETES_IMG} ghcr.io/infobloxopen/konk-app:$(K8S_RELEASE)
-	docker tag ${PROVISION_IMG} ghcr.io/infobloxopen/konk-provision:$(K8S_RELEASE)
-	docker tag ${KONK_SERVICE_IMG} ghcr.io/infobloxopen/konk-service:$(K8S_RELEASE)
+	@# Tag images with the chart appVersion + git short so the operator's embedded chart can find them
+	docker tag ${KUBERNETES_IMG} ghcr.io/infobloxopen/konk-app:$(K8S_RELEASE)-$(GIT_SHORT)
+	docker tag ${PROVISION_IMG} ghcr.io/infobloxopen/konk-provision:$(K8S_RELEASE)-$(GIT_SHORT)
+	docker tag ${KONK_SERVICE_IMG} ghcr.io/infobloxopen/konk-service:$(K8S_RELEASE)-$(GIT_SHORT)
 	$(KIND) load docker-image ${IMG} ${KUBERNETES_IMG} ${PROVISION_IMG} ${KONK_SERVICE_IMG} \
-		ghcr.io/infobloxopen/konk-app:$(K8S_RELEASE) ghcr.io/infobloxopen/konk-provision:$(K8S_RELEASE) \
-		ghcr.io/infobloxopen/konk-service:$(K8S_RELEASE) \
+		ghcr.io/infobloxopen/konk-app:$(K8S_RELEASE)-$(GIT_SHORT) ghcr.io/infobloxopen/konk-provision:$(K8S_RELEASE)-$(GIT_SHORT) \
+		ghcr.io/infobloxopen/konk-service:$(K8S_RELEASE)-$(GIT_SHORT) \
 		--name ${KIND_NAME}
 
 kind-load-apiserver: QUAY_IMG=$(shell $(HELM) template helm-charts/example-apiserver | awk '/image: quay/ {print $$2}')
