@@ -41,5 +41,13 @@ spec:
             value: {{ .Release.Name }}
           - name: SCOPE
             value: {{ .Values.scope }}
+        readinessProbe:
+          exec:
+            command:
+              - /usr/local/bin/provision
+              - healthz
+              - /tmp/ready
+          periodSeconds: 10
+          failureThreshold: 3
         resources:
           {{- toYaml .Values.provision.resources | nindent 10 }}
