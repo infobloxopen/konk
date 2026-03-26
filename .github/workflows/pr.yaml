@@ -175,7 +175,27 @@ jobs:
           # helm --wait ensures all deployments are ready, including the controller
           # whose init container waits for the contacts resource in konk
           make deploy-example-apiserver KIND_NAME="chart-testing" \
-            HELM_FLAGS="--set=konk.name=runner-konk --set=konk.namespace=$KONK_NAMESPACE --set=konk.create=false --set=image.pullPolicy=IfNotPresent"
+            HELM_FLAGS="--set=konk.name=runner-konk --set=konk.namespace=$KONK_NAMESPACE --set=konk.create=false --set=image.pullPolicy=IfNotPresent" || {
+            echo "::group::Debug - pods after deploy-example-apiserver failure"
+            kubectl get pods -A
+            echo "::endgroup::"
+            echo "::group::Debug - describe controller pod"
+            kubectl describe pods -l app.kubernetes.io/component=controller,app.kubernetes.io/name=example-apiserver
+            echo "::endgroup::"
+            echo "::group::Debug - controller init container logs"
+            kubectl logs -l app.kubernetes.io/component=controller,app.kubernetes.io/name=example-apiserver -c wait-for-resource --tail=50 2>/dev/null || echo "No init container logs"
+            echo "::endgroup::"
+            echo "::group::Debug - events in default namespace"
+            kubectl get events --sort-by='.lastTimestamp' | tail -30
+            echo "::endgroup::"
+            echo "::group::Debug - konk-service secrets/kubeconfig"
+            kubectl get secrets -A | grep -i kubeconfig
+            echo "::endgroup::"
+            echo "::group::Debug - konkservice status"
+            kubectl get konkservice -A -o yaml 2>/dev/null || echo "No konkservice found"
+            echo "::endgroup::"
+            exit 1
+          }
       - name: Test Extension APIServer
         run: |
           make test-apiserver
