@@ -189,7 +189,7 @@ func loadExistingEtcdCA(ctx context.Context, client *kubernetes.Clientset, cfg c
 }
 
 func writeKubeadmConfig(release string) error {
-	cfg := fmt.Sprintf(`apiVersion: "kubeadm.k8s.io/v1beta3"
+	cfg := fmt.Sprintf(`apiVersion: "kubeadm.k8s.io/v1beta2"
 kind: ClusterConfiguration
 etcd:
   local:
