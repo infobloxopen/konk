@@ -35,5 +35,6 @@ helm-charts/konk-operator/rbac
 /.konk-service-image-*
 /bin/
 /.kind-load-*
+helm-charts/konk/image-tag-values.yaml
 cmd/provision/provision
 cmd/konk-service/konk-service

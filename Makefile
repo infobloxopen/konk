@@ -36,9 +36,10 @@ KIND 			:= $(shell pwd)/bin/kind
 
 default: all
 
-.PHONY: $(CHART_DIR)/konk/image-tag-values.yaml
-$(CHART_DIR)/konk/image-tag-values.yaml:
-	@printf "# kubernetes $(K8S_RELEASE)\napiserver:\n  image:\n    tag: $(K8S_RELEASE)-$(GIT_SHORT)\netcd:\n  image:\n    tag: $(ETCD_VERSION)\nprovision:\n  image:\n    tag: $(GIT_VERSION)\nkind:\n  image:\n    tag: $(GIT_VERSION)\n" | tee $@
+# NOTE: image-tag-values.yaml generation removed.
+# valuesFiles is not supported by operator-sdk v1.42.0 helm-operator.
+# Image tags are now passed via overrideValues env vars (RELATED_IMAGE_*).
+# See watches.yaml and helm-charts/konk-operator/templates/deployment.yaml.
 
 CHART_NAMES := $(shell find $(CHART_DIR) -maxdepth 1 -type d | grep -v '^$(CHART_DIR)$$' | xargs -I {} basename {})
 
@@ -59,7 +60,7 @@ deploy-crds: konk-operator-${CHART_PKG_VERSION}.tgz
 	# > There is no support at this time for upgrading or deleting CRDs using Helm.
 	kubectl apply -f helm-charts/konk-operator/crds
 
-%-konk-operator: HELM_FLAGS ?=--set=image.tag=$(GIT_VERSION) --set=image.pullPolicy=IfNotPresent
+%-konk-operator: HELM_FLAGS ?=--set=image.tag=$(GIT_VERSION) --set=image.pullPolicy=IfNotPresent --set=relatedImages.apiserver=$(K8S_RELEASE)-$(GIT_SHORT) --set=relatedImages.provision=$(K8S_RELEASE)-$(GIT_SHORT) --set=relatedImages.kind=$(K8S_RELEASE)-$(GIT_SHORT)
 
 deploy-%: package
 	$(HELM) upgrade -i --wait $(RELEASE_PREFIX)-$* $(CHART_DIR)/$* $(HELM_FLAGS)
@@ -135,7 +136,7 @@ deploy: kustomize
 undeploy: kustomize
 	$(KUSTOMIZE) build config/default | kubectl delete -f -
 
-.image-${GIT_VERSION}: $(CHART_DIR)/konk/image-tag-values.yaml
+.image-${GIT_VERSION}:
 	DOCKER_BUILDKIT=1 docker build . -t ${IMG}
 	touch $@
 
@@ -270,14 +271,18 @@ kind: $(KIND)
 kind-destroy: $(KIND)
 	$(KIND) delete cluster --name ${KIND_NAME}
 
+ETCD_IMG ?= gcr.io/etcd-development/etcd:$(ETCD_VERSION)
+
 kind-load-konk: $(KIND) docker-build docker-build-kubernetes docker-build-provision docker-build-konk-service
-	@# Tag images with the chart appVersion so the operator's embedded chart can find them
-	docker tag ${KUBERNETES_IMG} ghcr.io/infobloxopen/konk-app:$(K8S_RELEASE)
-	docker tag ${PROVISION_IMG} ghcr.io/infobloxopen/konk-provision:$(K8S_RELEASE)
-	docker tag ${KONK_SERVICE_IMG} ghcr.io/infobloxopen/konk-service:$(K8S_RELEASE)
+	@# Tag images with the chart appVersion + git short so the operator's embedded chart can find them
+	docker tag ${KUBERNETES_IMG} ghcr.io/infobloxopen/konk-app:$(K8S_RELEASE)-$(GIT_SHORT)
+	docker tag ${PROVISION_IMG} ghcr.io/infobloxopen/konk-provision:$(K8S_RELEASE)-$(GIT_SHORT)
+	docker tag ${KONK_SERVICE_IMG} ghcr.io/infobloxopen/konk-service:$(K8S_RELEASE)-$(GIT_SHORT)
+	docker pull $(ETCD_IMG)
 	$(KIND) load docker-image ${IMG} ${KUBERNETES_IMG} ${PROVISION_IMG} ${KONK_SERVICE_IMG} \
-		ghcr.io/infobloxopen/konk-app:$(K8S_RELEASE) ghcr.io/infobloxopen/konk-provision:$(K8S_RELEASE) \
-		ghcr.io/infobloxopen/konk-service:$(K8S_RELEASE) \
+		ghcr.io/infobloxopen/konk-app:$(K8S_RELEASE)-$(GIT_SHORT) ghcr.io/infobloxopen/konk-provision:$(K8S_RELEASE)-$(GIT_SHORT) \
+		ghcr.io/infobloxopen/konk-service:$(K8S_RELEASE)-$(GIT_SHORT) \
+		$(ETCD_IMG) \
 		--name ${KIND_NAME}
 
 kind-load-apiserver: QUAY_IMG=$(shell $(HELM) template helm-charts/example-apiserver | awk '/image: quay/ {print $$2}')
@@ -316,7 +321,7 @@ deploy-example-apiserver: kind-load-apiserver
 	 	--wait --timeout=8m $(RELEASE_PREFIX)-apiserver \
 	 	$(CHART_DIR)/example-apiserver \
 		--set=image.tag=$(GIT_VERSION) \
-		--set=kind.image.tag=$(K8S_RELEASE) \
+		--set=kind.image.tag=$(K8S_RELEASE)-$(GIT_SHORT) \
 	 	$(HELM_FLAGS)
 
 upgrade-etcd:
