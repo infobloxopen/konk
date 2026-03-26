@@ -1,5 +1,6 @@
 CHART_DIR	:= helm-charts
 GIT_VERSION	?= $(shell git describe --dirty=-unsupported --always --long --tags)
+CHART_PKG_VERSION ?= $(GIT_VERSION)
 HELM_IMAGE	?= infoblox/helm:3
 DOCKER_RUNNER	?= docker run --rm -i \
 			--entrypoint="" \
@@ -53,7 +54,7 @@ deploy-cert-manager:
 		--set installCRDs=true \
 		--set extraArgs[0]="--enable-certificate-owner-ref=true""
 
-deploy-crds: konk-operator-${GIT_VERSION}.tgz
+deploy-crds: konk-operator-${CHART_PKG_VERSION}.tgz
 	# https://helm.sh/docs/chart_best_practices/custom_resource_definitions/
 	# > There is no support at this time for upgrading or deleting CRDs using Helm.
 	kubectl apply -f helm-charts/konk-operator/crds
@@ -208,16 +209,16 @@ else
 KUSTOMIZE=$(shell which kustomize)
 endif
 
-konk-operator-${GIT_VERSION}.tgz:
+konk-operator-${CHART_PKG_VERSION}.tgz:
 	mkdir -p helm-charts/konk-operator/crds
 	cp -vR config/crd/bases/* helm-charts/konk-operator/crds/
 	cp -vR config/rbac helm-charts/konk-operator/
-	${HELM} package helm-charts/konk-operator --version ${GIT_VERSION} --app-version ${GIT_VERSION}
+	${HELM} package helm-charts/konk-operator --version ${CHART_PKG_VERSION} --app-version ${GIT_VERSION}
 
-%-${GIT_VERSION}.tgz:
-	${HELM} package helm-charts/$* --version ${GIT_VERSION}
+%-${CHART_PKG_VERSION}.tgz:
+	${HELM} package helm-charts/$* --version ${CHART_PKG_VERSION}
 
-package: konk-operator-${GIT_VERSION}.tgz konk-${GIT_VERSION}.tgz konk-service-${GIT_VERSION}.tgz example-apiserver-${GIT_VERSION}.tgz
+package: konk-operator-${CHART_PKG_VERSION}.tgz konk-${CHART_PKG_VERSION}.tgz konk-service-${CHART_PKG_VERSION}.tgz example-apiserver-${CHART_PKG_VERSION}.tgz
 
 OPERATOR_VERSION:=v1.42.0
 ./bin/%: ./bin/%-$(OPERATOR_VERSION)
