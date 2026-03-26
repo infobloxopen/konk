@@ -587,7 +587,7 @@ replace (
 
 	// CVE patches: force upgraded versions for vulnerable dependencies
 	github.com/docker/distribution => github.com/docker/distribution v2.8.2+incompatible
-	github.com/opencontainers/selinux => github.com/opencontainers/selinux v1.13.0
+	github.com/opencontainers/selinux => github.com/opencontainers/selinux v1.11.0
 	github.com/golang-jwt/jwt/v4 => github.com/golang-jwt/jwt/v4 v4.5.2
 	golang.org/x/crypto => golang.org/x/crypto v0.17.0
 	golang.org/x/net => golang.org/x/net v0.24.0
