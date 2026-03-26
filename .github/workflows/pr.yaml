@@ -1,4 +1,4 @@
-name: PR
+name: PR # End-to-end tests
 on: pull_request
 jobs:
   end2end:
