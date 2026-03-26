@@ -1,5 +1,5 @@
 CHART_DIR	:= helm-charts
-GIT_VERSION	?= $(shell git describe --dirty=-unsupported --always --long --tags)
+GIT_VERSION	:= $(shell git describe --always --long --tags)
 CHART_PKG_VERSION ?= $(GIT_VERSION)
 HELM_IMAGE	?= infoblox/helm:3
 DOCKER_RUNNER	?= docker run --rm -i \

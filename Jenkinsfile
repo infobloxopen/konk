@@ -13,7 +13,7 @@ pipeline {
       -v ${env.WORKSPACE}:/pkg \
       -w /pkg \
       ${env.HELM_IMAGE}"""
-    GIT_VERSION = sh(script: "git describe --dirty=-unsupported --always --long --tags", returnStdout: true).trim()
+    GIT_VERSION = sh(script: "git describe --always --long --tags", returnStdout: true).trim()
     CHART_VERSION = "${env.GIT_VERSION}-j${env.BUILD_NUMBER}"
   }
   stages {
