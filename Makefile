@@ -270,14 +270,18 @@ kind: $(KIND)
 kind-destroy: $(KIND)
 	$(KIND) delete cluster --name ${KIND_NAME}
 
+ETCD_IMG ?= gcr.io/etcd-development/etcd:$(ETCD_VERSION)
+
 kind-load-konk: $(KIND) docker-build docker-build-kubernetes docker-build-provision docker-build-konk-service
 	@# Tag images with the chart appVersion + git short so the operator's embedded chart can find them
 	docker tag ${KUBERNETES_IMG} ghcr.io/infobloxopen/konk-app:$(K8S_RELEASE)-$(GIT_SHORT)
 	docker tag ${PROVISION_IMG} ghcr.io/infobloxopen/konk-provision:$(K8S_RELEASE)-$(GIT_SHORT)
 	docker tag ${KONK_SERVICE_IMG} ghcr.io/infobloxopen/konk-service:$(K8S_RELEASE)-$(GIT_SHORT)
+	docker pull $(ETCD_IMG)
 	$(KIND) load docker-image ${IMG} ${KUBERNETES_IMG} ${PROVISION_IMG} ${KONK_SERVICE_IMG} \
 		ghcr.io/infobloxopen/konk-app:$(K8S_RELEASE)-$(GIT_SHORT) ghcr.io/infobloxopen/konk-provision:$(K8S_RELEASE)-$(GIT_SHORT) \
 		ghcr.io/infobloxopen/konk-service:$(K8S_RELEASE)-$(GIT_SHORT) \
+		$(ETCD_IMG) \
 		--name ${KIND_NAME}
 
 kind-load-apiserver: QUAY_IMG=$(shell $(HELM) template helm-charts/example-apiserver | awk '/image: quay/ {print $$2}')
