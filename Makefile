@@ -321,7 +321,7 @@ deploy-example-apiserver: kind-load-apiserver
 	 	--wait --timeout=8m $(RELEASE_PREFIX)-apiserver \
 	 	$(CHART_DIR)/example-apiserver \
 		--set=image.tag=$(GIT_VERSION) \
-		--set=kind.image.tag=$(K8S_RELEASE) \
+		--set=kind.image.tag=$(K8S_RELEASE)-$(GIT_SHORT) \
 	 	$(HELM_FLAGS)
 
 upgrade-etcd:
