@@ -120,6 +120,35 @@ jobs:
         run: |
           kubectl create ns $KONK_NAMESPACE || true
           kubectl apply -n $KONK_NAMESPACE -f examples/konk.yaml
+          # Wait a bit for operator to reconcile, then dump debug info
+          sleep 30
+          echo "::group::Debug - pods in all namespaces"
+          kubectl get pods -A
+          echo "::endgroup::"
+          echo "::group::Debug - pods in $KONK_NAMESPACE"
+          kubectl get pods -n $KONK_NAMESPACE -o wide
+          echo "::endgroup::"
+          echo "::group::Debug - events in $KONK_NAMESPACE"
+          kubectl get events -n $KONK_NAMESPACE --sort-by='.lastTimestamp'
+          echo "::endgroup::"
+          echo "::group::Debug - describe pods in $KONK_NAMESPACE"
+          kubectl describe pods -n $KONK_NAMESPACE
+          echo "::endgroup::"
+          echo "::group::Debug - Konk CR status"
+          kubectl get konk -n $KONK_NAMESPACE -o yaml
+          echo "::endgroup::"
+          echo "::group::Debug - Etcd CR"
+          kubectl get etcd -n $KONK_NAMESPACE -o yaml 2>/dev/null || echo "No Etcd CR found"
+          echo "::endgroup::"
+          echo "::group::Debug - secrets in $KONK_NAMESPACE"
+          kubectl get secrets -n $KONK_NAMESPACE
+          echo "::endgroup::"
+          echo "::group::Debug - operator logs"
+          kubectl logs -l app.kubernetes.io/name=konk-operator --tail=100
+          echo "::endgroup::"
+          echo "::group::Debug - init/provision logs"
+          kubectl logs -n $KONK_NAMESPACE -l app.kubernetes.io/component=init --tail=100 2>/dev/null || echo "No init pod logs"
+          echo "::endgroup::"
           # FIXME: use the helm-operator status to detect installation was successful
           until kubectl wait -n $KONK_NAMESPACE --timeout=3m --for=condition=ready pod -l app.kubernetes.io/name=etcd
           do
