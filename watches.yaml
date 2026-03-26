@@ -3,12 +3,16 @@
   version: v1alpha1
   kind: Konk
   chart: helm-charts/konk
-  valuesFiles:
-    - helm-charts/konk/image-tag-values.yaml
+  # NOTE: valuesFiles is NOT supported by operator-sdk v1.42.0 helm-operator.
+  # Use overrideValues with env vars instead. The env vars are set in the
+  # konk-operator deployment (helm-charts/konk-operator/templates/deployment.yaml).
   overrideValues:
     certManager.namespace: $CERT_MANAGER_NAMESPACE
     space.enabled: $SPACE
     vaultCommon.imagepullsecret.path: $VAULT_PATH
+    apiserver.image.tag: $RELATED_IMAGE_APISERVER
+    provision.image.tag: $RELATED_IMAGE_PROVISION
+    kind.image.tag: $RELATED_IMAGE_KIND
 - group: konk.infoblox.com
   version: v1alpha1
   kind: KonkService

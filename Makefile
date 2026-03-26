@@ -36,9 +36,10 @@ KIND 			:= $(shell pwd)/bin/kind
 
 default: all
 
-.PHONY: $(CHART_DIR)/konk/image-tag-values.yaml
-$(CHART_DIR)/konk/image-tag-values.yaml:
-	@printf "# kubernetes $(K8S_RELEASE)\napiserver:\n  image:\n    tag: $(K8S_RELEASE)-$(GIT_SHORT)\netcd:\n  image:\n    tag: $(ETCD_VERSION)\nprovision:\n  image:\n    tag: $(K8S_RELEASE)-$(GIT_SHORT)\nkind:\n  image:\n    tag: $(K8S_RELEASE)-$(GIT_SHORT)\n" | tee $@
+# NOTE: image-tag-values.yaml generation removed.
+# valuesFiles is not supported by operator-sdk v1.42.0 helm-operator.
+# Image tags are now passed via overrideValues env vars (RELATED_IMAGE_*).
+# See watches.yaml and helm-charts/konk-operator/templates/deployment.yaml.
 
 CHART_NAMES := $(shell find $(CHART_DIR) -maxdepth 1 -type d | grep -v '^$(CHART_DIR)$$' | xargs -I {} basename {})
 
@@ -59,7 +60,7 @@ deploy-crds: konk-operator-${CHART_PKG_VERSION}.tgz
 	# > There is no support at this time for upgrading or deleting CRDs using Helm.
 	kubectl apply -f helm-charts/konk-operator/crds
 
-%-konk-operator: HELM_FLAGS ?=--set=image.tag=$(GIT_VERSION) --set=image.pullPolicy=IfNotPresent
+%-konk-operator: HELM_FLAGS ?=--set=image.tag=$(GIT_VERSION) --set=image.pullPolicy=IfNotPresent --set=relatedImages.apiserver=$(K8S_RELEASE)-$(GIT_SHORT) --set=relatedImages.provision=$(K8S_RELEASE)-$(GIT_SHORT) --set=relatedImages.kind=$(K8S_RELEASE)-$(GIT_SHORT)
 
 deploy-%: package
 	$(HELM) upgrade -i --wait $(RELEASE_PREFIX)-$* $(CHART_DIR)/$* $(HELM_FLAGS)
@@ -135,7 +136,7 @@ deploy: kustomize
 undeploy: kustomize
 	$(KUSTOMIZE) build config/default | kubectl delete -f -
 
-.image-${GIT_VERSION}: $(CHART_DIR)/konk/image-tag-values.yaml
+.image-${GIT_VERSION}:
 	DOCKER_BUILDKIT=1 docker build . -t ${IMG}
 	touch $@
 
