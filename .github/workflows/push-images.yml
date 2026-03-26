@@ -45,7 +45,7 @@ jobs:
       env:
         BUILDKIT_PROGRESS: plain
       run: |
-        GIT_VERSION=$(git describe --dirty=-unsupported --always --long --tags)
+        GIT_VERSION=$(git describe --always --long --tags)
         K8S_RELEASE=$(grep '^K8S_RELEASE' Makefile | head -1 | awk -F'?= ' '{print $2}')
         GIT_SHORT=g$(git rev-parse --short HEAD)
         for img in konk konk-provision konk-service; do
