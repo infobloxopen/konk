@@ -21,6 +21,7 @@
     authURL: $AUTH_URL
     space.enabled: $SPACE
     vaultCommon.imagepullsecret.path: $VAULT_PATH
+    kind.image.tag: $RELATED_IMAGE_KIND
 - group: konk.infoblox.com
   version: v1alpha1
   kind: Etcd
