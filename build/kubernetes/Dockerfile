@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.6
 ARG GO_VERSION=1.25.5
-ARG K8S_VERSION=v1.25.8
+ARG K8S_VERSION=v1.32.13
 
 FROM golang:${GO_VERSION}-alpine AS builder
 ARG K8S_VERSION
@@ -16,20 +16,8 @@ WORKDIR /workspace/kubernetes
 # Regenerate with: make update-kubernetes-deps
 COPY go.mod go.mod
 
-# Patch CVE-2023-45142: Remove otelhttp dependency from kube-apiserver.
-# Replace otelhttp usages with no-op passthroughs in both files that import it,
-# then drop the module from go.mod so it is not vendored into the binary at all.
-# Patch files live in build/kubernetes/patches/ (not inlined) for readability.
-COPY patches/traces.go staging/src/k8s.io/apiserver/pkg/endpoints/filters/traces.go
-COPY patches/utils.go  staging/src/k8s.io/component-base/tracing/utils.go
-
-# Drop otelhttp from go.mod so it is not vendored at all
-RUN go mod edit \
-    -droprequire go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp \
-    -dropreplace go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp && \
-    go mod edit \
-    -droprequire go.opentelemetry.io/contrib \
-    -dropreplace go.opentelemetry.io/contrib
+# k8s 1.32+ uses Go workspaces; disable for single-module vendor build.
+ENV GOWORK=off
 
 RUN go mod tidy && \
     go mod vendor

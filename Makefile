@@ -14,7 +14,7 @@ HELM		?= $(DOCKER_RUNNER) \
 			helm
 HELM_CMD	?= $(DOCKER_RUNNER) \
 			/bin/bash -c
-K8S_RELEASE	?= v1.25.8
+K8S_RELEASE	?= v1.32.13
 ETCD_VERSION	?= v3.6.8
 KUBEADM		?= docker run --rm -it --entrypoint="" ${KUBERNETES_IMG} kubeadm
 KUBECONFIG	?= ${HOME}/.kube/config
