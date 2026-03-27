@@ -46,11 +46,7 @@ jobs:
         BUILDKIT_PROGRESS: plain
       run: |
         GIT_VERSION=$(git describe --always --long --tags)
-        K8S_RELEASE=$(grep '^K8S_RELEASE' Makefile | head -1 | awk -F'?= ' '{print $2}')
-        GIT_SHORT=g$(git rev-parse --short HEAD)
-        for img in konk konk-provision konk-service; do
+        for img in konk konk-app konk-provision konk-service; do
           docker tag ghcr.io/infobloxopen/${img}:${GIT_VERSION} ghcr.io/infobloxopen/${img}:latest
           docker push ghcr.io/infobloxopen/${img}:latest
         done
-        docker tag ghcr.io/infobloxopen/konk-app:${K8S_RELEASE}-${GIT_SHORT} ghcr.io/infobloxopen/konk-app:latest
-        docker push ghcr.io/infobloxopen/konk-app:latest
