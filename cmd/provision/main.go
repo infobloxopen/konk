@@ -2,13 +2,17 @@ package main
 
 import (
 	"context"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"log"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -21,8 +25,9 @@ import (
 )
 
 const (
-	pkiDir     = "/etc/kubernetes/pki"
-	etcdPKIDir = "/etc/kubernetes/pki/etcd"
+	pkiDir        = "/etc/kubernetes/pki"
+	etcdPKIDir    = "/etc/kubernetes/pki/etcd"
+	renewalBuffer = 30 * 24 * time.Hour
 )
 
 type config struct {
@@ -39,13 +44,68 @@ func main() {
 
 	cfg := loadConfig()
 	client := mustCreateClient()
-	ctx := context.Background()
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
+	defer cancel()
 
-	if err := provision(ctx, client, cfg); err != nil {
-		log.Fatalf("Provisioning failed: %v", err)
+	for {
+		os.Remove("/tmp/ready")
+
+		sleepUntilRenewal(ctx, client, cfg)
+
+		if err := provision(ctx, client, cfg); err != nil {
+			log.Fatalf("Provisioning failed: %v", err)
+		}
+
+		log.Println("Provisioning complete")
+
+		if err := os.WriteFile("/tmp/ready", []byte{}, 0644); err != nil {
+			log.Fatalf("Failed to write readiness file: %v", err)
+		}
+	}
+}
+
+// sleepUntilRenewal reads the current apiserver cert expiry from the secret
+// and sleeps until renewalBuffer before NotAfter. On the first run (no secret
+// yet) it returns immediately so provisioning runs right away.
+func sleepUntilRenewal(ctx context.Context, client *kubernetes.Clientset, cfg config) {
+	secret, err := getSecret(ctx, client, cfg.Namespace, cfg.Fullname+"-apiserver-cert")
+	if err != nil {
+		log.Printf("Could not read apiserver-cert secret, provisioning now: %v", err)
+		return
+	}
+	if secret == nil {
+		log.Println("No existing cert found, provisioning now")
+		return
 	}
 
-	log.Println("Provisioning complete")
+	certPEM := secret.Data["apiserver.crt"]
+	block, _ := pem.Decode(certPEM)
+	if block == nil {
+		log.Println("Could not decode cert PEM, provisioning now")
+		return
+	}
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		log.Printf("Could not parse cert, provisioning now: %v", err)
+		return
+	}
+
+	renewAt := cert.NotAfter.Add(-renewalBuffer)
+	if time.Now().Before(renewAt) {
+		sleepDur := time.Until(renewAt)
+		log.Printf("Cert expires %s, next renewal at %s (sleeping %s)",
+			cert.NotAfter.Format(time.RFC3339),
+			renewAt.Format(time.RFC3339),
+			sleepDur.Round(time.Minute))
+		select {
+		case <-time.After(sleepDur):
+		case <-ctx.Done():
+			log.Println("Received shutdown signal, exiting")
+			os.Exit(0)
+		}
+	} else {
+		log.Printf("Cert expires %s, renewal due now", cert.NotAfter.Format(time.RFC3339))
+	}
 }
 
 func loadConfig() config {
@@ -127,6 +187,11 @@ func provision(ctx context.Context, client *kubernetes.Clientset, cfg config) er
 	}
 	if err := manageKubeconfigSecret(ctx, client, cfg); err != nil {
 		return fmt.Errorf("managing kubeconfig secret: %w", err)
+	}
+
+	// Trigger a rollout restart so pods pick up rotated certs
+	if err := restartDeployment(ctx, client, cfg); err != nil {
+		return fmt.Errorf("restarting deployment: %w", err)
 	}
 
 	// Wait for deployment to be progressing
@@ -434,21 +499,49 @@ func manageKubeconfigSecret(ctx context.Context, client *kubernetes.Clientset, c
 	if err != nil {
 		return err
 	}
-	if existing != nil {
-		return nil // kubeconfig secret already exists, don't overwrite
+
+	data := map[string][]byte{
+		"admin.conf": mustReadFile("/etc/kubernetes/admin.conf"),
 	}
 
-	log.Printf("Creating secret %s", name)
-	return createSecret(ctx, client, &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: cfg.Namespace,
-			Labels:    cfg.Labels,
-		},
-		Data: map[string][]byte{
-			"admin.conf": mustReadFile("/etc/kubernetes/admin.conf"),
+	if existing == nil {
+		log.Printf("Creating secret %s", name)
+		return createSecret(ctx, client, &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      name,
+				Namespace: cfg.Namespace,
+				Labels:    cfg.Labels,
+			},
+			Data: data,
+		})
+	}
+
+	log.Printf("Updating secret %s", name)
+	existing.Data["admin.conf"] = data["admin.conf"]
+	return updateSecret(ctx, client, existing)
+}
+
+func restartDeployment(ctx context.Context, client *kubernetes.Clientset, cfg config) error {
+	patch, err := json.Marshal(map[string]interface{}{
+		"spec": map[string]interface{}{
+			"template": map[string]interface{}{
+				"metadata": map[string]interface{}{
+					"annotations": map[string]string{
+						"kubectl.kubernetes.io/restartedAt": time.Now().Format(time.RFC3339),
+					},
+				},
+			},
 		},
 	})
+	if err != nil {
+		return err
+	}
+
+	log.Printf("Triggering rollout restart for deployment %s", cfg.Fullname)
+	_, err = client.AppsV1().Deployments(cfg.Namespace).Patch(
+		ctx, cfg.Fullname, types.StrategicMergePatchType, patch, metav1.PatchOptions{},
+	)
+	return err
 }
 
 func waitForDeployment(ctx context.Context, client *kubernetes.Clientset, cfg config) error {
