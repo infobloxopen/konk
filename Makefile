@@ -60,7 +60,7 @@ deploy-crds: konk-operator-${CHART_PKG_VERSION}.tgz
 	# > There is no support at this time for upgrading or deleting CRDs using Helm.
 	kubectl apply -f helm-charts/konk-operator/crds
 
-%-konk-operator: HELM_FLAGS ?=--set=image.tag=$(GIT_VERSION) --set=image.pullPolicy=IfNotPresent --set=relatedImages.apiserver=$(K8S_RELEASE)-$(GIT_SHORT) --set=relatedImages.provision=$(K8S_RELEASE)-$(GIT_SHORT) --set=relatedImages.kind=$(K8S_RELEASE)-$(GIT_SHORT)
+%-konk-operator: HELM_FLAGS ?=--set=image.tag=$(GIT_VERSION) --set=image.pullPolicy=IfNotPresent --set=relatedImages.apiserver=$(GIT_VERSION) --set=relatedImages.provision=$(GIT_VERSION) --set=relatedImages.kind=$(GIT_VERSION)
 
 deploy-%: package
 	$(HELM) upgrade -i --wait $(RELEASE_PREFIX)-$* $(CHART_DIR)/$* $(HELM_FLAGS)
@@ -108,10 +108,9 @@ BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
 
 # Image URL to use all building/pushing image targets
 IMG ?= ghcr.io/infobloxopen/konk:$(GIT_VERSION)
+KUBERNETES_IMG ?= ghcr.io/infobloxopen/konk-app:$(GIT_VERSION)
 PROVISION_IMG ?= ghcr.io/infobloxopen/konk-provision:$(GIT_VERSION)
 KONK_SERVICE_IMG ?= ghcr.io/infobloxopen/konk-service:$(GIT_VERSION)
-GIT_SHORT ?= g$(shell git rev-parse --short HEAD)
-KUBERNETES_IMG ?= ghcr.io/infobloxopen/konk-app:$(K8S_RELEASE)-$(GIT_SHORT)
 
 all: docker-build
 
@@ -148,14 +147,14 @@ docker-push:
 	docker push ${IMG}
 
 # Build patched kubernetes (kubeadm + kube-apiserver) from source with upgraded deps
-.kubernetes-image-${K8S_RELEASE}-${GIT_SHORT}:
+.kubernetes-image-${GIT_VERSION}:
 	DOCKER_BUILDKIT=1 docker build \
 		--build-arg K8S_VERSION=$(K8S_RELEASE) \
 		-t ${KUBERNETES_IMG} \
 		build/kubernetes/
 	touch $@
 
-docker-build-kubernetes: .kubernetes-image-${K8S_RELEASE}-${GIT_SHORT}
+docker-build-kubernetes: .kubernetes-image-${GIT_VERSION}
 
 # Regenerate build/kubernetes/go.mod with latest dependency versions.
 # Review the diff and commit the result.
@@ -167,7 +166,7 @@ docker-push-kubernetes:
 	docker push ${KUBERNETES_IMG}
 
 # Build the provision docker image (depends on kubernetes build)
-.provision-image-${GIT_VERSION}: .kubernetes-image-${K8S_RELEASE}-${GIT_SHORT}
+.provision-image-${GIT_VERSION}: .kubernetes-image-${GIT_VERSION}
 	DOCKER_BUILDKIT=1 docker build \
 		--build-arg KUBERNETES_IMG=${KUBERNETES_IMG} \
 		-f Dockerfile.provision . -t ${PROVISION_IMG}
@@ -274,14 +273,9 @@ kind-destroy: $(KIND)
 ETCD_IMG ?= gcr.io/etcd-development/etcd:$(ETCD_VERSION)
 
 kind-load-konk: $(KIND) docker-build docker-build-kubernetes docker-build-provision docker-build-konk-service
-	@# Tag images with the chart appVersion + git short so the operator's embedded chart can find them
-	docker tag ${KUBERNETES_IMG} ghcr.io/infobloxopen/konk-app:$(K8S_RELEASE)-$(GIT_SHORT)
-	docker tag ${PROVISION_IMG} ghcr.io/infobloxopen/konk-provision:$(K8S_RELEASE)-$(GIT_SHORT)
-	docker tag ${KONK_SERVICE_IMG} ghcr.io/infobloxopen/konk-service:$(K8S_RELEASE)-$(GIT_SHORT)
+	@# All images use GIT_VERSION tag, no extra tagging needed
 	docker pull $(ETCD_IMG)
 	$(KIND) load docker-image ${IMG} ${KUBERNETES_IMG} ${PROVISION_IMG} ${KONK_SERVICE_IMG} \
-		ghcr.io/infobloxopen/konk-app:$(K8S_RELEASE)-$(GIT_SHORT) ghcr.io/infobloxopen/konk-provision:$(K8S_RELEASE)-$(GIT_SHORT) \
-		ghcr.io/infobloxopen/konk-service:$(K8S_RELEASE)-$(GIT_SHORT) \
 		$(ETCD_IMG) \
 		--name ${KIND_NAME}
 
@@ -321,7 +315,7 @@ deploy-example-apiserver: kind-load-apiserver
 	 	--wait --timeout=8m $(RELEASE_PREFIX)-apiserver \
 	 	$(CHART_DIR)/example-apiserver \
 		--set=image.tag=$(GIT_VERSION) \
-		--set=kind.image.tag=$(K8S_RELEASE)-$(GIT_SHORT) \
+		--set=kind.image.tag=$(GIT_VERSION) \
 	 	$(HELM_FLAGS)
 
 upgrade-etcd:
