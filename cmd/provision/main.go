@@ -427,7 +427,16 @@ func manageCASecret(ctx context.Context, client *kubernetes.Clientset, cfg confi
 		return err
 	}
 	if existing != nil {
-		return nil // CA secret already exists, don't overwrite
+		// Ensure the keep annotation is present on existing secrets
+		if existing.Annotations == nil || existing.Annotations["helm.sh/resource-policy"] != "keep" {
+			if existing.Annotations == nil {
+				existing.Annotations = map[string]string{}
+			}
+			existing.Annotations["helm.sh/resource-policy"] = "keep"
+			log.Printf("Updating TLS secret %s with resource-policy annotation", name)
+			return updateSecret(ctx, client, existing)
+		}
+		return nil // CA secret already exists with correct annotations
 	}
 
 	log.Printf("Creating TLS secret %s", name)
@@ -436,6 +445,9 @@ func manageCASecret(ctx context.Context, client *kubernetes.Clientset, cfg confi
 			Name:      name,
 			Namespace: cfg.Namespace,
 			Labels:    cfg.Labels,
+			Annotations: map[string]string{
+				"helm.sh/resource-policy": "keep",
+			},
 		},
 		Type: corev1.SecretTypeTLS,
 		Data: map[string][]byte{
@@ -452,7 +464,16 @@ func manageEtcdCASecret(ctx context.Context, client *kubernetes.Clientset, cfg c
 		return err
 	}
 	if existing != nil {
-		return nil // etcd CA secret already exists, don't overwrite
+		// Ensure the keep annotation is present on existing secrets
+		if existing.Annotations == nil || existing.Annotations["helm.sh/resource-policy"] != "keep" {
+			if existing.Annotations == nil {
+				existing.Annotations = map[string]string{}
+			}
+			existing.Annotations["helm.sh/resource-policy"] = "keep"
+			log.Printf("Updating TLS secret %s with resource-policy annotation", name)
+			return updateSecret(ctx, client, existing)
+		}
+		return nil // etcd CA secret already exists with correct annotations
 	}
 
 	log.Printf("Creating TLS secret %s", name)
@@ -461,6 +482,9 @@ func manageEtcdCASecret(ctx context.Context, client *kubernetes.Clientset, cfg c
 			Name:      name,
 			Namespace: cfg.Namespace,
 			Labels:    cfg.Labels,
+			Annotations: map[string]string{
+				"helm.sh/resource-policy": "keep",
+			},
 		},
 		Type: corev1.SecretTypeTLS,
 		Data: map[string][]byte{
