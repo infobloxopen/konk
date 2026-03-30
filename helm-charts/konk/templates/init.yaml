@@ -44,7 +44,8 @@ spec:
         readinessProbe:
           exec:
             command:
-              - cat
+              - /usr/local/bin/provision
+              - healthz
               - /tmp/ready
           periodSeconds: 10
           failureThreshold: 3
