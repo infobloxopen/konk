@@ -33,23 +33,23 @@ PACKAGES=(
 
 # Packages that require specific versions (not @latest) due to compatibility
 # constraints with k8s 1.25.x's OpenTelemetry v0.20.0 pinning.
-# grpc 1.56.3 is the minimum fix for CVE-2023-44487 (HTTP/2 rapid reset).
+# grpc 1.79.3 is the minimum fix for CVE-2026-33186 (authorization bypass via missing leading slash).
 # docker/distribution was renamed to github.com/distribution/reference;
 # we pin to the last v2 tag that contains the CVE-2023-2253 fix.
 PINNED_PACKAGES=(
-  "google.golang.org/grpc@v1.56.3"
+  "google.golang.org/grpc@v1.79.3"
   "github.com/docker/distribution@v2.8.3+incompatible"
   "go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp@v0.44.0"
   "go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc@v0.44.0"
   "go.opentelemetry.io/contrib@v1.19.0"
-  "go.opentelemetry.io/otel@v1.19.0"
-  "go.opentelemetry.io/otel/trace@v1.19.0"
-  "go.opentelemetry.io/otel/metric@v1.19.0"
-  "go.opentelemetry.io/otel/sdk@v1.19.0"
-  "go.opentelemetry.io/otel/sdk/metric@v1.19.0"
+  "go.opentelemetry.io/otel@v1.39.0"
+  "go.opentelemetry.io/otel/trace@v1.39.0"
+  "go.opentelemetry.io/otel/metric@v1.39.0"
+  "go.opentelemetry.io/otel/sdk@v1.39.0"
+  "go.opentelemetry.io/otel/sdk/metric@v1.39.0"
   "go.opentelemetry.io/otel/exporters/otlp@v0.44.0"
-  "go.opentelemetry.io/otel/exporters/otlp/otlptrace@v1.19.0"
-  "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc@v1.19.0"
+  "go.opentelemetry.io/otel/exporters/otlp/otlptrace@v1.39.0"
+  "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc@v1.39.0"
   "go.opentelemetry.io/proto/otlp@v1.0.0"
 )
 

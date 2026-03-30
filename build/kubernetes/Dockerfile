@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.6
-ARG GO_VERSION=1.19.13
+ARG GO_VERSION=1.25.5
 ARG K8S_VERSION=v1.25.8
 
 FROM golang:${GO_VERSION}-alpine AS builder
@@ -38,16 +38,17 @@ RUN go mod edit \
     -droprequire go.opentelemetry.io/contrib \
     -dropreplace go.opentelemetry.io/contrib
 
-RUN go mod tidy && \
-    go mod vendor
+# Skip go mod tidy (it resolves ALL k8s packages including kubelet/tests we
+# don't build, causing otel API conflicts).  Build with -mod=mod so Go
+# resolves only the packages actually imported by our two build targets.
 
 # Build kubeadm and kube-apiserver as fully static binaries
-RUN CGO_ENABLED=0 GOOS=linux go build \
+RUN CGO_ENABLED=0 GOOS=linux GOFLAGS=-mod=mod go build \
     -ldflags="-s -w -extldflags '-static'" \
     -o /kubeadm \
     ./cmd/kubeadm
 
-RUN CGO_ENABLED=0 GOOS=linux go build \
+RUN CGO_ENABLED=0 GOOS=linux GOFLAGS=-mod=mod go build \
     -ldflags="-s -w -extldflags '-static'" \
     -o /kube-apiserver \
     ./cmd/kube-apiserver

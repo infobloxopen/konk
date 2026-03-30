@@ -9,6 +9,7 @@ WORKDIR /workspace
 RUN git clone --depth 1 --branch v1.42.0 https://github.com/operator-framework/operator-sdk.git && \
     cd operator-sdk && \
     go get -u golang.org/x/crypto \
+           google.golang.org/grpc@v1.79.3 \
            go.opentelemetry.io/otel/sdk@v1.40.0 \
            go.opentelemetry.io/otel@v1.40.0 \
            go.opentelemetry.io/otel/trace@v1.40.0 \
