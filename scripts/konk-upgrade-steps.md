@@ -55,24 +55,51 @@ kubectl -n aggregate exec bulk-konk-etcd-0 -- etcdctl \
 
 ### 6. Disable the APF flag
 
+Check if the flag is already present:
+
 ```bash
 kubectl -n aggregate get deploy bulk-konk -o jsonpath='{.spec.template.spec.containers[0].args}' \
   | rg -- '--enable-priority-and-fairness=false' >/dev/null && echo APF_DISABLED || echo APF_ENABLED
 ```
 
-Set the flag: `--enable-priority-and-fairness=false`
+If it shows `APF_ENABLED`, disable APF by adding the flag to the bulk-konk apiserver args:
+
+```bash
+kubectl -n aggregate patch deploy bulk-konk --type='json' \
+  -p='[{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--enable-priority-and-fairness=false"}]'
+```
+
+Verify it is now disabled:
+
+```bash
+kubectl -n aggregate get deploy bulk-konk -o jsonpath='{.spec.template.spec.containers[0].args}' \
+  | rg -- '--enable-priority-and-fairness=false' >/dev/null && echo APF_DISABLED || echo APF_ENABLED
+```
 
 ### 7. Deploy Konk image: v0.2.1-172-gec39a16-j38
 
-### 8. After Konk deployment, if the bulk-konk-init pod in the aggregate namespace is failing, then one of the below will work
+### 8. After Konk deployment, if the bulk-konk-init pod in the aggregate namespace is failing, then it might be due to the stale bash command from earlier deployments
 
-**8.a**
+The new konk-provision image is distroless (no bash/shell). If the deployment still has `command: ["bash", "-c"]` from an older release, the pod will fail with `RunContainerError: exec: "bash": executable file not found in $PATH`.
+
+Check if the deployment has a stale bash command:
+
+```bash
+kubectl -n aggregate get deploy bulk-konk-init -o jsonpath='{.spec.template.spec.containers[0].command[0]}'
+```
+
+If it shows `bash`, remove the stale command/args:
+
 ```bash
 kubectl -n aggregate patch deploy bulk-konk-init --type='json' \
   -p='[{"op":"remove","path":"/spec/template/spec/containers/0/command"},{"op":"remove","path":"/spec/template/spec/containers/0/args"}]'
 ```
 
-**8.b** Delete the existing running bulk-konk-init pod.
+If the pod is still failing after patching, delete it to force a fresh restart:
+
+```bash
+kubectl -n aggregate delete pod -l app.kubernetes.io/name=konk,app.kubernetes.io/component=init
+```
 
 ### 9. Run the e2e testing script
 

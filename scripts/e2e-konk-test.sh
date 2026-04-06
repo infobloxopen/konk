@@ -20,11 +20,13 @@
 #   11. cert-manager CA integration
 #   12. Konk API deep test — query resources in konk (tagging, dnsconfig, etc.)
 #   13. External API integration — test tagging + bulk export/import via CSP endpoint
+#   14. Post-upgrade node image check — verify no pods are running a /node: image
 #
 # Usage:
 #   ./e2e-konk-test.sh                        # full run (sample ns = tagging-v2)
 #   ./e2e-konk-test.sh --section 10           # run ONLY section 10
 #   ./e2e-konk-test.sh --section 12 --section 13  # run sections 12 and 13
+#   ./e2e-konk-test.sh --section 14          # run ONLY node image check
 #   ./e2e-konk-test.sh --sample-ns atcapi     # use different sample namespace
 #   ./e2e-konk-test.sh --skip-bulk            # skip bulk integration test
 #   ./e2e-konk-test.sh --skip-exec            # skip kubectl exec tests (read-only)
@@ -61,11 +63,12 @@ TOKEN_FILE="$(cd "$(dirname "$0")" && pwd)/token-file.txt"
 # ── Cluster-to-CSP endpoint mapping ──────────────────────────────────────────
 # Maps kubectl context substrings to their CSP base URLs.
 # Add new clusters here — keep CLUSTER_KEYS and CLUSTER_URLS in sync.
-CLUSTER_KEYS=(  "us-stg-1"  "us-dev-2"  "us-dev-5" )
+CLUSTER_KEYS=(  "us-stg-1"  "us-dev-2"  "us-dev-5"  "gov-stg-2" )
 CLUSTER_URLS=(
   "https://stage.csp.infoblox.com"
   "https://csp.us-dev-2.eng.test.infoblox.com"
   "https://csp.us-dev-5.eng.test.infoblox.com"
+  "https://csp.gov-stg-2.stg.infoblox-fedcloud.com"
 )
 
 # ── Argument parsing ──────────────────────────────────────────────────────────
@@ -436,7 +439,8 @@ else
     pod=$(echo "$line" | awk '{print $2}')
     ready=$(echo "$line" | awk '{print $3}')
     status=$(echo "$line" | awk '{print $4}')
-    if [[ "$ready" == "1/1" && "$status" == "Running" ]]; then
+    total=$(echo "$ready" | cut -d/ -f2)
+    if [[ "$ready" == "${total}/${total}" && "$status" == "Running" ]]; then
       vinfo "kubectl-apiservice ${ns}/${pod}: ${ready} ${status}"
     else
       fail "kubectl-apiservice ${ns}/${pod}: ${ready} ${status}"
@@ -445,7 +449,7 @@ else
   done <<< "$APISERVICE_PODS"
 
   if [[ $APISERVICE_BAD -eq 0 ]]; then
-    pass "all ${APISERVICE_TOTAL} kubectl-apiservice pods are 1/1 Running"
+    pass "all ${APISERVICE_TOTAL} kubectl-apiservice pods are Running and all containers ready"
   fi
 fi
 
@@ -470,7 +474,8 @@ else
     pod=$(echo "$line" | awk '{print $2}')
     ready=$(echo "$line" | awk '{print $3}')
     status=$(echo "$line" | awk '{print $4}')
-    if [[ "$ready" == "1/1" && "$status" == "Running" ]]; then
+    total=$(echo "$ready" | cut -d/ -f2)
+    if [[ "$ready" == "${total}/${total}" && "$status" == "Running" ]]; then
       vinfo "kubeconfig ${ns}/${pod}: ${ready} ${status}"
     else
       fail "kubeconfig ${ns}/${pod}: ${ready} ${status}"
@@ -479,7 +484,7 @@ else
   done <<< "$KUBECONFIG_PODS"
 
   if [[ $KUBECONFIG_BAD -eq 0 ]]; then
-    pass "all ${KUBECONFIG_TOTAL} kubeconfig (reconcile) pods are 1/1 Running"
+    pass "all ${KUBECONFIG_TOTAL} kubeconfig (reconcile) pods are Running and all containers ready"
   fi
 fi
 
@@ -627,18 +632,18 @@ else
   
   # Try 1: Label-based discovery (most reliable)
   EXEC_CANDIDATES=$(kc get pods -A --no-headers -l app.kubernetes.io/component=apiservice \
-    2>/dev/null | grep "1/1" | grep "Running" || true)
+    2>/dev/null | awk '$4=="Running"{split($3,a,"/"); if(a[1]==a[2]) print}' || true)
 
   # Try 2: Name pattern fallback (if labels not present on some clusters)
   if [[ -z "$EXEC_CANDIDATES" ]]; then
     EXEC_CANDIDATES=$(kc get pods -A --no-headers 2>/dev/null \
-      | grep "konk-service-kubectl-apiservice" | grep "1/1" | grep "Running" || true)
+      | grep "konk-service-kubectl-apiservice" | awk '$4=="Running"{split($3,a,"/"); if(a[1]==a[2]) print}' || true)
   fi
 
   # Try 3: Any pod with "apiservice" in name (final fallback)
   if [[ -z "$EXEC_CANDIDATES" ]]; then
     EXEC_CANDIDATES=$(kc get pods -A --no-headers 2>/dev/null \
-      | grep -i "apiservice" | grep "1/1" | grep "Running" || true)
+      | grep -i "apiservice" | awk '$4=="Running"{split($3,a,"/"); if(a[1]==a[2]) print}' || true)
   fi
 
   if [[ -n "$EXEC_CANDIDATES" ]]; then
@@ -1104,10 +1109,10 @@ else
 
     if [[ -z "${EXEC_POD:-}" ]]; then
       EXEC_CANDIDATES=$(kc get pods -A --no-headers -l app.kubernetes.io/component=apiservice \
-        | grep "1/1" | grep "Running" || true)
+        | awk '$4=="Running"{split($3,a,"/"); if(a[1]==a[2]) print}' || true)
       if [[ -z "$EXEC_CANDIDATES" ]]; then
         EXEC_CANDIDATES=$(kc get pods -A --no-headers \
-          | grep "konk-service-kubectl-apiservice" | grep "1/1" | grep "Running" || true)
+          | grep "konk-service-kubectl-apiservice" | awk '$4=="Running"{split($3,a,"/"); if(a[1]==a[2]) print}' || true)
       fi
 
       if [[ -n "$EXEC_CANDIDATES" ]]; then
@@ -1726,6 +1731,24 @@ else
         /tmp/konk-e2e-analyze.json 2>/dev/null
 fi
 fi  # section 13
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SECTION 14: Post-upgrade node image check
+# ══════════════════════════════════════════════════════════════════════════════
+section "Post-upgrade node image check (no /node: images expected)"
+if should_run 14; then
+  NODE_IMAGE_PODS=$(kubectl get pods -A \
+    -o custom-columns='NAMESPACE:.metadata.namespace,NAME:.metadata.name,IMAGES:.spec.containers[*].image,INIT-IMAGES:.spec.initContainers[*].image' \
+    2>&1 | grep '/node:' || true)
+
+  if [[ -z "$NODE_IMAGE_PODS" ]]; then
+    pass "no pods found running a /node: image (upgrade complete)"
+  else
+    NODE_IMAGE_COUNT=$(echo "$NODE_IMAGE_PODS" | wc -l | tr -d ' ')
+    fail "${NODE_IMAGE_COUNT} pod(s) still running a /node: image — upgrade may be incomplete"
+    echo "$NODE_IMAGE_PODS" | sed 's/^/         /'
+  fi
+fi  # section 14
 
 # ══════════════════════════════════════════════════════════════════════════════
 # SUMMARY
