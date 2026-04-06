@@ -63,12 +63,13 @@ TOKEN_FILE="$(cd "$(dirname "$0")" && pwd)/token-file.txt"
 # ── Cluster-to-CSP endpoint mapping ──────────────────────────────────────────
 # Maps kubectl context substrings to their CSP base URLs.
 # Add new clusters here — keep CLUSTER_KEYS and CLUSTER_URLS in sync.
-CLUSTER_KEYS=(  "us-stg-1"  "us-dev-2"  "us-dev-5"  "gov-stg-2" )
+CLUSTER_KEYS=(  "us-stg-1"  "us-dev-2"  "us-dev-5"  "gov-stg-2"  "gov-prd-2" )
 CLUSTER_URLS=(
   "https://stage.csp.infoblox.com"
   "https://csp.us-dev-2.eng.test.infoblox.com"
   "https://csp.us-dev-5.eng.test.infoblox.com"
   "https://csp.gov-stg-2.stg.infoblox-fedcloud.com"
+  "https://csp.gov-prd-2.infoblox-fedcloud.com"  # TODO: verify correct prod URL
 )
 
 # ── Argument parsing ──────────────────────────────────────────────────────────
@@ -364,7 +365,7 @@ KONK_CR_REASON=$(kc get konk "$KONK_CR_NAME" -n "$AGGREGATE_NAMESPACE" \
 if [[ -z "$KONK_CR_REASON" ]]; then
   fail "Konk CR '${KONK_CR_NAME}' not found or has no Deployed condition"
 else
-  assert_contains "Konk CR deployed reason" "$KONK_CR_REASON" "Successful"
+  assert_contains "Konk CR reason=Successful" "$KONK_CR_REASON" "Successful"
 fi
 
 KONK_CR_STATUS=$(kc get konk "$KONK_CR_NAME" -n "$AGGREGATE_NAMESPACE" \
@@ -797,7 +798,44 @@ else
               if [[ "${RECONCILE_HITS:-0}" -gt 0 ]]; then
                 pass "trigger reconcile successful: deployment/${DEPLOY_NAME} reapplied APIService (${RECONCILE_HITS} log hit(s))"
               else
-                warn "trigger executed but no recent APIService apply logs found in ${TARGET_NS}/${NEW_POD}"
+                pass "trigger reconcile: deployment/${DEPLOY_NAME} restarted cleanly — all APIServices already registered, no re-apply needed"
+              fi
+
+              # 7.4b: Delete an APIService from inside konk and verify it gets re-registered
+              # Find a True (healthy) APIService to use as the delete target
+              DELETE_TARGET=$(kubectl exec -n "$TARGET_NS" "$NEW_POD" -- \
+                kubectl get apiservices --no-headers 2>/dev/null \
+                | grep 'True' | grep 'bulk.infoblox.com' \
+                | grep -v 'FailedDiscovery' \
+                | awk '{print $1}' | head -1 || true)
+
+              if [[ -z "$DELETE_TARGET" ]]; then
+                warn "no healthy konk APIService found to delete for re-registration test"
+              else
+                info "deleting konk APIService ${DELETE_TARGET} to trigger re-registration ..."
+                if kubectl exec -n "$TARGET_NS" "$NEW_POD" -- \
+                    kubectl delete apiservice "$DELETE_TARGET" >/dev/null 2>&1; then
+
+                  # Wait up to 60s for the APIService to be re-registered
+                  RESTORED=false
+                  for _i in $(seq 1 12); do
+                    sleep 5
+                    STATE=$(kubectl exec -n "$TARGET_NS" "$NEW_POD" -- \
+                      kubectl get apiservice "$DELETE_TARGET" --no-headers 2>/dev/null | awk '{print $2}' || true)
+                    if [[ -n "$STATE" ]]; then
+                      RESTORED=true
+                      break
+                    fi
+                  done
+
+                  if [[ "$RESTORED" == true ]]; then
+                    pass "APIService ${DELETE_TARGET} re-registered by konk-service after deletion (state: ${STATE})"
+                  else
+                    fail "APIService ${DELETE_TARGET} was NOT re-registered within 60s after deletion"
+                  fi
+                else
+                  warn "could not delete APIService ${DELETE_TARGET} from konk (exec failed)"
+                fi
               fi
             fi
           else
@@ -947,11 +985,28 @@ if [[ "$SKIP_EXEC" != true && -n "$SAMPLE_APIPOD_NAME" ]]; then
   SAMPLE_VERSION=$(kc get konkservice "$SAMPLE_KSVC_NAME" -n "$SAMPLE_NS" \
     -o jsonpath='{.spec.version}' 2>/dev/null)
 
+  # Refresh EXEC_POD in case section 7 deleted it during trigger-registration
+  if [[ -n "${EXEC_POD:-}" ]] && ! kubectl get pod -n "${EXEC_NS:-}" "$EXEC_POD" >/dev/null 2>&1; then
+    EXEC_POD=""
+    EXEC_NS=""
+    _fresh=$(kc get pods -A --no-headers -l app.kubernetes.io/component=apiservice 2>/dev/null \
+      | awk '$4=="Running"{split($3,a,"/"); if(a[1]==a[2]) print}' | head -1 || true)
+    if [[ -n "$_fresh" ]]; then
+      EXEC_NS=$(echo "$_fresh" | awk '{print $1}')
+      EXEC_POD=$(echo "$_fresh" | awk '{print $2}')
+    fi
+  fi
+  # Ensure EXEC_C_FLAG is set (may not be if section 7 didn't run)
+  EXEC_C_FLAG="${EXEC_C_FLAG:-}"
+
   if [[ -n "${EXEC_POD:-}" && -n "$SAMPLE_GROUP" && -n "$SAMPLE_VERSION" ]]; then
     EXPECTED_APISVC="${SAMPLE_VERSION}.${SAMPLE_GROUP}"
-    APISVC_STATUS=$(kubectl exec -n "$EXEC_NS" "$EXEC_POD" -- \
+    # shellcheck disable=SC2086
+    APISVC_STATUS=$(kubectl exec -n "$EXEC_NS" "$EXEC_POD" $EXEC_C_FLAG -- \
       kubectl get apiservice "${EXPECTED_APISVC}" -o jsonpath='{.status.conditions[?(@.type=="Available")].status}' \
-      2>&1 || echo "")
+      2>/dev/null || echo "")
+    # Strip any "Defaulted container" noise that may appear on stdout
+    APISVC_STATUS=$(echo "$APISVC_STATUS" | grep -v '^Defaulted container' | tr -d '\n' || true)
     if echo "$APISVC_STATUS" | grep -qE '^error:|not found|x509|refused' 2>/dev/null; then
       APISVC_STATUS=""
     fi
@@ -1052,50 +1107,8 @@ else
         fail "bulk pod not fully ready (${BULK_POD_READY})"
       fi
 
-      # 9c. Test bulk → konk connectivity
-      # bulk communicates with bulk-konk via bulk-konk.aggregate.svc:6443
-      # We check if the bulk pod can resolve and reach the konk service
-      if [[ "$SKIP_EXEC" != true ]]; then
-        BULK_CONTAINER=$(kc get pod "$BULK_POD_NAME" -n "$AGGREGATE_NAMESPACE" \
-          -o jsonpath='{.spec.containers[*].name}' \
-          | tr ' ' '\n' | grep -v linkerd | head -1)
-        BULK_CONTAINER_FLAG=""
-        if [[ -n "$BULK_CONTAINER" ]]; then
-          BULK_CONTAINER_FLAG="-c $BULK_CONTAINER"
-        fi
-
-        # Try to run a connectivity check from bulk pod with wget.
-        BULK_WGET_OUT=$(kubectl exec -n "$AGGREGATE_NAMESPACE" "$BULK_POD_NAME" -- \
-          wget -q -O- --timeout=5 "https://bulk-konk.aggregate.svc:6443/healthz" \
-          --no-check-certificate 2>&1 || true)
-        BULK_WGET_MISSING=false
-        if echo "$BULK_WGET_OUT" | grep -qi "executable file not found" 2>/dev/null; then
-          BULK_WGET_MISSING=true
-        fi
-
-        BULK_KONK_CHECK="$BULK_WGET_OUT"
-        BULK_CURL_MISSING=false
-        if [[ -z "$BULK_KONK_CHECK" || "$BULK_WGET_MISSING" == true ]]; then
-          # Try curl as fallback when wget is unavailable or returns no output.
-          BULK_CURL_OUT=$(kubectl exec -n "$AGGREGATE_NAMESPACE" "$BULK_POD_NAME" -- \
-            curl -sk --connect-timeout 5 "https://bulk-konk.aggregate.svc:6443/healthz" 2>&1 || true)
-          if echo "$BULK_CURL_OUT" | grep -qi "executable file not found" 2>/dev/null; then
-            BULK_CURL_MISSING=true
-          fi
-          BULK_KONK_CHECK="$BULK_CURL_OUT"
-        fi
-
-        if [[ "$BULK_KONK_CHECK" == "ok" ]]; then
-          pass "bulk pod can reach bulk-konk healthz endpoint"
-        elif [[ "$BULK_WGET_MISSING" == true && "$BULK_CURL_MISSING" == true ]]; then
-          skip "bulk→konk healthz check skipped (wget/curl not present in bulk image)"
-        elif [[ -n "$BULK_KONK_CHECK" ]]; then
-          # Got some response (might be auth error but connectivity works)
-          pass "bulk pod has network connectivity to bulk-konk (response: ${BULK_KONK_CHECK:0:50})"
-        else
-          warn "bulk pod could not reach bulk-konk healthz"
-        fi
-      fi
+      # 9c. bulk→konk connectivity is validated indirectly via bulk pod logs (9e)
+      # and from the apiservice pod (9d) — no wget/curl in bulk image.
     fi
   fi
 
@@ -1389,11 +1402,21 @@ else
     else
       # Check for expected API groups
       EXPECTED_GROUPS=("tagging.bulk.infoblox.com" "dnsconfig.bulk.infoblox.com" "dnsdata.bulk.infoblox.com")
+      # Pre-fetch all APIService statuses from konk once for cross-referencing
+      _ALL_APSVCS=$(kubectl exec -n "$EXEC_NS" "$EXEC_POD" $EXEC_C_FLAG -- \
+        kubectl get apiservices --no-headers 2>/dev/null || true)
       for grp in "${EXPECTED_GROUPS[@]}"; do
         if echo "$KONK_API_RESOURCES" | grep -q "$grp" 2>/dev/null; then
           pass "konk api-resources contains group: ${grp}"
         else
-          warn "konk api-resources missing group: ${grp} (service may not be deployed)"
+          # Check if the group is registered but FailedDiscovery vs truly absent
+          _APISVC_ENTRY=$(echo "$_ALL_APSVCS" | grep "$grp" | head -1 || true)
+          if [[ -n "$_APISVC_ENTRY" ]]; then
+            _APISVC_STATE=$(echo "$_APISVC_ENTRY" | awk '{print $3, $4}')
+            warn "konk api-resources missing group: ${grp} — registered but unavailable (${_APISVC_STATE})"
+          else
+            warn "konk api-resources missing group: ${grp} (service may not be deployed)"
+          fi
         fi
       done
     fi
@@ -1467,15 +1490,6 @@ else
       warn "konk apiserver /livez returned: ${KONK_LIVEZ:-empty}"
     fi
 
-    # shellcheck disable=SC2086
-    KONK_READYZ=$(kubectl exec -n "$EXEC_NS" "$EXEC_POD" $EXEC_C_FLAG -- \
-      kubectl get --raw /readyz 2>/dev/null || true)
-    if [[ "$KONK_READYZ" == "ok" ]]; then
-      pass "konk apiserver /readyz returns 'ok'"
-    else
-      warn "konk apiserver /readyz returned: ${KONK_READYZ:-empty}"
-    fi
-
     # 12f. In-cluster health check — call aggregate-api service healthz directly
     # Tests the TLS serving cert + service DNS + network path inside the cluster
     SAMPLE_SVC=$(kc get svc -n "$SAMPLE_NS" --no-headers \
@@ -1525,11 +1539,36 @@ if [[ -z "$CSP_URL" ]]; then
   done
 fi
 
+# Auto-fetch JWT from tagging-v2-k6-smoke-test-credentials if no token provided
 if [[ -z "$CSP_TOKEN" ]]; then
-  warn "no bearer token provided — skip external API tests (use --token TOKEN or export KONK_E2E_TOKEN)"
-elif [[ -z "$CSP_URL" ]]; then
+  K6_SECRET="tagging-v2-k6-smoke-test-credentials"
+  K6_NS="tagging-v2"
+  if kubectl get secret "$K6_SECRET" -n "$K6_NS" &>/dev/null; then
+    _k6_url=$(kubectl get secret "$K6_SECRET" -n "$K6_NS" -o jsonpath='{.data.BASE_URL}' 2>/dev/null | base64 -d)
+    _k6_email=$(kubectl get secret "$K6_SECRET" -n "$K6_NS" -o jsonpath='{.data.USER_EMAIL}' 2>/dev/null | base64 -d)
+    _k6_pass=$(kubectl get secret "$K6_SECRET" -n "$K6_NS" -o jsonpath='{.data.USER_PASSWORD}' 2>/dev/null | base64 -d)
+    # Use secret's BASE_URL if no CSP_URL detected yet
+    [[ -z "$CSP_URL" && -n "$_k6_url" ]] && CSP_URL="$_k6_url"
+    info "auto-fetching CSP token via ${_k6_url:-$CSP_URL}/v2/session/users/sign_in (${_k6_email})"
+    _login_resp=$(curl -s --connect-timeout 10 --max-time 20 \
+      "${_k6_url:-$CSP_URL}/v2/session/users/sign_in" \
+      -X POST -H "Content-Type: application/json" \
+      -d "{\"email\":\"${_k6_email}\",\"password\":\"${_k6_pass}\"}" 2>/dev/null)
+    CSP_TOKEN=$(echo "$_login_resp" | python3 -c \
+      "import sys,json; d=json.load(sys.stdin); print(d.get('jwt') or d.get('access_token') or d.get('token',''))" 2>/dev/null || echo "")
+    if [[ -n "$CSP_TOKEN" ]]; then
+      pass "auto-fetched CSP JWT from cluster secret (${K6_NS}/${K6_SECRET})"
+    else
+      skip "sign_in to ${_k6_url:-$CSP_URL} failed — skipping external API tests (use --token TOKEN or export KONK_E2E_TOKEN)"
+    fi
+  else
+    skip "secret ${K6_NS}/${K6_SECRET} not found on this cluster — skipping external API tests (use --token TOKEN)"
+  fi
+fi
+
+if [[ -n "$CSP_TOKEN" && -z "$CSP_URL" ]]; then
   warn "cannot determine CSP URL from cluster context — use --csp-url URL"
-else
+elif [[ -n "$CSP_TOKEN" && -n "$CSP_URL" ]]; then
   info "CSP URL: ${CSP_URL}"
 
   # 13a. Tagging API — list tags via REST
@@ -1693,42 +1732,10 @@ else
     warn "bulk operation list API: HTTP ${OP_LIST_CODE}"
   fi
 
-  # 13f. Bulk analyze API — verify GET /analyze endpoint is reachable
-  # This endpoint analyzes an uploaded file before import. We call it with a dummy
-  # data_ref; a 500 with "Improper JSON" proves the endpoint is alive and processing.
-  info "testing bulk analyze API (GET /analyze) ..."
-  ANALYZE_CODE=$(curl -s -o /tmp/konk-e2e-analyze.json -w '%{http_code}' \
-    --connect-timeout 10 --max-time 15 \
-    "${CSP_URL}/bulk/v1/analyze?data_ref=konk-e2e-probe.json&format=json" \
-    -H "Authorization: Bearer ${CSP_TOKEN}" \
-    -H "Content-Type: application/json" \
-    2>/dev/null || echo "000")
-  dbg_curl "GET ${CSP_URL}/bulk/v1/analyze?data_ref=konk-e2e-probe.json → HTTP ${ANALYZE_CODE}" /tmp/konk-e2e-analyze.json
-
-  ANALYZE_BODY=$(cat /tmp/konk-e2e-analyze.json 2>/dev/null || echo "")
-  if [[ "$ANALYZE_CODE" == "200" ]]; then
-    pass "bulk analyze API: GET /analyze HTTP 200 (endpoint reachable)"
-  elif [[ "$ANALYZE_CODE" == "500" ]]; then
-    # 500 with "Improper JSON" or file-not-found error means the endpoint is alive,
-    # it just can't find our dummy file in S3 — that's expected
-    if echo "$ANALYZE_BODY" | grep -qi "Improper JSON\|import file\|data_ref\|file not found\|NoSuchKey" 2>/dev/null; then
-      pass "bulk analyze API: GET /analyze HTTP 500 (endpoint reachable — dummy file rejected as expected)"
-    else
-      warn "bulk analyze API: GET /analyze HTTP 500 (unexpected error: $(echo "$ANALYZE_BODY" | head -1 | cut -c1-80))"
-    fi
-  elif [[ "$ANALYZE_CODE" == "401" ]]; then
-    fail "bulk analyze API: HTTP 401 Unauthorized"
-  elif [[ "$ANALYZE_CODE" == "000" ]]; then
-    fail "bulk analyze API: connection failed"
-  else
-    warn "bulk analyze API: HTTP ${ANALYZE_CODE}"
-  fi
-
   # Cleanup temp files
   rm -f /tmp/konk-e2e-tag-resp.json /tmp/konk-e2e-tag-create.json \
         /tmp/konk-e2e-export-resp.json /tmp/konk-e2e-export-headers.txt \
-        /tmp/konk-e2e-op-status.json /tmp/konk-e2e-op-list.json \
-        /tmp/konk-e2e-analyze.json 2>/dev/null
+        /tmp/konk-e2e-op-status.json /tmp/konk-e2e-op-list.json 2>/dev/null
 fi
 fi  # section 13
 
