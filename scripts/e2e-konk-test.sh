@@ -21,12 +21,14 @@
 #   12. Konk API deep test — query resources in konk (tagging, dnsconfig, etc.)
 #   13. External API integration — test tagging + bulk export/import via CSP endpoint
 #   14. Post-upgrade node image check — verify no pods are running a /node: image
+#   15. Konk APIService backend health — all pods in konk namespaces (aggregate, ddi, hostapp, ngp-cp, ntp, tagging-v2, redirect, endpoints)
 #
 # Usage:
 #   ./e2e-konk-test.sh                        # full run (sample ns = tagging-v2)
 #   ./e2e-konk-test.sh --section 10           # run ONLY section 10
 #   ./e2e-konk-test.sh --section 12 --section 13  # run sections 12 and 13
 #   ./e2e-konk-test.sh --section 14          # run ONLY node image check
+#   ./e2e-konk-test.sh --section 15          # run ONLY Konk APIService backend health
 #   ./e2e-konk-test.sh --sample-ns atcapi     # use different sample namespace
 #   ./e2e-konk-test.sh --skip-bulk            # skip bulk integration test
 #   ./e2e-konk-test.sh --skip-exec            # skip kubectl exec tests (read-only)
@@ -597,22 +599,37 @@ else
       info "CA chain: ${CA_MATCH} match, ${CA_MISMATCH} mismatch, ${CA_MISSING} missing"
     fi
 
-    # Check kubeconfig admin certs expiry (short-lived ~12h, ensure not expired)
+    # Check kubeconfig client certs (tls.crt) expiry — short-lived ~12h TTL
+    # Flags: EXPIRED (already past), EXPIRING_SOON (within 1 hour)
     KC_EXPIRED=0
+    KC_EXPIRING=0
+    KC_TOTAL=0
     while read -r ns secret; do
       [[ -z "$ns" || -z "$secret" ]] && continue
 
-      admin_b64=$(kc get secret "$secret" -n "$ns" -o jsonpath='{.data.tls\.crt}')
-      [[ -z "$admin_b64" ]] && continue
+      client_b64=$(kc get secret "$secret" -n "$ns" -o jsonpath='{.data.tls\.crt}')
+      [[ -z "$client_b64" ]] && continue
+      ((KC_TOTAL++)) || true
 
-      if ! echo "$admin_b64" | base64 -d | openssl x509 -noout -checkend 0 &>/dev/null; then
-        warn "admin cert EXPIRED: ${ns}/${secret}"
+      cert_pem=$(echo "$client_b64" | base64 -d 2>/dev/null)
+      [[ -z "$cert_pem" ]] && continue
+
+      expiry=$(echo "$cert_pem" | openssl x509 -noout -enddate 2>/dev/null | cut -d= -f2)
+      issued=$(echo "$cert_pem" | openssl x509 -noout -startdate 2>/dev/null | cut -d= -f2)
+
+      if ! echo "$cert_pem" | openssl x509 -noout -checkend 0 &>/dev/null; then
+        fail "client cert EXPIRED: ${ns}/${secret}  (issued=${issued}  expired=${expiry})"
         ((KC_EXPIRED++)) || true
+      elif ! echo "$cert_pem" | openssl x509 -noout -checkend 3600 &>/dev/null; then
+        warn "client cert EXPIRING SOON (<1h): ${ns}/${secret}  (expires=${expiry})"
+        ((KC_EXPIRING++)) || true
+      else
+        vinfo "client cert ok: ${ns}/${secret}  issued=${issued}  expires=${expiry}"
       fi
     done <<< "$KC_SECRETS"
 
-    if [[ $KC_EXPIRED -eq 0 ]]; then
-      pass "all kubeconfig admin certs are within validity period"
+    if [[ $KC_EXPIRED -eq 0 && $KC_EXPIRING -eq 0 ]]; then
+      pass "all ${KC_TOTAL} kubeconfig client certs (tls.crt) are valid and not expiring soon"
     fi
   fi
 fi
@@ -1042,11 +1059,66 @@ if [[ -n "$SAMPLE_TLS_SECRET" ]]; then
     -o jsonpath='{.data}' | python3 -c "import sys,json; d=json.load(sys.stdin); print(' '.join(sorted(d.keys())))" 2>/dev/null || echo "")
   if echo "$TLS_KEYS" | grep -q "tls.crt" 2>/dev/null && echo "$TLS_KEYS" | grep -q "tls.key" 2>/dev/null; then
     pass "${SAMPLE_NS} TLS server secret '${SAMPLE_TLS_SECRET}': has tls.crt + tls.key"
+
+    # Also check server cert is not expired or expiring soon (1 week warning)
+    server_crt_b64=$(kc get secret "$SAMPLE_TLS_SECRET" -n "$SAMPLE_NS" \
+      -o jsonpath='{.data.tls\.crt}' 2>/dev/null || true)
+    if [[ -n "$server_crt_b64" ]]; then
+      server_crt_pem=$(echo "$server_crt_b64" | base64 -d 2>/dev/null)
+      srv_expiry=$(echo "$server_crt_pem" | openssl x509 -noout -enddate 2>/dev/null | cut -d= -f2)
+      if ! echo "$server_crt_pem" | openssl x509 -noout -checkend 0 &>/dev/null; then
+        fail "${SAMPLE_NS} server cert EXPIRED: ${SAMPLE_TLS_SECRET} (expired=${srv_expiry})"
+      elif ! echo "$server_crt_pem" | openssl x509 -noout -checkend 604800 &>/dev/null; then
+        warn "${SAMPLE_NS} server cert EXPIRING within 7 days: ${SAMPLE_TLS_SECRET} (expires=${srv_expiry})"
+      else
+        vinfo "${SAMPLE_NS} server cert ok: expires=${srv_expiry}"
+      fi
+    fi
   else
     warn "${SAMPLE_NS} TLS server secret '${SAMPLE_TLS_SECRET}': missing expected keys (got: ${TLS_KEYS})"
   fi
 else
   warn "TLS server secret not found in ${SAMPLE_NS} (expected *-konk-service-server)"
+fi
+
+# 8g-ii. APIService backend endpoint readiness — detect notReadyAddresses (503 precursor)
+# A pod can be 2/3 Running but in notReadyAddresses, making the APIService backend unreachable.
+# This was the root cause of 503 errors in the gov-stg-2 cert expiry incident.
+APISVC_ENDPOINT_BAD=0
+APISVC_ENDPOINT_TOTAL=0
+KONKSVC_LIST=$(kc get konkservice -A --no-headers 2>/dev/null \
+  | awk '{print $1, $2}' || true)
+if [[ -n "$KONKSVC_LIST" ]]; then
+  while read -r svc_ns svc_name; do
+    [[ -z "$svc_ns" || -z "$svc_name" ]] && continue
+    # The KonkService's APIService backend is the service named <svc_name>-apiservice (or just svc_name)
+    # Try the most common naming pattern: <konkservice-name> (service name == CR name)
+    for ep_name in "${svc_name}" "${svc_name}-apiservice"; do
+      EP_JSON=$(kc get endpoints "$ep_name" -n "$svc_ns" -o json 2>/dev/null || true)
+      [[ -z "$EP_JSON" ]] && continue
+      ((APISVC_ENDPOINT_TOTAL++)) || true
+      NOT_READY=$(echo "$EP_JSON" | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+not_ready = []
+for subset in data.get('subsets', []):
+    for addr in subset.get('notReadyAddresses', []):
+        not_ready.append(addr.get('targetRef', {}).get('name', addr.get('ip', '?')))
+if not_ready:
+    print(' '.join(not_ready))
+" 2>/dev/null || true)
+      if [[ -n "$NOT_READY" ]]; then
+        warn "APIService endpoint ${svc_ns}/${ep_name}: service endpoint has no ready backends — pod(s) in notReadyAddresses: ${NOT_READY}. konk's available_controller will get 503 probing this APIService and log 'service unavailable' (same pattern as gov-stg-2 cert expiry incident)"
+        ((APISVC_ENDPOINT_BAD++)) || true
+      else
+        vinfo "APIService endpoint ${svc_ns}/${ep_name}: all addresses ready"
+      fi
+      break
+    done
+  done <<< "$KONKSVC_LIST"
+  if [[ $APISVC_ENDPOINT_BAD -eq 0 && $APISVC_ENDPOINT_TOTAL -gt 0 ]]; then
+    pass "all ${APISVC_ENDPOINT_TOTAL} APIService backend endpoints have ready addresses (no 503 risk)"
+  fi
 fi
 
 # 8h. Pod events on failure — show describe + logs when pod is unhealthy
@@ -1154,6 +1226,15 @@ else
       kubectl get --raw /healthz 2>/dev/null || true)
     if [[ "$KONK_HEALTHZ" == "ok" ]]; then
       pass "konk apiserver /healthz returns 'ok'"
+
+      # 9d-ii. /readyz check — informer-sync failure is expected/harmless (StorageClass/IngressClass disabled)
+      KONK_READYZ=$(kubectl exec -n "${EXEC_NS:-}" "$EXEC_POD" -- \
+        kubectl get --raw /readyz 2>/dev/null || true)
+      if [[ "$KONK_READYZ" == "ok" ]]; then
+        pass "konk apiserver /readyz returns 'ok'"
+      else
+        info "konk apiserver /readyz is non-ok — this is expected and harmless on all konk clusters (informer-sync fails because StorageClass/IngressClass/VolumeAttachment APIs are disabled in konk; internal informers can't list them). Use /healthz for real health status."
+      fi
     elif [[ -n "$KONK_HEALTHZ" ]]; then
       warn "konk apiserver /healthz returned: ${KONK_HEALTHZ:0:50}"
     else
@@ -1240,6 +1321,43 @@ except: pass
           | grep -i "error\|x509\|connection refused\|timeout" | head -5 | sed 's/^/         /' || true
       fi
     fi
+  fi
+
+  # 9h. bulk-konk apiserver logs — check for "x509: certificate has expired" rejections
+  # This is the direct signal for the cert expiry incident pattern (gov-stg-2 Apr 2026):
+  # clients holding stale certs → apiserver logs "Unable to authenticate the request"
+  # err="x509: certificate has expired or is not yet valid"
+  KONK_POD_NAME=$(kc get pods -n "$AGGREGATE_NAMESPACE" --no-headers \
+    -l "app.kubernetes.io/name=${KONK_CR_NAME}" 2>/dev/null \
+    | awk '$3=="Running"{print $1; exit}' || true)
+  if [[ -z "$KONK_POD_NAME" ]]; then
+    KONK_POD_NAME=$(kc get pods -n "$AGGREGATE_NAMESPACE" --no-headers 2>/dev/null \
+      | grep "^${KONK_CR_NAME}-" | awk '$3=="Running"{print $1; exit}' || true)
+  fi
+
+  if [[ -n "$KONK_POD_NAME" ]]; then
+    KONK_APISERVER_CONTAINER=$(kc get pod "$KONK_POD_NAME" -n "$AGGREGATE_NAMESPACE" \
+      -o jsonpath='{.spec.containers[*].name}' 2>/dev/null \
+      | tr ' ' '\n' | grep -v linkerd | head -1 || true)
+    KONK_CONTAINER_FLAG=""
+    [[ -n "$KONK_APISERVER_CONTAINER" ]] && KONK_CONTAINER_FLAG="-c $KONK_APISERVER_CONTAINER"
+
+    CERT_EXPIRED_COUNT=$({ kubectl logs "$KONK_POD_NAME" -n "$AGGREGATE_NAMESPACE" \
+      $KONK_CONTAINER_FLAG --since=2m 2>/dev/null || true; } \
+      | (grep "certificate has expired" || true) | wc -l | tr -d ' ')
+
+    if [[ "${CERT_EXPIRED_COUNT}" -eq 0 ]]; then
+      pass "bulk-konk apiserver logs: no 'certificate has expired' rejections in last 2 min"
+    else
+      fail "bulk-konk apiserver: ${CERT_EXPIRED_COUNT} 'certificate has expired' rejection(s) in last 2 min — clients holding stale certs"
+      if [[ "$VERBOSE" == true ]]; then
+        kubectl logs "$KONK_POD_NAME" -n "$AGGREGATE_NAMESPACE" \
+          $KONK_CONTAINER_FLAG --since=2m 2>/dev/null \
+          | grep "certificate has expired" | tail -5 | sed 's/^/         /' || true
+      fi
+    fi
+  else
+    vinfo "bulk-konk apiserver pod not found — skipping expired cert log check"
   fi
 fi
 fi  # section 9
@@ -1744,18 +1862,75 @@ fi  # section 13
 # ══════════════════════════════════════════════════════════════════════════════
 section "Post-upgrade node image check (no /node: images expected)"
 if should_run 14; then
-  NODE_IMAGE_PODS=$(kubectl get pods -A \
-    -o custom-columns='NAMESPACE:.metadata.namespace,NAME:.metadata.name,IMAGES:.spec.containers[*].image,INIT-IMAGES:.spec.initContainers[*].image' \
-    2>&1 | grep '/node:' || true)
+  # Use jsonpath to iterate pods and print only those containers/initContainers using a /node: image
+  NODE_IMAGE_PODS=$(kubectl get pods -A -o json 2>/dev/null | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+results = []
+for pod in data.get('items', []):
+    ns = pod['metadata']['namespace']
+    name = pod['metadata']['name']
+    all_containers = pod['spec'].get('containers', []) + pod['spec'].get('initContainers', [])
+    for c in all_containers:
+        img = c.get('image', '')
+        if '/node:' in img:
+            results.append(f'  {ns}/{name}  container={c[\"name\"]}  image={img}')
+for r in results:
+    print(r)
+" 2>/dev/null || true)
 
   if [[ -z "$NODE_IMAGE_PODS" ]]; then
     pass "no pods found running a /node: image (upgrade complete)"
   else
     NODE_IMAGE_COUNT=$(echo "$NODE_IMAGE_PODS" | wc -l | tr -d ' ')
     fail "${NODE_IMAGE_COUNT} pod(s) still running a /node: image — upgrade may be incomplete"
-    echo "$NODE_IMAGE_PODS" | sed 's/^/         /'
+    echo "$NODE_IMAGE_PODS"
   fi
 fi  # section 14
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SECTION 15: Konk APIService backend health
+# ══════════════════════════════════════════════════════════════════════════════
+# Section 5 only checks konk-service-managed pods (kubectl-apiservice, kubeconfig,
+# apiservice-test) by label. This section sweeps ALL pods in namespaces that host
+# APIService backends that register into konk — catching application pods like
+# dns-data-importexport (2/3) that section 5 would never see.
+# These are the pods whose notReady state causes 503s in konk (see gov-stg-2 incident).
+section "Konk APIService backend health"
+if should_run 15; then
+  BACKEND_NAMESPACES=("$AGGREGATE_NAMESPACE" "ddi" "hostapp" "ngp-cp" "ntp" "tagging-v2" "redirect" "endpoints")
+  BACKEND_NOT_READY_COUNT=0
+  BACKEND_TOTAL=0
+
+  for ns in "${BACKEND_NAMESPACES[@]}"; do
+    NS_PODS=$(kc get pods -n "$ns" --no-headers 2>/dev/null | (grep -v 'Completed\|Terminating' || true) || true)
+    [[ -z "$NS_PODS" ]] && continue
+
+    while IFS= read -r line; do
+      [[ -z "$line" ]] && continue
+      pod=$(echo "$line" | awk '{print $1}')
+      ready=$(echo "$line" | awk '{print $2}')
+      status=$(echo "$line" | awk '{print $3}')
+      current=$(echo "$ready" | cut -d/ -f1)
+      total=$(echo "$ready" | cut -d/ -f2)
+      # Skip konk-service-managed pods — already covered by section 5
+      [[ "$pod" == *"konk-service"* ]] && continue
+      ((BACKEND_TOTAL++)) || true
+      if [[ "$current" != "$total" ]] 2>/dev/null; then
+        warn "backend pod not fully ready: ${ns}/${pod} (${ready} ${status})"
+        ((BACKEND_NOT_READY_COUNT++)) || true
+      else
+        vinfo "backend pod ok: ${ns}/${pod} (${ready})"
+      fi
+    done <<< "$NS_PODS"
+  done
+
+  if [[ $BACKEND_NOT_READY_COUNT -eq 0 ]]; then
+    pass "all ${BACKEND_TOTAL} pods across konk-adjacent namespaces are fully ready"
+  else
+    info "${BACKEND_NOT_READY_COUNT} not-ready pod(s) found — check warnings above. Not-ready APIService backend pods will cause 503s in konk's available_controller."
+  fi
+fi  # section 15
 
 # ══════════════════════════════════════════════════════════════════════════════
 # SUMMARY
