@@ -52,13 +52,31 @@ func runReconcileKubeconfig() error {
 	secretName := fullname + "-kubeconfig"
 	var lastCertSum string
 
+	const maxConsecutiveErrors = 10
+	consecutiveErrors := 0
+
 	for {
 		log.Println("Reconciling kubeconfig...")
-		reconcileOnce(ctx, infraClient, kubeconfigPath, certDir, konkName, konkFQDN, namespace, fullname, secretName, labels, &lastCertSum)
+		err = reconcileOnce(ctx, infraClient, kubeconfigPath, certDir, konkName, konkFQDN, namespace, fullname, secretName, labels, &lastCertSum)
+		if err != nil {
+			consecutiveErrors++
+			log.Printf("Error reconciling kubeconfig (%d/%d consecutive): %v",
+				consecutiveErrors, maxConsecutiveErrors, err)
+			if consecutiveErrors >= maxConsecutiveErrors {
+				os.Remove("/tmp/status")
+				log.Fatalf("FATAL: %d consecutive kubeconfig reconciliation failures — exiting so pod restarts. Last error: %v",
+					maxConsecutiveErrors, err)
+			}
+		} else {
+			if consecutiveErrors > 0 {
+				log.Printf("Kubeconfig reconciliation recovered after %d consecutive errors", consecutiveErrors)
+			}
+			consecutiveErrors = 0
+		}
 
-		// 3 minute loop with 30s jitter (matching original shell)
-		jitter := time.Duration(rand.Intn(30)) * time.Second
-		time.Sleep(150*time.Second + jitter)
+		// 1 minute loop with 10s jitter for faster cert rotation pickup
+		jitter := time.Duration(rand.Intn(10)) * time.Second
+		time.Sleep(60*time.Second + jitter)
 	}
 }
 
@@ -68,23 +86,26 @@ func reconcileOnce(
 	kubeconfigPath, certDir, konkName, konkFQDN, namespace, fullname, secretName string,
 	labels map[string]string,
 	lastCertSum *string,
-) {
+) error {
 	// Read certs from the mounted cert-manager secret
 	caCert, err := os.ReadFile(certDir + "/ca.crt")
 	if err != nil {
-		log.Printf("Error reading ca.crt: %v", err)
-		return
+		return fmt.Errorf("reading ca.crt: %w", err)
 	}
 	tlsCert, err := os.ReadFile(certDir + "/tls.crt")
 	if err != nil {
-		log.Printf("Error reading tls.crt: %v", err)
-		return
+		return fmt.Errorf("reading tls.crt: %w", err)
 	}
 	tlsKey, err := os.ReadFile(certDir + "/tls.key")
 	if err != nil {
-		log.Printf("Error reading tls.key: %v", err)
-		return
+		return fmt.Errorf("reading tls.key: %w", err)
 	}
+
+	// Validate cert expiry — log warnings for expiring certs
+	if err := checkCertExpiry("kubeconfig client", tlsCert); err != nil {
+		log.Printf("CRITICAL: client cert is expired, kubeconfig will be rejected by konk: %v", err)
+	}
+	checkCertExpiry("kubeconfig CA", caCert)
 
 	// Build a kubeconfig programmatically
 	kubeconfig := clientcmdapi.NewConfig()
@@ -104,18 +125,15 @@ func reconcileOnce(
 
 	kubeconfigBytes, err := clientcmd.Write(*kubeconfig)
 	if err != nil {
-		log.Printf("Error serializing kubeconfig: %v", err)
-		return
+		return fmt.Errorf("serializing kubeconfig: %w", err)
 	}
 
 	dir := kubeconfigPath[:strings.LastIndex(kubeconfigPath, "/")]
 	if err := os.MkdirAll(dir, 0755); err != nil {
-		log.Printf("Error creating kubeconfig dir: %v", err)
-		return
+		return fmt.Errorf("creating kubeconfig dir: %w", err)
 	}
 	if err := os.WriteFile(kubeconfigPath, kubeconfigBytes, 0600); err != nil {
-		log.Printf("Error writing kubeconfig: %v", err)
-		return
+		return fmt.Errorf("writing kubeconfig: %w", err)
 	}
 
 	// Compute cert checksum to detect rotation
@@ -130,8 +148,9 @@ func reconcileOnce(
 
 	err = reconcileKubeconfigSecret(ctx, infraClient, namespace, secretName, fullname, labels, secretData, certSum, lastCertSum)
 	if err != nil {
-		log.Printf("Error reconciling secret: %v", err)
+		return fmt.Errorf("reconciling secret: %w", err)
 	}
+	return nil
 }
 
 func parseLabels(labelsStr string) map[string]string {

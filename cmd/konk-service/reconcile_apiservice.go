@@ -8,6 +8,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 // runReconcileAPIService replaces apiservice-deployment.yaml + deploy-api-service.sh.
@@ -34,11 +36,26 @@ func runReconcileAPIService() error {
 
 	ctx := context.Background()
 
+	const maxConsecutiveErrors = 10
+	consecutiveErrors := 0
+
 	for {
 		err := reconcileAPIServiceOnce(ctx, kubeconfigPath, certDir, serviceName, namespace, manifests, crds, crdManifests)
 		if err != nil {
-			log.Printf("Error reconciling APIService: %v", err)
+			consecutiveErrors++
+			log.Printf("Error reconciling APIService (%d/%d consecutive): %v",
+				consecutiveErrors, maxConsecutiveErrors, err)
+			if consecutiveErrors >= maxConsecutiveErrors {
+				// Remove health file so readiness probe fails immediately
+				os.Remove("/tmp/healthy")
+				log.Fatalf("FATAL: %d consecutive reconciliation failures — exiting so pod restarts with fresh certs. Last error: %v",
+					maxConsecutiveErrors, err)
+			}
 		} else {
+			if consecutiveErrors > 0 {
+				log.Printf("Reconciliation recovered after %d consecutive errors", consecutiveErrors)
+			}
+			consecutiveErrors = 0
 			if err := writeHealthFile("/tmp/healthy", 0); err != nil {
 				log.Printf("Warning: failed to write health file: %v", err)
 			}
@@ -55,6 +72,25 @@ func reconcileAPIServiceOnce(ctx context.Context, kubeconfigPath, certDir, servi
 		return fmt.Errorf("reading ca.crt: %w", err)
 	}
 	certB64 := base64.StdEncoding.EncodeToString(caCertRaw)
+
+	// Read the kubeconfig to check client cert expiry
+	kubeconfigData, err := os.ReadFile(kubeconfigPath)
+	if err != nil {
+		return fmt.Errorf("reading kubeconfig for cert check: %w", err)
+	}
+	kubeconfig, err := clientcmd.Load(kubeconfigData)
+	if err != nil {
+		log.Printf("WARNING: could not parse kubeconfig for cert check: %v", err)
+	} else {
+		for _, authInfo := range kubeconfig.AuthInfos {
+			if len(authInfo.ClientCertificateData) > 0 {
+				if err := checkCertExpiry("apiservice client", authInfo.ClientCertificateData); err != nil {
+					log.Printf("CRITICAL: kubeconfig client cert is expired — requests to konk will fail with x509 errors")
+				}
+				break
+			}
+		}
+	}
 
 	// Template the manifests
 	// The Helm backtick-escaped placeholders (e.g. {{` {{ SERVICENAME }} `}})
