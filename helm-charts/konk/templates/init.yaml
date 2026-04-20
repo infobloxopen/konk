@@ -20,7 +20,7 @@ spec:
         app.kubernetes.io/component: init
     spec:
       serviceAccountName: {{ include "konk.serviceAccountName" . }}
-      containers:
+      initContainers:
       - name: provision
         securityContext:
           {{- toYaml .Values.kind.securityContext | nindent 10 }}
@@ -28,17 +28,8 @@ spec:
         imagePullPolicy: {{ .Values.kind.image.pullPolicy }}
         command:
           - bash
-          - "-c"
         args:
-          - |
-            set -e
-            while true
-            do
-              date
-              /scripts/provision.sh
-              touch /tmp/ready
-              sleep 90d
-            done
+          - /scripts/provision.sh
         env:
           {{- with .Values.certManager.namespace }}
           - name: CERT_MANAGER_NAMESPACE
@@ -56,17 +47,21 @@ spec:
             value: {{ .Release.Name }}
           - name: SCOPE
             value: {{ .Values.scope }}
-        readinessProbe:
-          exec:
-            command:
-            - cat
-            - /tmp/ready
         resources:
           {{- toYaml .Values.kind.resources | nindent 10 }}
         volumeMounts:
         - mountPath: /scripts/
           name: scripts
           readOnly: true
+      containers:
+      - name: done
+        securityContext:
+          {{- toYaml .Values.kind.securityContext | nindent 10 }}
+        image: "{{ .Values.kind.image.repository }}:{{ .Values.kind.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.kind.image.pullPolicy }}
+        command:
+          - sleep
+          - infinity
       volumes:
       - name: scripts
         configMap:
