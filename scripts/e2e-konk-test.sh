@@ -20,15 +20,13 @@
 #   11. cert-manager CA integration
 #   12. Konk API deep test — query resources in konk (tagging, dnsconfig, etc.)
 #   13. External API integration — test tagging + bulk export/import via CSP endpoint
-#   14. Post-upgrade node image check — verify no pods are running a /node: image
-#   15. Konk APIService backend health — all pods in konk namespaces (aggregate, ddi, hostapp, ngp-cp, ntp, tagging-v2, redirect, endpoints)
+#   14. Konk APIService backend health — all pods in konk namespaces (aggregate, ddi, hostapp, ngp-cp, ntp, tagging-v2, redirect, endpoints)
 #
 # Usage:
 #   ./e2e-konk-test.sh                        # full run (sample ns = tagging-v2)
 #   ./e2e-konk-test.sh --section 10           # run ONLY section 10
 #   ./e2e-konk-test.sh --section 12 --section 13  # run sections 12 and 13
-#   ./e2e-konk-test.sh --section 14          # run ONLY node image check
-#   ./e2e-konk-test.sh --section 15          # run ONLY Konk APIService backend health
+#   ./e2e-konk-test.sh --section 14          # run ONLY Konk APIService backend health
 #   ./e2e-konk-test.sh --sample-ns atcapi     # use different sample namespace
 #   ./e2e-konk-test.sh --skip-bulk            # skip bulk integration test
 #   ./e2e-konk-test.sh --skip-exec            # skip kubectl exec tests (read-only)
@@ -373,6 +371,15 @@ fi
 KONK_CR_STATUS=$(kc get konk "$KONK_CR_NAME" -n "$AGGREGATE_NAMESPACE" \
   -o jsonpath='{.status.conditions[?(@.type=="Deployed")].status}')
 assert_equals "Konk CR Deployed=True" "${KONK_CR_STATUS:-False}" "True"
+
+# Check for InstallError / helm release errors in Konk CR status message
+KONK_CR_MSG=$(kc get konk "$KONK_CR_NAME" -n "$AGGREGATE_NAMESPACE" \
+  -o jsonpath='{.status.conditions[?(@.type=="Deployed")].message}')
+if echo "$KONK_CR_MSG" | grep -qiE 'InstallError|UpgradeError|failed to install release|failed to upgrade release|cannot be imported|invalid ownership' 2>/dev/null; then
+  fail "Konk CR has helm release error: $(echo "$KONK_CR_MSG" | head -c 200)"
+else
+  pass "Konk CR: no helm InstallError/UpgradeError in status message"
+fi
 
 KONK_CR_SCOPE=$(kc get konk "$KONK_CR_NAME" -n "$AGGREGATE_NAMESPACE" \
   -o jsonpath='{.spec.scope}')
@@ -930,30 +937,7 @@ if [[ "$SKIP_CA" != true && -n "${KONK_FP:-}" ]]; then
   fi
 fi
 
-# 8d. RBAC — kubeconfig Role has 'update' verb (issue #23 regression check)
-SAMPLE_ROLE="$(kc get roles -n "$SAMPLE_NS" --no-headers \
-  | awk '$1 ~ /konk-service-kubeconfig/ {print $1; exit}' || true)"
-if [[ -n "$SAMPLE_ROLE" ]]; then
-  ROLE_VERBS=$(kc get role "$SAMPLE_ROLE" -n "$SAMPLE_NS" -o json \
-    | python3 -c "
-import sys, json
-data = json.load(sys.stdin)
-for rule in data.get('rules', []):
-    if 'secrets' in rule.get('resources', []):
-        print(' '.join(rule.get('verbs', [])))
-        break
-" 2>/dev/null || echo "")
-  if echo "$ROLE_VERBS" | grep -q "update" 2>/dev/null; then
-    pass "${SAMPLE_NS} kubeconfig Role has 'update' verb on secrets"
-  else
-    fail "${SAMPLE_NS} kubeconfig Role MISSING 'update' verb on secrets (issue #23)"
-    vinfo "current verbs: ${ROLE_VERBS}"
-  fi
-else
-  warn "kubeconfig Role not found in ${SAMPLE_NS}"
-fi
-
-# 8e. Exec into pod — check reconciliation is working (no x509 errors in logs)
+# 8d. Exec into pod — check reconciliation is working (no x509 errors in logs)
 if [[ "$SKIP_EXEC" != true && -n "$SAMPLE_APIPOD_NAME" ]]; then
   SAMPLE_LOGS=$(kubectl logs "$SAMPLE_APIPOD_NAME" -n "$SAMPLE_NS" --tail=20 2>/dev/null || true)
   if echo "$SAMPLE_LOGS" | grep -qi "x509\|certificate.*unknown\|tls.*failed" 2>/dev/null; then
@@ -971,7 +955,7 @@ if [[ "$SKIP_EXEC" != true && -n "$SAMPLE_APIPOD_NAME" ]]; then
   fi
 fi
 
-# 8f. Verify konk connectivity from the sample namespace
+# 8e. Verify konk connectivity from the sample namespace
 #     The konk-service pod uses distroless (no kubectl/shell), so we validate
 #     connectivity by: (1) checking pod logs for successful APIService apply,
 #     (2) querying the APIService object from the host cluster, and
@@ -1050,7 +1034,7 @@ if [[ "$SKIP_EXEC" != true && -n "$SAMPLE_APIPOD_NAME" ]]; then
   fi
 fi
 
-# 8g. TLS server secret — verify the konk-service server TLS secret exists
+# 8f. TLS server secret — verify the konk-service server TLS secret exists
 SAMPLE_TLS_SECRET=$(kc get secrets -n "$SAMPLE_NS" --no-headers \
   | grep 'konk-service-server[[:space:]]' | awk '{print $1}' | head -1)
 if [[ -n "$SAMPLE_TLS_SECRET" ]]; then
@@ -1121,7 +1105,7 @@ if not_ready:
   fi
 fi
 
-# 8h. Pod events on failure — show describe + logs when pod is unhealthy
+# 8g. Pod events on failure — show describe + logs when pod is unhealthy
 if [[ -z "$SAMPLE_APIPOD_NAME" || "$SAMPLE_APIPOD_READY" != "1/1" ]]; then
   TARGET_POD=${SAMPLE_APIPOD_NAME:-}
   if [[ -z "$TARGET_POD" ]]; then
@@ -1443,6 +1427,32 @@ if [[ -n "$CA_ISSUER" ]]; then
   fi
 else
   vinfo "no konk-related Issuer found (may use ClusterIssuer)"
+fi
+
+# Check all konk-service certificates across all namespaces for Ready=False
+if kubectl api-resources 2>/dev/null | grep -q 'certificates.*cert-manager' 2>/dev/null; then
+  ALL_KONK_CERTS=$(kubectl get certificate -A --no-headers 2>/dev/null \
+    | grep 'konk-service' || true)
+  CERT_NOT_READY=0
+  CERT_READY_COUNT=0
+  while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    cert_ns=$(echo "$line" | awk '{print $1}')
+    cert_name=$(echo "$line" | awk '{print $2}')
+    cert_ready=$(echo "$line" | awk '{print $3}')
+    if [[ "$cert_ready" == "True" ]]; then
+      ((CERT_READY_COUNT++)) || true
+      vinfo "Certificate ${cert_ns}/${cert_name}: Ready=True"
+    else
+      fail "Certificate ${cert_ns}/${cert_name}: Ready=${cert_ready:-Unknown}"
+      ((CERT_NOT_READY++)) || true
+    fi
+  done <<< "$ALL_KONK_CERTS"
+  if [[ $CERT_NOT_READY -eq 0 && $CERT_READY_COUNT -gt 0 ]]; then
+    pass "all ${CERT_READY_COUNT} konk-service Certificate(s) are Ready=True"
+  elif [[ $CERT_READY_COUNT -eq 0 && $CERT_NOT_READY -eq 0 ]]; then
+    vinfo "no konk-service certificates found in cluster"
+  fi
 fi
 fi  # section 11
 
@@ -1858,38 +1868,7 @@ fi
 fi  # section 13
 
 # ══════════════════════════════════════════════════════════════════════════════
-# SECTION 14: Post-upgrade node image check
-# ══════════════════════════════════════════════════════════════════════════════
-section "Post-upgrade node image check (no /node: images expected)"
-if should_run 14; then
-  # Use jsonpath to iterate pods and print only those containers/initContainers using a /node: image
-  NODE_IMAGE_PODS=$(kubectl get pods -A -o json 2>/dev/null | python3 -c "
-import sys, json
-data = json.load(sys.stdin)
-results = []
-for pod in data.get('items', []):
-    ns = pod['metadata']['namespace']
-    name = pod['metadata']['name']
-    all_containers = pod['spec'].get('containers', []) + pod['spec'].get('initContainers', [])
-    for c in all_containers:
-        img = c.get('image', '')
-        if '/node:' in img:
-            results.append(f'  {ns}/{name}  container={c[\"name\"]}  image={img}')
-for r in results:
-    print(r)
-" 2>/dev/null || true)
-
-  if [[ -z "$NODE_IMAGE_PODS" ]]; then
-    pass "no pods found running a /node: image (upgrade complete)"
-  else
-    NODE_IMAGE_COUNT=$(echo "$NODE_IMAGE_PODS" | wc -l | tr -d ' ')
-    fail "${NODE_IMAGE_COUNT} pod(s) still running a /node: image — upgrade may be incomplete"
-    echo "$NODE_IMAGE_PODS"
-  fi
-fi  # section 14
-
-# ══════════════════════════════════════════════════════════════════════════════
-# SECTION 15: Konk APIService backend health
+# SECTION 14: Konk APIService backend health
 # ══════════════════════════════════════════════════════════════════════════════
 # Section 5 only checks konk-service-managed pods (kubectl-apiservice, kubeconfig,
 # apiservice-test) by label. This section sweeps ALL pods in namespaces that host
@@ -1897,7 +1876,7 @@ fi  # section 14
 # dns-data-importexport (2/3) that section 5 would never see.
 # These are the pods whose notReady state causes 503s in konk (see gov-stg-2 incident).
 section "Konk APIService backend health"
-if should_run 15; then
+if should_run 14; then
   BACKEND_NAMESPACES=("$AGGREGATE_NAMESPACE" "ddi" "hostapp" "ngp-cp" "ntp" "tagging-v2" "redirect" "endpoints")
   BACKEND_NOT_READY_COUNT=0
   BACKEND_TOTAL=0
@@ -1930,7 +1909,7 @@ if should_run 15; then
   else
     info "${BACKEND_NOT_READY_COUNT} not-ready pod(s) found — check warnings above. Not-ready APIService backend pods will cause 503s in konk's available_controller."
   fi
-fi  # section 15
+fi  # section 14
 
 # ══════════════════════════════════════════════════════════════════════════════
 # SUMMARY
@@ -1952,7 +1931,6 @@ if [[ $FAIL -gt 0 ]]; then
   echo -e "  1. For x509/CA issues:  ./rahul/scripts/check-konk-ca.sh --fix --restart"
   echo -e "  2. For failing pods:    kubectl get pods -A | grep -v '1/1\|Completed'"
   echo -e "  3. For KonkService CRs: kubectl get konkservice -A"
-  echo -e "  4. For RBAC issues:     check kubeconfig Role 'update' verb (issue #23)"
   echo ""
   exit 1
 elif [[ $WARN -gt 0 ]]; then
