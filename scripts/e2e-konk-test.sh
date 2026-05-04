@@ -391,32 +391,92 @@ fi  # section 3
 # ══════════════════════════════════════════════════════════════════════════════
 section "KonkService CRs (all namespaces)"
 if should_run 4; then
-ALL_KSVC=$(kc get konkservice -A --no-headers | awk '{print $1, $2}')
+# Fetch all KonkServices and Deployments once (much faster than per-resource calls
+# through high-latency proxies like Teleport).
+info "fetching KonkService CRs and Deployments..."
+ALL_KSVC_JSON=$(kc get konkservice -A -o json 2>/dev/null)
+ALL_DEPLOY_JSON=$(kc get deploy -A -o json 2>/dev/null)
+
 KSVC_TOTAL=0
 KSVC_OK=0
 KSVC_FAIL=0
 
-if [[ -z "$ALL_KSVC" ]]; then
+if [[ -z "$ALL_KSVC_JSON" ]] || [[ "$(echo "$ALL_KSVC_JSON" | jq '.items | length')" == "0" ]]; then
   fail "No KonkService CRs found in cluster"
 else
-  while read -r ns name; do
+  KSVC_RELEASE_FAILED=0
+  KSVC_OWNERSHIP_ERR=0
+  KSVC_KUBECONFIG_SCALED_DOWN=0
+
+  # Single jq pass to derive ns, name, deployed-reason, ReleaseFailed status/reason/time/message.
+  # Format: TAB-separated; message is base64-encoded so newlines don't break the loop.
+  KSVC_ROWS=$(echo "$ALL_KSVC_JSON" | jq -r '
+    .items[] |
+    [
+      .metadata.namespace,
+      .metadata.name,
+      ((.status.conditions // [])[] | select(.type=="Deployed") | .reason) // "UNKNOWN",
+      ((.status.conditions // [])[] | select(.type=="ReleaseFailed") | .status) // "",
+      ((.status.conditions // [])[] | select(.type=="ReleaseFailed") | .reason) // "",
+      ((.status.conditions // [])[] | select(.type=="ReleaseFailed") | .lastTransitionTime) // "",
+      (((.status.conditions // [])[] | select(.type=="ReleaseFailed") | .message) // "" | @base64)
+    ] | @tsv')
+
+  while IFS=$'\t' read -r ns name reason rf_status rf_reason rf_time rf_msg_b64; do
     [[ -z "$ns" || -z "$name" ]] && continue
     ((KSVC_TOTAL++)) || true
-    reason=$(kc get konkservice "$name" -n "$ns" \
-      -o jsonpath='{.status.conditions[?(@.type=="Deployed")].reason}')
-    if echo "$reason" | grep -q "Successful" 2>/dev/null; then
+
+    if [[ "$reason" == *"Successful"* ]]; then
       ((KSVC_OK++)) || true
       vinfo "KonkService ${ns}/${name}: ${reason}"
     else
-      fail "KonkService ${ns}/${name}: status='${reason:-UNKNOWN}'"
+      fail "KonkService ${ns}/${name}: Deployed='${reason:-UNKNOWN}'"
       ((KSVC_FAIL++)) || true
     fi
-  done <<< "$ALL_KSVC"
 
-  if [[ $KSVC_FAIL -eq 0 ]]; then
-    pass "all ${KSVC_TOTAL} KonkService CRs report Successful"
+    if [[ "$rf_status" == "True" ]]; then
+      ((KSVC_RELEASE_FAILED++)) || true
+      fail "KonkService ${ns}/${name}: ReleaseFailed=True reason='${rf_reason}' since=${rf_time}"
+      rf_msg=$(echo "$rf_msg_b64" | base64 -d 2>/dev/null || true)
+      if echo "$rf_msg" | grep -qiE 'cannot be imported|invalid ownership|missing key "meta.helm.sh/release-name"|missing key "meta.helm.sh/release-namespace"'; then
+        ((KSVC_OWNERSHIP_ERR++)) || true
+        fail "KonkService ${ns}/${name}: Helm ownership conflict — fix annotations on the named Deployment(s) so Helm can adopt them"
+        info "  message: $(echo "$rf_msg" | head -c 300)"
+      elif [[ -n "$rf_msg" ]]; then
+        info "  message: $(echo "$rf_msg" | head -c 300)"
+      fi
+    fi
+
+    # Check kubeconfig renewal Deployment from cached JSON.
+    # Look up by labels (resilient to chart name truncation).
+    kc_state=$(echo "$ALL_DEPLOY_JSON" | jq -r --arg ns "$ns" --arg inst "$name" '
+      .items[]
+      | select(.metadata.namespace==$ns
+               and .metadata.labels["app.kubernetes.io/instance"]==$inst
+               and .metadata.labels["app.kubernetes.io/component"]=="kubeconfig")
+      | "\(.metadata.name)\t\(.spec.replicas // 0)\t\(.status.availableReplicas // 0)"' \
+      | head -1)
+    if [[ -n "$kc_state" ]]; then
+      kc_deploy="${kc_state%%$'\t'*}"
+      rest="${kc_state#*$'\t'}"
+      kc_desired="${rest%%$'\t'*}"
+      kc_avail="${rest##*$'\t'}"
+      if [[ "${kc_desired:-0}" -eq 0 ]]; then
+        ((KSVC_KUBECONFIG_SCALED_DOWN++)) || true
+        fail "KonkService ${ns}/${name}: kubeconfig renewal Deployment '${kc_deploy}' is scaled to 0 — client cert will expire (12h TTL)"
+      elif [[ "$kc_avail" -lt 1 ]]; then
+        ((KSVC_KUBECONFIG_SCALED_DOWN++)) || true
+        fail "KonkService ${ns}/${name}: kubeconfig Deployment '${kc_deploy}' has 0 available replicas (desired=${kc_desired})"
+      else
+        vinfo "KonkService ${ns}/${name}: kubeconfig Deployment '${kc_deploy}' has ${kc_avail}/${kc_desired} replicas"
+      fi
+    fi
+  done <<< "$KSVC_ROWS"
+
+  if [[ $KSVC_FAIL -eq 0 && $KSVC_RELEASE_FAILED -eq 0 && $KSVC_KUBECONFIG_SCALED_DOWN -eq 0 ]]; then
+    pass "all ${KSVC_TOTAL} KonkService CRs report Successful with no ReleaseFailed and kubeconfig Deployments scaled up"
   else
-    info "${KSVC_OK}/${KSVC_TOTAL} KonkService CRs ok, ${KSVC_FAIL} failing"
+    info "${KSVC_OK}/${KSVC_TOTAL} KonkService CRs ok | ${KSVC_FAIL} not Successful | ${KSVC_RELEASE_FAILED} ReleaseFailed | ${KSVC_OWNERSHIP_ERR} with Helm ownership conflict | ${KSVC_KUBECONFIG_SCALED_DOWN} kubeconfig Deployments scaled to 0"
   fi
 fi
 fi  # section 4
@@ -533,6 +593,73 @@ if [[ -n "$TEST_PODS" ]]; then
   fi
 else
   vinfo "no apiservice-test pods found (may be normal)"
+fi
+
+# --- per-KonkService Deployment completeness ---
+# Each KonkService must have these Deployments (identified by chart labels) with ≥1 available replica:
+#   component=kubeconfig  (renews 12h client cert in kubeconfig secret)
+#   component=apiservice  (registers/maintains the APIService inside konk; aka "kubectl-apiservice")
+# component=apiservice-test is optional and not enforced.
+# We look up by `app.kubernetes.io/instance=<ks>,app.kubernetes.io/component=<comp>` because the
+# chart truncates Deployment NAMES to fit K8s' 63-char DNS-1123 limit (e.g. "konk-service" → "konk-ser"),
+# so name-based lookups produce false negatives for long release names.
+ALL_KSVC_FOR_DEPLOY_CHECK=$(kc get konkservice -A --no-headers | awk '{print $1, $2}')
+KSVC_INCOMPLETE=0
+KSVC_CHECKED=0
+# Map of required components: label-component-name → friendly-display-name
+REQUIRED_COMPONENTS=("kubeconfig:kubeconfig" "apiservice:kubectl-apiservice")
+
+if [[ -n "$ALL_KSVC_FOR_DEPLOY_CHECK" ]]; then
+  # Fetch all Deployments once and filter in jq (avoids ~3 kubectl calls per KonkService)
+  ALL_DEPLOY_FOR_CHECK=$(kc get deploy -A -o json 2>/dev/null)
+  while read -r ns name; do
+    [[ -z "$ns" || -z "$name" ]] && continue
+    ((KSVC_CHECKED++)) || true
+    missing=()
+    scaled_zero=()
+    unavailable=()
+
+    for entry in "${REQUIRED_COMPONENTS[@]}"; do
+      comp="${entry%%:*}"
+      display="${entry##*:}"
+      # Look up by labels (resilient to chart name truncation)
+      dep_info=$(echo "$ALL_DEPLOY_FOR_CHECK" | jq -r --arg ns "$ns" --arg inst "$name" --arg comp "$comp" '
+        .items[]
+        | select(.metadata.namespace==$ns
+                 and .metadata.labels["app.kubernetes.io/instance"]==$inst
+                 and .metadata.labels["app.kubernetes.io/component"]==$comp)
+        | "\(.metadata.name)\t\(.spec.replicas // 0)\t\(.status.availableReplicas // 0)"' \
+        | head -1)
+      if [[ -z "$dep_info" ]]; then
+        missing+=("${display}")
+        continue
+      fi
+      dep_name="${dep_info%%$'\t'*}"
+      rest="${dep_info#*$'\t'}"
+      desired="${rest%%$'\t'*}"
+      avail="${rest##*$'\t'}"
+      if [[ "${desired:-0}" -eq 0 ]]; then
+        scaled_zero+=("${dep_name}")
+      elif [[ "${avail:-0}" -lt 1 ]]; then
+        unavailable+=("${dep_name}(0/${desired})")
+      fi
+    done
+
+    if [[ ${#missing[@]} -gt 0 || ${#scaled_zero[@]} -gt 0 || ${#unavailable[@]} -gt 0 ]]; then
+      ((KSVC_INCOMPLETE++)) || true
+      [[ ${#missing[@]} -gt 0 ]]    && fail "KonkService ${ns}/${name}: missing component Deployments: ${missing[*]}"
+      [[ ${#scaled_zero[@]} -gt 0 ]] && fail "KonkService ${ns}/${name}: Deployments scaled to 0: ${scaled_zero[*]}"
+      [[ ${#unavailable[@]} -gt 0 ]] && fail "KonkService ${ns}/${name}: Deployments with no available replicas: ${unavailable[*]}"
+    else
+      vinfo "KonkService ${ns}/${name}: all required konk-service Deployments present and ready"
+    fi
+  done <<< "$ALL_KSVC_FOR_DEPLOY_CHECK"
+
+  if [[ $KSVC_INCOMPLETE -eq 0 && $KSVC_CHECKED -gt 0 ]]; then
+    pass "all ${KSVC_CHECKED} KonkServices have their required konk-service Deployments running (kubeconfig + kubectl-apiservice)"
+  elif [[ $KSVC_INCOMPLETE -gt 0 ]]; then
+    info "${KSVC_INCOMPLETE}/${KSVC_CHECKED} KonkServices have missing/unavailable konk-service Deployments"
+  fi
 fi
 fi  # section 5
 
@@ -911,7 +1038,14 @@ SAMPLE_APIPOD_STATUS=$(echo "$SAMPLE_APIPOD" | awk '{print $3}')
 if [[ -z "$SAMPLE_APIPOD_NAME" ]]; then
   fail "no kubectl-apiservice pod found running in ${SAMPLE_NS}"
 else
-  assert_equals "${SAMPLE_NS} kubectl-apiservice pod ready" "$SAMPLE_APIPOD_READY" "1/1"
+  # Pod may have a linkerd sidecar (2/2) or not (1/1) — check all containers are ready
+  _ready_num=$(echo "$SAMPLE_APIPOD_READY" | cut -d/ -f1)
+  _ready_tot=$(echo "$SAMPLE_APIPOD_READY" | cut -d/ -f2)
+  if [[ "$_ready_num" == "$_ready_tot" && "$_ready_num" -gt 0 ]] 2>/dev/null; then
+    pass "${SAMPLE_NS} kubectl-apiservice pod ready (${SAMPLE_APIPOD_READY})"
+  else
+    fail "${SAMPLE_NS} kubectl-apiservice pod not fully ready (${SAMPLE_APIPOD_READY})"
+  fi
 
   # Check no restarts (indicates stability)
   SAMPLE_APIPOD_RESTARTS=$(echo "$SAMPLE_APIPOD" | awk '{print $4}')
