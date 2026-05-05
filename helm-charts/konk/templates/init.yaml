@@ -13,8 +13,6 @@ spec:
       app.kubernetes.io/component: init
   template:
     metadata:
-      annotations:
-        checksum/scripts: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
       labels:
         {{- include "konk.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: init
@@ -23,22 +21,9 @@ spec:
       containers:
       - name: provision
         securityContext:
-          {{- toYaml .Values.kind.securityContext | nindent 10 }}
-        image: "{{ .Values.kind.image.repository }}:{{ .Values.kind.image.tag | default .Chart.AppVersion }}"
-        imagePullPolicy: {{ .Values.kind.image.pullPolicy }}
-        command:
-          - bash
-          - "-c"
-        args:
-          - |
-            set -e
-            while true
-            do
-              date
-              /scripts/provision.sh
-              touch /tmp/ready
-              sleep 90d
-            done
+          {{- toYaml .Values.provision.securityContext | nindent 10 }}
+        image: "{{ .Values.provision.image.repository }}:{{ .Values.provision.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.provision.image.pullPolicy }}
         env:
           {{- with .Values.certManager.namespace }}
           - name: CERT_MANAGER_NAMESPACE
@@ -59,16 +44,10 @@ spec:
         readinessProbe:
           exec:
             command:
-            - cat
-            - /tmp/ready
+              - /usr/local/bin/provision
+              - healthz
+              - /tmp/ready
+          periodSeconds: 10
+          failureThreshold: 3
         resources:
-          {{- toYaml .Values.kind.resources | nindent 10 }}
-        volumeMounts:
-        - mountPath: /scripts/
-          name: scripts
-          readOnly: true
-      volumes:
-      - name: scripts
-        configMap:
-          name: {{ include "konk.fullname" . }}-scripts
-          defaultMode: 0777
+          {{- toYaml .Values.provision.resources | nindent 10 }}

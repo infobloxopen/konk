@@ -1,5 +1,6 @@
 CHART_DIR	:= helm-charts
-GIT_VERSION	?= $(shell git describe --dirty=-unsupported --always --long --tags)
+GIT_VERSION	:= $(shell git describe --always --long --tags)
+CHART_PKG_VERSION ?= $(GIT_VERSION)
 HELM_IMAGE	?= infoblox/helm:3
 DOCKER_RUNNER	?= docker run --rm -i \
 			--entrypoint="" \
@@ -14,7 +15,8 @@ HELM		?= $(DOCKER_RUNNER) \
 HELM_CMD	?= $(DOCKER_RUNNER) \
 			/bin/bash -c
 K8S_RELEASE	?= v1.25.8
-KUBEADM		?= docker run --rm -it --entrypoint="" kindest/node:$(K8S_RELEASE) kubeadm
+ETCD_VERSION ?= v3.6.9
+KUBEADM		?= docker run --rm -it --entrypoint="" ${KUBERNETES_IMG} kubeadm
 KUBECONFIG	?= ${HOME}/.kube/config
 RELEASE_PREFIX	?= $(USER)
 
@@ -26,19 +28,18 @@ HELM_DOCS       ?= docker run --rm \
 
 # KIND env variables
 KIND_NAME   	?= konk
-NODE_VERSION    ?= v1.25.8
+NODE_VERSION    ?= v1.31.4
 NODE_IMAGE      ?= kindest/node:${NODE_VERSION}
-KIND_VERSION    ?= v0.18.0
+KIND_VERSION    ?= v0.25.0
+KIND_ARCH       ?= $(shell uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/')
 KIND 			:= $(shell pwd)/bin/kind
 
 default: all
 
-.PHONY: $(CHART_DIR)/konk/image-tag-values.yaml
-$(CHART_DIR)/konk/image-tag-values.yaml:
-	@IMAGES=`$(KUBEADM) config images list` && \
-	APISERVER_VERSION=`echo "$$IMAGES" | grep apiserver | cut -d: -f2` && \
-	ETCD_VERSION=`echo "$$IMAGES" | grep etcd | cut -d: -f2` && \
-	echo "# kubernetes $(K8S_RELEASE)\napiserver:\n  image:\n    tag: $$APISERVER_VERSION\netcd:\n  image:\n    tag: $$ETCD_VERSION" | tee $@
+# NOTE: image-tag-values.yaml generation removed.
+# valuesFiles is not supported by operator-sdk v1.42.0 helm-operator.
+# Image tags are now passed via overrideValues env vars (RELATED_IMAGE_*).
+# See watches.yaml and helm-charts/konk-operator/templates/deployment.yaml.
 
 CHART_NAMES := $(shell find $(CHART_DIR) -maxdepth 1 -type d | grep -v '^$(CHART_DIR)$$' | xargs -I {} basename {})
 
@@ -54,12 +55,12 @@ deploy-cert-manager:
 		--set installCRDs=true \
 		--set extraArgs[0]="--enable-certificate-owner-ref=true""
 
-deploy-crds: konk-operator-${GIT_VERSION}.tgz
+deploy-crds: konk-operator-${CHART_PKG_VERSION}.tgz
 	# https://helm.sh/docs/chart_best_practices/custom_resource_definitions/
 	# > There is no support at this time for upgrading or deleting CRDs using Helm.
 	kubectl apply -f helm-charts/konk-operator/crds
 
-%-konk-operator: HELM_FLAGS ?=--set=image.tag=$(GIT_VERSION) --set=image.pullPolicy=IfNotPresent
+%-konk-operator: HELM_FLAGS ?=--set=image.tag=$(GIT_VERSION) --set=image.pullPolicy=IfNotPresent --set=relatedImages.apiserver=$(GIT_VERSION) --set=relatedImages.provision=$(GIT_VERSION) --set=relatedImages.kind=$(GIT_VERSION)
 
 deploy-%: package
 	$(HELM) upgrade -i --wait $(RELEASE_PREFIX)-$* $(CHART_DIR)/$* $(HELM_FLAGS)
@@ -106,7 +107,10 @@ endif
 BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
 
 # Image URL to use all building/pushing image targets
-IMG ?= infoblox/konk:$(GIT_VERSION)
+IMG ?= ghcr.io/infobloxopen/konk:$(GIT_VERSION)
+KUBERNETES_IMG ?= ghcr.io/infobloxopen/konk-app:$(GIT_VERSION)
+PROVISION_IMG ?= ghcr.io/infobloxopen/konk-provision:$(GIT_VERSION)
+KONK_SERVICE_IMG ?= ghcr.io/infobloxopen/konk-service:$(GIT_VERSION)
 
 all: docker-build
 
@@ -142,6 +146,50 @@ docker-build: .image-${GIT_VERSION}
 docker-push:
 	docker push ${IMG}
 
+# Build patched kubernetes (kubeadm + kube-apiserver) from source with upgraded deps
+.kubernetes-image-${GIT_VERSION}:
+	DOCKER_BUILDKIT=1 docker build \
+		--build-arg K8S_VERSION=$(K8S_RELEASE) \
+		-t ${KUBERNETES_IMG} \
+		build/kubernetes/
+	touch $@
+
+docker-build-kubernetes: .kubernetes-image-${GIT_VERSION}
+
+# Regenerate build/kubernetes/go.mod with latest dependency versions.
+# Review the diff and commit the result.
+update-kubernetes-deps:
+	build/kubernetes/update-deps.sh $(K8S_RELEASE) $(shell go env GOVERSION | sed 's/^go//')
+
+# Push the kubernetes docker image
+docker-push-kubernetes:
+	docker push ${KUBERNETES_IMG}
+
+# Build the provision docker image (depends on kubernetes build)
+.provision-image-${GIT_VERSION}: .kubernetes-image-${GIT_VERSION}
+	DOCKER_BUILDKIT=1 docker build \
+		--build-arg KUBERNETES_IMG=${KUBERNETES_IMG} \
+		-f Dockerfile.provision . -t ${PROVISION_IMG}
+	touch $@
+
+docker-build-provision: .provision-image-${GIT_VERSION}
+
+# Push the provision docker image
+docker-push-provision:
+	docker push ${PROVISION_IMG}
+
+# Build the konk-service docker image (Go binary replacing shell-based konk-tools for konk-service chart)
+.konk-service-image-${GIT_VERSION}:
+	DOCKER_BUILDKIT=1 docker build \
+		-f Dockerfile.konk-service . -t ${KONK_SERVICE_IMG}
+	touch $@
+
+docker-build-konk-service: .konk-service-image-${GIT_VERSION}
+
+# Push the konk-service docker image
+docker-push-konk-service:
+	docker push ${KONK_SERVICE_IMG}
+
 PATH  := $(PATH):$(shell pwd)/bin
 SHELL := env PATH="$(PATH)" /bin/sh
 OS    = $(shell uname -s | tr '[:upper:]' '[:lower:]')
@@ -161,16 +209,16 @@ else
 KUSTOMIZE=$(shell which kustomize)
 endif
 
-konk-operator-${GIT_VERSION}.tgz:
+konk-operator-${CHART_PKG_VERSION}.tgz:
 	mkdir -p helm-charts/konk-operator/crds
 	cp -vR config/crd/bases/* helm-charts/konk-operator/crds/
 	cp -vR config/rbac helm-charts/konk-operator/
-	${HELM} package helm-charts/konk-operator --version ${GIT_VERSION} --app-version ${GIT_VERSION}
+	${HELM} package helm-charts/konk-operator --version ${CHART_PKG_VERSION} --app-version ${GIT_VERSION}
 
-%-${GIT_VERSION}.tgz:
-	${HELM} package helm-charts/$* --version ${GIT_VERSION}
+%-${CHART_PKG_VERSION}.tgz:
+	${HELM} package helm-charts/$* --version ${CHART_PKG_VERSION}
 
-package: konk-operator-${GIT_VERSION}.tgz konk-${GIT_VERSION}.tgz konk-service-${GIT_VERSION}.tgz example-apiserver-${GIT_VERSION}.tgz
+package: konk-operator-${CHART_PKG_VERSION}.tgz konk-${CHART_PKG_VERSION}.tgz konk-service-${CHART_PKG_VERSION}.tgz example-apiserver-${CHART_PKG_VERSION}.tgz
 
 OPERATOR_VERSION:=v1.42.0
 ./bin/%: ./bin/%-$(OPERATOR_VERSION)
@@ -208,20 +256,28 @@ manifests: $(KUSTOMIZE)
 # kind
 bin/kind-${KIND_VERSION}:
 	mkdir -p bin
-	curl -Lo bin/kind-${KIND_VERSION} https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-$(shell uname)-amd64
+	curl -Lo bin/kind-${KIND_VERSION} https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-$(shell uname | tr '[:upper:]' '[:lower:]')-${KIND_ARCH}
 	chmod +x bin/kind-${KIND_VERSION}
 
 $(shell pwd)/bin/kind: bin/kind-${KIND_VERSION}
 	ln -sf $(shell pwd)/$< bin/kind
 
 kind: $(KIND)
-	$(KIND) create cluster -v 1 --name ${KIND_NAME} --config=test/kind.yaml
+	$(KIND) create cluster -v 1 --name ${KIND_NAME} --image ${NODE_IMAGE} --config=test/kind.yaml
+	@# Increase inotify limits to prevent "too many open files" in kube-proxy
+	docker exec ${KIND_NAME}-control-plane sysctl -w fs.inotify.max_user_watches=524288 fs.inotify.max_user_instances=1024
 
 kind-destroy: $(KIND)
 	$(KIND) delete cluster --name ${KIND_NAME}
 
-kind-load-konk: $(KIND) docker-build
-	$(KIND) load docker-image ${IMG} --name ${KIND_NAME}
+ETCD_IMG ?= gcr.io/etcd-development/etcd:$(ETCD_VERSION)
+
+kind-load-konk: $(KIND) docker-build docker-build-kubernetes docker-build-provision docker-build-konk-service
+	@# All images use GIT_VERSION tag, no extra tagging needed
+	docker pull $(ETCD_IMG)
+	$(KIND) load docker-image ${IMG} ${KUBERNETES_IMG} ${PROVISION_IMG} ${KONK_SERVICE_IMG} \
+		$(ETCD_IMG) \
+		--name ${KIND_NAME}
 
 kind-load-apiserver: QUAY_IMG=$(shell $(HELM) template helm-charts/example-apiserver | awk '/image: quay/ {print $$2}')
 kind-load-apiserver: $(KIND) .image-apiserver-${GIT_VERSION}
@@ -239,7 +295,7 @@ $(CHART_READMES):
 
 chart-readmes: $(CHART_READMES)
 
-deploy-ingress-nginx: INGRESS_VERSION := $(shell curl -sS https://api.github.com/repos/kubernetes/ingress-nginx/releases | jq '[.[] | select(.draft==false and .prerelease==false and (.tag_name | startswith("controller-"))) | .tag_name][0]' -r)
+deploy-ingress-nginx: INGRESS_VERSION = $(shell curl -sS https://api.github.com/repos/kubernetes/ingress-nginx/releases | jq '[.[] | select(.draft==false and .prerelease==false and (.tag_name | startswith("controller-"))) | .tag_name][0]' -r)
 deploy-ingress-nginx:
 	# avoids accidentally deploying ingress controller in shared clusters
 	kubectl config current-context | grep -v -E '(^[a-z]{3}-[0-9])|(infoblox.com$$)'
@@ -256,9 +312,10 @@ deploy-ingress-nginx:
 deploy-example-apiserver: HELM_FLAGS ?=--set=image.pullPolicy=IfNotPresent
 deploy-example-apiserver: kind-load-apiserver
 	$(HELM) upgrade --debug -i \
-	 	--wait $(RELEASE_PREFIX)-apiserver \
+	 	--wait --timeout=8m $(RELEASE_PREFIX)-apiserver \
 	 	$(CHART_DIR)/example-apiserver \
 		--set=image.tag=$(GIT_VERSION) \
+		--set=kind.image.tag=$(GIT_VERSION) \
 	 	$(HELM_FLAGS)
 
 upgrade-etcd:
@@ -270,6 +327,9 @@ clean:
 	rm -rf \
 	.image-* \
 	.kind-load-* \
+	.kubernetes-image-* \
+	.provision-image-* \
+	.konk-service-image-* \
 	*.tgz \
 	bin/ \
 	helm-charts/konk-operator/crds/ \

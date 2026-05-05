@@ -41,6 +41,18 @@ spec:
               value: {{ .Values.space.enabled | default "" | quote }}
             - name: VAULT_PATH
               value: {{ .Values.vaultCommon.imagepullsecret.path | default "" }}
+            - name: RELATED_IMAGE_APISERVER
+              value: {{ .Values.relatedImages.apiserver | default "" | quote }}
+            - name: RELATED_IMAGE_PROVISION
+              value: {{ .Values.relatedImages.provision | default "" | quote }}
+            - name: RELATED_IMAGE_KIND
+              value: {{ .Values.relatedImages.kind | default "" | quote }}
+            - name: RELATED_IMAGE_APISERVER_REPO
+              value: {{ .Values.relatedImages.apiserverRepository | default "" | quote }}
+            - name: RELATED_IMAGE_PROVISION_REPO
+              value: {{ .Values.relatedImages.provisionRepository | default "" | quote }}
+            - name: RELATED_IMAGE_KIND_REPO
+              value: {{ .Values.relatedImages.kindRepository | default "" | quote }}
           livenessProbe:
             httpGet:
               path: /healthz

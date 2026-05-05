@@ -24,13 +24,8 @@ When deploying with `helm install`, these configurations are values and can be o
 | ingress.hosts[0].host | string | `"localhost"` |  |
 | ingress.tls | list | `[]` |  |
 | insecureSkipTLSVerify | bool | `false` |  |
-| kind.image.pullPolicy | string | `"Always"` |  |
-| kind.image.repository | string | `"kindest/node"` |  |
-| kind.image.tag | string | `"v1.25.8"` | Overrides the image tag whose default is the chart appVersion. |
-| kind.resources.limits.memory | string | `"4Gi"` |  |
-| kind.resources.requests.cpu | string | `"10m"` |  |
-| kind.resources.requests.memory | string | `"40Mi"` |  |
-| kind.securityContext | object | `{}` |  |
+| kind | object | `{"image":{"pullPolicy":"IfNotPresent","repository":"ghcr.io/infobloxopen/konk-service","tag":""},"resources":{"limits":{"memory":"256Mi"},"requests":{"cpu":"10m","memory":"32Mi"}},"securityContext":{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true,"runAsNonRoot":true}}` | konk-service Go binary image (replaces konk-tools shell-based containers) Contains a single statically-linked Go binary on a distroless base. No shell, no busybox — all kubectl/shell logic is implemented in Go. |
+| kind.image.tag | string | `""` | Overrides the image tag whose default is the chart appVersion. |
 | konk.name | string | `""` | should be set to the konk-name |
 | konk.namespace | string | `""` |  |
 | konk.scope | string | `""` | scope of the konk, must match `.scope` of the Konk  |

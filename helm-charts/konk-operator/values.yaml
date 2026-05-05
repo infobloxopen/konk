@@ -5,7 +5,7 @@
 replicaCount: 1
 
 image:
-  repository: infoblox/konk
+  repository: ghcr.io/infobloxopen/konk
   pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""
@@ -73,3 +73,15 @@ vaultCommon:
     path:
     keys: []
     type: kubernetes.io/dockerconfigjson
+
+# Image tags and repositories for konk sub-charts, passed as env vars to the operator.
+# When set, these override the chart's default appVersion fallback.
+# In CI/kind, these are set to K8S_RELEASE-GIT_SHORT (e.g. v1.25.8-gabcdef).
+# Repository fields default to GHCR; override per-cluster to use Harbor or another registry.
+relatedImages:
+  apiserver: ""
+  provision: ""
+  kind: ""
+  apiserverRepository: "ghcr.io/infobloxopen/konk-app"
+  provisionRepository: "ghcr.io/infobloxopen/konk-provision"
+  kindRepository: "ghcr.io/infobloxopen/konk-service"

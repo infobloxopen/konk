@@ -13,8 +13,8 @@ pipeline {
       -v ${env.WORKSPACE}:/pkg \
       -w /pkg \
       ${env.HELM_IMAGE}"""
-    GIT_DESCRIBE = sh(script: "git describe --always --long --tags", returnStdout: true).trim()
-    GIT_VERSION = "${env.GIT_DESCRIBE}-j${env.BUILD_NUMBER}"
+    GIT_VERSION = sh(script: "git describe --always --long --tags", returnStdout: true).trim()
+    CHART_VERSION = "${env.GIT_VERSION}-j${env.BUILD_NUMBER}"
   }
   stages {
     stage("Prepare Build") {
@@ -33,10 +33,6 @@ pipeline {
       steps {
         withDockerRegistry([credentialsId: "dockerhub-bloxcicd", url: ""]) {
           sh '''
-            sudo add-apt-repository ppa:longsleep/golang-backports
-            sudo apt-get update
-            sudo apt-get install -y golang-go
-            make docker-build docker-push
             make -C test/apiserver push
           '''
         }
@@ -45,7 +41,7 @@ pipeline {
     stage("Package Charts") {
       steps {
         withAWS(credentials: "CICD_HELM", region: "us-east-1") {
-          sh 'make package'
+          sh 'make CHART_PKG_VERSION=$CHART_VERSION package'
         }
       }
     }
@@ -64,7 +60,7 @@ pipeline {
               for chart in konk*
               do
 
-              chart_file=$chart-$GIT_VERSION.tgz
+              chart_file=$chart-$CHART_VERSION.tgz
 
               $HELM s3 push /pkg/$chart_file infobloxcto
 

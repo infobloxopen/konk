@@ -13,15 +13,12 @@ spec:
       restartPolicy: Never
       serviceAccountName: {{ include "konk-service.serviceAccountName" . }}
       containers:
-      - name: kind
+      - name: delete-apiservice
         securityContext:
           {{- toYaml .Values.kind.securityContext | nindent 10 }}
         image: "{{ .Values.kind.image.repository }}:{{ .Values.kind.image.tag | default .Chart.AppVersion }}"
         imagePullPolicy: {{ .Values.kind.image.pullPolicy }}
-        command: ["/bin/bash", "-c"]
-        args:
-          - |
-            /mounts/delete-api-service.sh
+        command: ["/usr/local/bin/konk-service", "delete-apiservice"]
         env:
           - name: SERVICENAME
             value: {{ .Values.service.name }}
@@ -29,6 +26,13 @@ spec:
             value: {{ .Release.Namespace }}
           - name: KUBECONFIG
             value: /etc/kubernetes/admin.conf
+          - name: CERT_DIR
+            value: /certs
+          - name: MANIFESTS
+            valueFrom:
+              configMapKeyRef:
+                name: {{ include "konk-service.fullname" . }}-mounts
+                key: delete-api-service.yaml.in
         resources:
           {{- toYaml .Values.kind.resources | nindent 10 }}
         volumeMounts:
@@ -36,20 +40,10 @@ spec:
           mountPath: "/etc/kubernetes"
           readOnly: true
         - name: ca-cert
-          mountPath: "certs"
+          mountPath: "/certs"
           readOnly: true
-        - name: mounts
-          mountPath: "mounts"
-          readOnly: true
-        - name: gen
-          mountPath: "gen"
-        readinessProbe:
-          exec:
-            command:
-            - cat
-            - /tmp/healthy
-          initialDelaySeconds: 5
-          periodSeconds: 5
+        - name: tmp
+          mountPath: "/tmp"
       volumes:
       - name: kubeconfig
         secret:
@@ -61,9 +55,5 @@ spec:
           {{- else -}}
           {{ include "konk-service.fullname" . }}-server
           {{- end }}
-      - name: mounts
-        configMap:
-          name: {{ include "konk-service.fullname" . }}-mounts
-          defaultMode: 0777
-      - name: gen
+      - name: tmp
         emptyDir: {}

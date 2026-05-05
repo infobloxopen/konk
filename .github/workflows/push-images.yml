@@ -1,0 +1,52 @@
+name: Build and push images to GHCR
+
+on:
+  push:
+    branches:
+      - main
+      - 'release/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - uses: actions/setup-go@v5
+      with:
+        go-version: '1.25'
+    - name: Log in to GHCR
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    - name: Build Images
+      env:
+        BUILDKIT_PROGRESS: plain
+      run: |
+        make docker-build
+        make docker-build-kubernetes
+        make docker-build-provision
+        make docker-build-konk-service
+    - name: Push Images to GHCR
+      env:
+        BUILDKIT_PROGRESS: plain
+      run: |
+        make docker-push
+        make docker-push-kubernetes
+        make docker-push-provision
+        make docker-push-konk-service
+    - name: Tag :latest and push to GHCR
+      env:
+        BUILDKIT_PROGRESS: plain
+      run: |
+        GIT_VERSION=$(git describe --always --long --tags)
+        for img in konk konk-app konk-provision konk-service; do
+          docker tag ghcr.io/infobloxopen/${img}:${GIT_VERSION} ghcr.io/infobloxopen/${img}:latest
+          docker push ghcr.io/infobloxopen/${img}:latest
+        done
