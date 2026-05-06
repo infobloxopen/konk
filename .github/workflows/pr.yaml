@@ -91,7 +91,7 @@ jobs:
           make deploy-cert-manager deploy-ingress-nginx INGRESS_VERSION=${{ matrix.ingressVersion || env.ingress_version }}
       - name: Install konk-operator
         if: ${{ matrix.isUpgrade }}
-        timeout-minutes: 6
+        timeout-minutes: 15
         run: |
           make kind-load-konk KIND_NAME="chart-testing"
           make deploy-konk-operator
@@ -158,6 +158,9 @@ jobs:
           do
             sleep 1
           done
+          echo "::group::Debug - helm releases (all namespaces)"
+          helm list -A || true
+          echo "::endgroup::"
           make test-konk KONK_NAMESPACE=$KONK_NAMESPACE
           make test-konk-local
       - name: Setup Go
