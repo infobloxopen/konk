@@ -93,8 +93,16 @@ jobs:
         if: ${{ matrix.isUpgrade }}
         timeout-minutes: 15
         run: |
-          make kind-load-konk KIND_NAME="chart-testing"
-          make deploy-konk-operator
+          # Pin GIT_VERSION for the whole upgrade leg so both `make` invocations
+          # (this step and the subsequent "Install/Upgrade konk-operator" step,
+          # run from a different checkout) build & reference the same image
+          # tags and produce identical helm overrideValues. Without this, the
+          # operator-led `runner-konk` release rewrites on the second pass and
+          # `helm test runner-konk` cannot find it.
+          GIT_VERSION="$(git describe --always --long --tags)"
+          echo "GIT_VERSION=${GIT_VERSION}" >> "$GITHUB_ENV"
+          make kind-load-konk KIND_NAME="chart-testing" GIT_VERSION="${GIT_VERSION}"
+          make deploy-konk-operator GIT_VERSION="${GIT_VERSION}"
           kubectl create ns $KONK_NAMESPACE || true
           kubectl create -n $KONK_NAMESPACE -f examples/konk.yaml
           until kubectl wait -n $KONK_NAMESPACE --timeout=3m --for=condition=ready pod -l app.kubernetes.io/component=apiserver,app.kubernetes.io/name=konk
@@ -113,8 +121,16 @@ jobs:
       - name: Install/Upgrade konk-operator
         timeout-minutes: 10
         run: |
-          make kind-load-konk KIND_NAME="chart-testing"
-          make deploy-crds deploy-konk-operator
+          # Reuse the pinned GIT_VERSION from the upgrade leg's first install
+          # (set above via $GITHUB_ENV). For the non-upgrade legs GIT_VERSION
+          # is empty and the Makefile falls back to `git describe`.
+          if [ -n "${GIT_VERSION:-}" ]; then
+            make kind-load-konk KIND_NAME="chart-testing" GIT_VERSION="${GIT_VERSION}"
+            make deploy-crds deploy-konk-operator GIT_VERSION="${GIT_VERSION}"
+          else
+            make kind-load-konk KIND_NAME="chart-testing"
+            make deploy-crds deploy-konk-operator
+          fi
       - name: Test Konk
         timeout-minutes: 6
         run: |
@@ -159,7 +175,10 @@ jobs:
             sleep 1
           done
           echo "::group::Debug - helm releases (all namespaces)"
-          helm list -A || true
+          docker run --rm --network host \
+            -v ${HOME}/.kube:/root/.kube \
+            -e KUBECONFIG=/root/.kube/config \
+            infoblox/helm:3 helm list -A || true
           echo "::endgroup::"
           make test-konk KONK_NAMESPACE=$KONK_NAMESPACE
           make test-konk-local
