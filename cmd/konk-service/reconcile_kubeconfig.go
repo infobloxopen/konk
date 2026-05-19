@@ -86,15 +86,18 @@ func reconcileOnce(
 		return
 	}
 
-	// Build a kubeconfig programmatically
+	// Build a kubeconfig with file references (not embedded data).
+	// Consumer pods mount the Secret at a directory (e.g. /etc/kubernetes/).
+	// Using file refs allows client-go to re-read certs from disk on each
+	// TLS handshake, so rotated certs are picked up without pod restart.
 	kubeconfig := clientcmdapi.NewConfig()
 	kubeconfig.Clusters[konkName] = &clientcmdapi.Cluster{
-		Server:                   "https://" + konkFQDN + ":6443",
-		CertificateAuthorityData: caCert,
+		Server:               "https://" + konkFQDN + ":6443",
+		CertificateAuthority: "ca.crt",
 	}
 	kubeconfig.AuthInfos["kubernetes-admin"] = &clientcmdapi.AuthInfo{
-		ClientCertificateData: tlsCert,
-		ClientKeyData:         tlsKey,
+		ClientCertificate: "tls.crt",
+		ClientKey:         "tls.key",
 	}
 	kubeconfig.Contexts[konkName] = &clientcmdapi.Context{
 		Cluster:  konkName,
