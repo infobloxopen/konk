@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -202,6 +203,15 @@ func reconcileKubeconfigSecret(
 		if err != nil {
 			return fmt.Errorf("updating secret: %w", err)
 		}
+
+		// Trigger rolling restart of deployments that mount this secret
+		if *lastCertSum != "" {
+			// Only restart on rotation (not on first run)
+			if err := restartDependentDeployments(ctx, client, namespace, secretName, certSum); err != nil {
+				log.Printf("Warning: failed to restart dependent deployments: %v", err)
+			}
+		}
+
 		*lastCertSum = certSum
 	} else {
 		log.Printf("Certs unchanged, skipping update")
@@ -240,4 +250,59 @@ func setKubeconfigOwnerRef(ctx context.Context, client *kubernetes.Clientset, na
 		ctx, secretName, types.MergePatchType, patch, metav1.PatchOptions{},
 	)
 	return err
+}
+
+// restartDependentDeployments finds all deployments in the namespace that mount
+// the given secret as a volume, and patches their pod template annotation to
+// trigger a rolling restart (similar to `kubectl rollout restart`).
+func restartDependentDeployments(ctx context.Context, client *kubernetes.Clientset, namespace, secretName, certSum string) error {
+	deployments, err := client.AppsV1().Deployments(namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return fmt.Errorf("listing deployments: %w", err)
+	}
+
+	for _, deploy := range deployments.Items {
+		if !deploymentMountsSecret(deploy, secretName) {
+			continue
+		}
+
+		log.Printf("Restarting deployment %s (mounts rotated secret %s)", deploy.Name, secretName)
+
+		patch, err := json.Marshal(map[string]interface{}{
+			"spec": map[string]interface{}{
+				"template": map[string]interface{}{
+					"metadata": map[string]interface{}{
+						"annotations": map[string]string{
+							"konk.infoblox.com/cert-checksum": certSum,
+						},
+					},
+				},
+			},
+		})
+		if err != nil {
+			log.Printf("Error marshaling patch for %s: %v", deploy.Name, err)
+			continue
+		}
+
+		_, err = client.AppsV1().Deployments(namespace).Patch(
+			ctx, deploy.Name, types.StrategicMergePatchType, patch, metav1.PatchOptions{},
+		)
+		if err != nil {
+			log.Printf("Error patching deployment %s: %v", deploy.Name, err)
+			continue
+		}
+	}
+
+	return nil
+}
+
+// deploymentMountsSecret checks if a deployment has a volume that references
+// the given secret name.
+func deploymentMountsSecret(deploy appsv1.Deployment, secretName string) bool {
+	for _, vol := range deploy.Spec.Template.Spec.Volumes {
+		if vol.Secret != nil && vol.Secret.SecretName == secretName {
+			return true
+		}
+	}
+	return false
 }
