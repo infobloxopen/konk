@@ -86,26 +86,7 @@ func reconcileOnce(
 		return
 	}
 
-	// Build a kubeconfig with file references (not embedded data).
-	// Consumer pods mount the Secret at a directory (e.g. /etc/kubernetes/).
-	// Using file refs allows client-go to re-read certs from disk on each
-	// TLS handshake, so rotated certs are picked up without pod restart.
-	kubeconfig := clientcmdapi.NewConfig()
-	kubeconfig.Clusters[konkName] = &clientcmdapi.Cluster{
-		Server:               "https://" + konkFQDN + ":6443",
-		CertificateAuthority: "ca.crt",
-	}
-	kubeconfig.AuthInfos["kubernetes-admin"] = &clientcmdapi.AuthInfo{
-		ClientCertificate: "tls.crt",
-		ClientKey:         "tls.key",
-	}
-	kubeconfig.Contexts[konkName] = &clientcmdapi.Context{
-		Cluster:  konkName,
-		AuthInfo: "kubernetes-admin",
-	}
-	kubeconfig.CurrentContext = konkName
-
-	kubeconfigBytes, err := clientcmd.Write(*kubeconfig)
+	kubeconfigBytes, err := buildKubeconfig(konkName, konkFQDN)
 	if err != nil {
 		log.Printf("Error serializing kubeconfig: %v", err)
 		return
@@ -135,6 +116,39 @@ func reconcileOnce(
 	if err != nil {
 		log.Printf("Error reconciling secret: %v", err)
 	}
+}
+
+// buildKubeconfig returns a kubeconfig that references certs by relative file
+// path (ca.crt, tls.crt, tls.key) rather than embedding cert data.
+//
+// This is critical for automatic cert rotation: when client-go sees file-based
+// TLS config, it activates the dynamicClientCert reload mechanism in
+// k8s.io/client-go/transport/cert_rotation.go which re-reads the cert files
+// from disk on every TLS handshake (with a 5-minute refresh). Embedding cert
+// data via ClientCertificateData/ClientKeyData/CertificateAuthorityData
+// disables this mechanism, causing consumers to keep using the expired cert
+// in memory until pod restart.
+//
+// Regression history: the original shell-based reconcile-kubeconfig used file
+// refs (`kubectl config set-credentials --client-certificate tls.crt ...`).
+// The distroless Go rewrite initially embedded cert *data* which broke
+// rotation. See kubeconfig-cert-rotation-options.md (Option 7).
+func buildKubeconfig(konkName, konkFQDN string) ([]byte, error) {
+	kubeconfig := clientcmdapi.NewConfig()
+	kubeconfig.Clusters[konkName] = &clientcmdapi.Cluster{
+		Server:               "https://" + konkFQDN + ":6443",
+		CertificateAuthority: "ca.crt",
+	}
+	kubeconfig.AuthInfos["kubernetes-admin"] = &clientcmdapi.AuthInfo{
+		ClientCertificate: "tls.crt",
+		ClientKey:         "tls.key",
+	}
+	kubeconfig.Contexts[konkName] = &clientcmdapi.Context{
+		Cluster:  konkName,
+		AuthInfo: "kubernetes-admin",
+	}
+	kubeconfig.CurrentContext = konkName
+	return clientcmd.Write(*kubeconfig)
 }
 
 func parseLabels(labelsStr string) map[string]string {
