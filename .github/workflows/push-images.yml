@@ -36,17 +36,29 @@ jobs:
     - name: Push Images to GHCR
       env:
         BUILDKIT_PROGRESS: plain
+      # Retry up to 3 times to handle transient GHCR "unknown blob" errors.
       run: |
-        make docker-push
-        make docker-push-kubernetes
-        make docker-push-provision
-        make docker-push-konk-service
+        for attempt in 1 2 3; do
+          make docker-push && \
+          make docker-push-kubernetes && \
+          make docker-push-provision && \
+          make docker-push-konk-service && break
+          echo "Push attempt $attempt failed, retrying in 15s..."
+          sleep 15
+        done
     - name: Tag :latest and push to GHCR
       env:
         BUILDKIT_PROGRESS: plain
+      # Retry up to 3 times to handle transient GHCR "unknown blob" errors.
       run: |
         GIT_VERSION=$(git describe --always --long --tags)
-        for img in konk konk-app konk-provision konk-service; do
-          docker tag ghcr.io/infobloxopen/${img}:${GIT_VERSION} ghcr.io/infobloxopen/${img}:latest
-          docker push ghcr.io/infobloxopen/${img}:latest
+        for attempt in 1 2 3; do
+          ok=true
+          for img in konk konk-app konk-provision konk-service; do
+            docker tag ghcr.io/infobloxopen/${img}:${GIT_VERSION} ghcr.io/infobloxopen/${img}:latest
+            docker push ghcr.io/infobloxopen/${img}:latest || ok=false
+          done
+          $ok && break
+          echo "Tag+push attempt $attempt failed, retrying in 15s..."
+          sleep 15
         done
