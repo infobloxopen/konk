@@ -43,18 +43,22 @@ func runReconcileKubeconfig() error {
 
 	labels := parseLabels(labelsStr)
 
-	infraClient, err := newInClusterClient()
-	if err != nil {
-		return fmt.Errorf("creating infra client: %w", err)
-	}
-
 	ctx := context.Background()
 	secretName := fullname + "-kubeconfig"
 	var lastCertSum string
 
 	for {
 		log.Println("Reconciling kubeconfig...")
-		reconcileOnce(ctx, infraClient, kubeconfigPath, certDir, konkName, konkFQDN, namespace, fullname, secretName, labels, &lastCertSum)
+
+		// Create a fresh client each iteration to prevent HTTP/2 transport
+		// memory accumulation on long-lived connections (known Go net/http2 issue).
+		infraClient, close, err := newInClusterClient()
+		if err != nil {
+			log.Printf("Error creating infra client: %v", err)
+		} else {
+			reconcileOnce(ctx, infraClient, kubeconfigPath, certDir, konkName, konkFQDN, namespace, fullname, secretName, labels, &lastCertSum)
+			close()
+		}
 
 		// 3 minute loop with 30s jitter (matching original shell)
 		jitter := time.Duration(rand.Intn(30)) * time.Second
