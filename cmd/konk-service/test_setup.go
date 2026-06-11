@@ -34,11 +34,11 @@ func runTestSetup() error {
 
 	ctx := context.Background()
 
-	konkClient, dynClient, close, err := newKubeconfigClient(kubeconfigPath)
+	konkClient, dynClient, cleanup, err := newKubeconfigClient(kubeconfigPath)
 	if err != nil {
 		return fmt.Errorf("creating konk client: %w", err)
 	}
-	defer close()
+	defer cleanup()
 
 	// Check RBAC: can-i create apiservice
 	log.Println("Checking RBAC: can create apiservice...")

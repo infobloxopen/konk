@@ -36,10 +36,10 @@ func runWaitForResource() error {
 
 	log.Printf("Waiting for resource %s.%s/%s to be available...", resource, group, version)
 	for {
-		_, dyn, close, err := newKubeconfigClient(kubeconfigPath)
+		_, dyn, cleanup, err := newKubeconfigClient(kubeconfigPath)
 		if err == nil {
 			_, err = dyn.Resource(gvr).List(ctx, metav1.ListOptions{Limit: 1})
-			close()
+			cleanup()
 			if err == nil {
 				log.Printf("Resource %s is available", resource)
 				return nil
@@ -87,10 +87,10 @@ func runExampleTest() error {
 	}
 	log.Printf("Waiting for resource %s to be available...", resource)
 	for {
-		_, dyn, close, err := newKubeconfigClient(kubeconfigPath)
+		_, dyn, cleanup, err := newKubeconfigClient(kubeconfigPath)
 		if err == nil {
 			_, err = dyn.Resource(gvr).Namespace(namespace).List(ctx, metav1.ListOptions{Limit: 1})
-			close()
+			cleanup()
 			if err == nil {
 				break
 			}
@@ -100,11 +100,11 @@ func runExampleTest() error {
 	}
 
 	// Create sample resource
-	_, dyn, close, err := newKubeconfigClient(kubeconfigPath)
+	_, dyn, cleanup, err := newKubeconfigClient(kubeconfigPath)
 	if err != nil {
 		return err
 	}
-	defer close()
+	defer cleanup()
 
 	sampleObj := &unstructured.Unstructured{
 		Object: map[string]interface{}{
