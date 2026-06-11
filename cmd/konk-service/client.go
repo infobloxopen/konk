@@ -20,47 +20,67 @@ import (
 	"strings"
 )
 
+// closeFunc releases HTTP transport resources (idle connections, HTTP/2 goroutines).
+// Must be called after each reconciliation iteration to prevent memory accumulation
+// from long-lived HTTP/2 transports (known Go net/http2 issue).
+type closeFunc func()
+
 // newInClusterClient creates a kubernetes clientset using in-cluster config.
-func newInClusterClient() (*kubernetes.Clientset, error) {
+// Returns a closeFunc that must be called after use to release HTTP/2 transport resources.
+func newInClusterClient() (*kubernetes.Clientset, closeFunc, error) {
 	rc, err := rest.InClusterConfig()
 	if err != nil {
-		return nil, fmt.Errorf("in-cluster config: %w", err)
+		return nil, nil, fmt.Errorf("in-cluster config: %w", err)
 	}
-	cs, err := kubernetes.NewForConfig(rc)
+	httpClient, err := rest.HTTPClientFor(rc)
 	if err != nil {
-		return nil, fmt.Errorf("creating clientset: %w", err)
+		return nil, nil, fmt.Errorf("creating http client: %w", err)
 	}
-	return cs, nil
-}
-
-// newKubeconfigClient creates kubernetes and dynamic clients from a kubeconfig file.
-func newKubeconfigClient(kubeconfigPath string) (*kubernetes.Clientset, dynamic.Interface, error) {
-	cfg, err := clientcmd.BuildConfigFromFlags("", kubeconfigPath)
-	if err != nil {
-		return nil, nil, fmt.Errorf("loading kubeconfig %s: %w", kubeconfigPath, err)
-	}
-	cs, err := kubernetes.NewForConfig(cfg)
+	cs, err := kubernetes.NewForConfigAndClient(rc, httpClient)
 	if err != nil {
 		return nil, nil, fmt.Errorf("creating clientset: %w", err)
 	}
-	dyn, err := dynamic.NewForConfig(cfg)
+	return cs, func() { httpClient.CloseIdleConnections() }, nil
+}
+
+// newKubeconfigClient creates kubernetes and dynamic clients from a kubeconfig file.
+// Returns a closeFunc that must be called after use to release HTTP/2 transport resources.
+func newKubeconfigClient(kubeconfigPath string) (*kubernetes.Clientset, dynamic.Interface, closeFunc, error) {
+	cfg, err := clientcmd.BuildConfigFromFlags("", kubeconfigPath)
 	if err != nil {
-		return nil, nil, fmt.Errorf("creating dynamic client: %w", err)
+		return nil, nil, nil, fmt.Errorf("loading kubeconfig %s: %w", kubeconfigPath, err)
 	}
-	return cs, dyn, nil
+	httpClient, err := rest.HTTPClientFor(cfg)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("creating http client: %w", err)
+	}
+	cs, err := kubernetes.NewForConfigAndClient(cfg, httpClient)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("creating clientset: %w", err)
+	}
+	dyn, err := dynamic.NewForConfigAndClient(cfg, httpClient)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("creating dynamic client: %w", err)
+	}
+	return cs, dyn, func() { httpClient.CloseIdleConnections() }, nil
 }
 
 // newDynamicInClusterClient creates a dynamic client using in-cluster config.
-func newDynamicInClusterClient() (dynamic.Interface, error) {
+// Returns a closeFunc that must be called after use to release HTTP/2 transport resources.
+func newDynamicInClusterClient() (dynamic.Interface, closeFunc, error) {
 	rc, err := rest.InClusterConfig()
 	if err != nil {
-		return nil, fmt.Errorf("in-cluster config: %w", err)
+		return nil, nil, fmt.Errorf("in-cluster config: %w", err)
 	}
-	dyn, err := dynamic.NewForConfig(rc)
+	httpClient, err := rest.HTTPClientFor(rc)
 	if err != nil {
-		return nil, fmt.Errorf("creating dynamic client: %w", err)
+		return nil, nil, fmt.Errorf("creating http client: %w", err)
 	}
-	return dyn, nil
+	dyn, err := dynamic.NewForConfigAndClient(rc, httpClient)
+	if err != nil {
+		return nil, nil, fmt.Errorf("creating dynamic client: %w", err)
+	}
+	return dyn, func() { httpClient.CloseIdleConnections() }, nil
 }
 
 // applyUnstructured applies a single unstructured object using server-side apply.

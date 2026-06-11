@@ -60,7 +60,7 @@ func runTestConnection() error {
 
 func waitForClusterInfo(ctx context.Context, kubeconfigPath string) error {
 	for {
-		client, _, err := newKubeconfigClient(kubeconfigPath)
+		client, _, cleanup, err := newKubeconfigClient(kubeconfigPath)
 		if err == nil {
 			// Use Discovery to check that the API server is reachable.
 			// A konk API server is a bare kube-apiserver without a
@@ -68,6 +68,7 @@ func waitForClusterInfo(ctx context.Context, kubeconfigPath string) error {
 			// default namespace does not exist.  Calling ServerVersion()
 			// hits the /version endpoint which is always available.
 			_, err = client.Discovery().ServerVersion()
+			cleanup()
 			if err == nil {
 				return nil
 			}
@@ -83,9 +84,10 @@ func waitForClusterInfo(ctx context.Context, kubeconfigPath string) error {
 
 func waitForAPIServices(ctx context.Context, kubeconfigPath string) error {
 	for {
-		client, _, err := newKubeconfigClient(kubeconfigPath)
+		client, _, cleanup, err := newKubeconfigClient(kubeconfigPath)
 		if err == nil {
 			_, err = client.Discovery().ServerGroups()
+			cleanup()
 			if err == nil {
 				return nil
 			}

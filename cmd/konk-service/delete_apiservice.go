@@ -31,10 +31,11 @@ func runDeleteAPIService() error {
 	ctx := context.Background()
 
 	// Verify konk is reachable
-	konkClient, dyn, err := newKubeconfigClient(kubeconfigPath)
+	konkClient, dyn, cleanup, err := newKubeconfigClient(kubeconfigPath)
 	if err != nil {
 		return fmt.Errorf("creating konk client: %w", err)
 	}
+	defer cleanup()
 
 	// Quick health check — list nodes (like the original script)
 	_, err = konkClient.CoreV1().Nodes().List(ctx, metav1.ListOptions{})

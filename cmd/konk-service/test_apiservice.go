@@ -41,22 +41,18 @@ func runTestAPIService() error {
 func testAPIServiceOnce(kubeconfigPath, apiServiceName, group string) int {
 	ctx := context.Background()
 
-	konkClient, _, err := newKubeconfigClient(kubeconfigPath)
+	konkClient, dynClient, cleanup, err := newKubeconfigClient(kubeconfigPath)
 	if err != nil {
 		log.Printf("Error creating konk client: %v", err)
 		return 1
 	}
+	defer cleanup()
 
 	// Check APIService exists
 	apiregGVR := schema.GroupVersionResource{
 		Group:    "apiregistration.k8s.io",
 		Version:  "v1",
 		Resource: "apiservices",
-	}
-	_, dynClient, err := newKubeconfigClient(kubeconfigPath)
-	if err != nil {
-		log.Printf("Error creating dynamic client: %v", err)
-		return 1
 	}
 	_, err = dynClient.Resource(apiregGVR).Get(ctx, apiServiceName, metav1.GetOptions{})
 	if err != nil {

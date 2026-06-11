@@ -43,18 +43,24 @@ func runReconcileKubeconfig() error {
 
 	labels := parseLabels(labelsStr)
 
-	infraClient, err := newInClusterClient()
-	if err != nil {
-		return fmt.Errorf("creating infra client: %w", err)
-	}
-
 	ctx := context.Background()
 	secretName := fullname + "-kubeconfig"
 	var lastCertSum string
 
 	for {
 		log.Println("Reconciling kubeconfig...")
-		reconcileOnce(ctx, infraClient, kubeconfigPath, certDir, konkName, konkFQDN, namespace, fullname, secretName, labels, &lastCertSum)
+
+		// Wrap in an anonymous function so defer cleanup() fires at end of
+		// each iteration, releasing the HTTP/2 transport even if reconcileOnce panics.
+		func() {
+			infraClient, cleanup, err := newInClusterClient()
+			if err != nil {
+				log.Printf("Error creating infra client: %v", err)
+				return
+			}
+			defer cleanup()
+			reconcileOnce(ctx, infraClient, kubeconfigPath, certDir, konkName, konkFQDN, namespace, fullname, secretName, labels, &lastCertSum)
+		}()
 
 		// 3 minute loop with 30s jitter (matching original shell)
 		jitter := time.Duration(rand.Intn(30)) * time.Second

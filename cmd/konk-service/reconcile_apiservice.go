@@ -73,11 +73,13 @@ func reconcileAPIServiceOnce(ctx context.Context, kubeconfigPath, certDir, servi
 		rendered = strings.ReplaceAll(rendered, old, certB64)
 	}
 
-	// Parse and apply
-	_, dyn, err := newKubeconfigClient(kubeconfigPath)
+	// Create a fresh client each iteration to prevent HTTP/2 transport
+	// memory accumulation on long-lived connections (known Go net/http2 issue).
+	_, dyn, cleanup, err := newKubeconfigClient(kubeconfigPath)
 	if err != nil {
 		return fmt.Errorf("creating konk client: %w", err)
 	}
+	defer cleanup()
 
 	objects, err := parseMultiDocYAML(rendered)
 	if err != nil {
