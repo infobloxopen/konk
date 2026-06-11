@@ -36,29 +36,28 @@ jobs:
     - name: Push Images to GHCR
       env:
         BUILDKIT_PROGRESS: plain
-      # Retry up to 3 times to handle transient GHCR "unknown blob" errors.
+      # Retry each image individually so a transient GHCR "unknown blob" failure
+      # on one image does not force a re-push of images that already succeeded.
       run: |
-        for attempt in 1 2 3; do
-          make docker-push && \
-          make docker-push-kubernetes && \
-          make docker-push-provision && \
-          make docker-push-konk-service && break
-          echo "Push attempt $attempt failed, retrying in 15s..."
-          sleep 15
+        for target in docker-push docker-push-kubernetes docker-push-provision docker-push-konk-service; do
+          for attempt in 1 2 3; do
+            make $target && break
+            echo "$target attempt $attempt failed, retrying in 15s..."
+            sleep 15
+          done
         done
     - name: Tag :latest and push to GHCR
       env:
         BUILDKIT_PROGRESS: plain
-      # Retry up to 3 times to handle transient GHCR "unknown blob" errors.
+      # Retry each image individually so a failure on one image does not
+      # force a re-push of images that already succeeded.
       run: |
         GIT_VERSION=$(git describe --always --long --tags)
-        for attempt in 1 2 3; do
-          ok=true
-          for img in konk konk-app konk-provision konk-service; do
-            docker tag ghcr.io/infobloxopen/${img}:${GIT_VERSION} ghcr.io/infobloxopen/${img}:latest
-            docker push ghcr.io/infobloxopen/${img}:latest || ok=false
+        for img in konk konk-app konk-provision konk-service; do
+          docker tag ghcr.io/infobloxopen/${img}:${GIT_VERSION} ghcr.io/infobloxopen/${img}:latest
+          for attempt in 1 2 3; do
+            docker push ghcr.io/infobloxopen/${img}:latest && break
+            echo "${img}:latest attempt $attempt failed, retrying in 15s..."
+            sleep 15
           done
-          $ok && break
-          echo "Tag+push attempt $attempt failed, retrying in 15s..."
-          sleep 15
         done
