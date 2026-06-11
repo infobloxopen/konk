@@ -13,7 +13,7 @@ jobs:
       contents: read
       packages: write
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
     - uses: actions/setup-go@v5
@@ -37,10 +37,15 @@ jobs:
       env:
         BUILDKIT_PROGRESS: plain
       run: |
-        make docker-push
-        make docker-push-kubernetes
-        make docker-push-provision
-        make docker-push-konk-service
+        for target in docker-push docker-push-kubernetes docker-push-provision docker-push-konk-service; do
+          n=0
+          until make "$target"; do
+            n=$((n+1))
+            [ $n -lt 3 ] || exit 1
+            echo "Push failed, retrying ($n/3)..."
+            sleep 10
+          done
+        done
     - name: Tag :latest and push to GHCR
       env:
         BUILDKIT_PROGRESS: plain
@@ -48,5 +53,11 @@ jobs:
         GIT_VERSION=$(git describe --always --long --tags)
         for img in konk konk-app konk-provision konk-service; do
           docker tag ghcr.io/infobloxopen/${img}:${GIT_VERSION} ghcr.io/infobloxopen/${img}:latest
-          docker push ghcr.io/infobloxopen/${img}:latest
+          n=0
+          until docker push ghcr.io/infobloxopen/${img}:latest; do
+            n=$((n+1))
+            [ $n -lt 3 ] || exit 1
+            echo "Push failed, retrying ($n/3)..."
+            sleep 10
+          done
         done
