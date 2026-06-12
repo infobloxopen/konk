@@ -9,38 +9,42 @@
 # Sections:
 #   1.  konk-operator (konk namespace)
 #   2.  Core infrastructure (aggregate namespace: bulk-konk, etcd, init)
-#   3.  Konk CR status
-#   4.  KonkService CR statuses (all namespaces)
-#   5.  konk-service pods health (all namespaces)
-#   6.  CA trust chain (bulk-konk CA vs kubeconfig secrets)
-#   7.  APIServices inside konk (queried from a kubectl-apiservice pod)
-#   8.  Deep test: sample namespace (default: tagging-v2)
-#   9.  Bulk (atlas.bulk) integration with konk
-#   10. konk-operator log health
-#   11. cert-manager CA integration
-#   12. Konk API deep test — query resources in konk (tagging, dnsconfig, etc.)
-#   13. External API integration — test tagging + bulk export/import via CSP endpoint
-#   14. Konk APIService backend health — all pods in konk namespaces (aggregate, ddi, hostapp, ngp-cp, ntp, tagging-v2, redirect, endpoints)
+#   3.  Image version consistency (operator expected vs running)
+#   4.  Konk CR status
+#   5.  KonkService CR statuses (all namespaces)
+#   6.  konk-service pods health (all namespaces)
+#   7.  CA trust chain (bulk-konk CA vs kubeconfig secrets)
+#   8.  APIServices inside konk (queried from a kubectl-apiservice pod)
+#   9.  Deep test: sample namespace (default: tagging-v2)
+#   10. Bulk (atlas.bulk) integration with konk
+#   11. konk-operator log health
+#   12. cert-manager CA integration
+#   13. Konk API deep test — query resources in konk (tagging, dnsconfig, etc.)
+#   14. External API integration — test tagging + bulk export/import via CSP endpoint
+#   15. Konk APIService backend health — all pods in konk namespaces (aggregate, ddi, hostapp, ngp-cp, ntp, tagging-v2, redirect, endpoints)
+#   16. Stale node containers (Helm merge ghost detection)
 #
 # Usage:
 #   ./e2e-konk-test.sh                        # full run (sample ns = tagging-v2)
-#   ./e2e-konk-test.sh --section 10           # run ONLY section 10
-#   ./e2e-konk-test.sh --section 12 --section 13  # run sections 12 and 13
-#   ./e2e-konk-test.sh --section 14          # run ONLY Konk APIService backend health
+#   ./e2e-konk-test.sh --section 11           # run ONLY section 11
+#   ./e2e-konk-test.sh --section 8-10         # run sections 8 through 10 (range)
+#   ./e2e-konk-test.sh --section 8-           # run sections 8 to end
+#   ./e2e-konk-test.sh --section 13 --section 14  # run sections 13 and 14
+#   ./e2e-konk-test.sh --section 15          # run ONLY Konk APIService backend health
 #   ./e2e-konk-test.sh --sample-ns atcapi     # use different sample namespace
 #   ./e2e-konk-test.sh --skip-bulk            # skip bulk integration test
 #   ./e2e-konk-test.sh --skip-exec            # skip kubectl exec tests (read-only)
 #   ./e2e-konk-test.sh --skip-ca              # skip CA chain validation
-#   ./e2e-konk-test.sh --skip-trigger-registration # section 7: skip default registration trigger test
+#   ./e2e-konk-test.sh --skip-trigger-registration # section 8: skip default registration trigger test
 #   ./e2e-konk-test.sh -v                     # verbose (show all passing details)
 #   ./e2e-konk-test.sh -d                     # debug (show commands + full output)
-#   ./e2e-konk-test.sh --csp-url URL --token TOKEN  # for section 13 (external API)
+#   ./e2e-konk-test.sh --csp-url URL --token TOKEN  # for section 14 (external API)
 #
 # Environment variables:
-#   KONK_E2E_TOKEN   — Bearer token for CSP API calls (section 13). Avoids --token flag.
+#   KONK_E2E_TOKEN   — Bearer token for CSP API calls (section 14). Avoids --token flag.
 #   KONK_E2E_CSP_URL — CSP base URL (default: auto-detected from cluster name).
 #
-# Requirements: kubectl, openssl, curl (for section 13), jq (optional)
+# Requirements: kubectl, openssl, curl (for section 14), jq (optional)
 
 set -euo pipefail
 
@@ -75,7 +79,15 @@ CLUSTER_URLS=(
 # ── Argument parsing ──────────────────────────────────────────────────────────
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --section)     RUN_SECTIONS+=("$2"); shift 2 ;;
+    --section)
+      if [[ "$2" == *-* ]]; then
+        _from=${2%%-*}; _to=${2##*-}
+        [[ -z "$_to" ]] && _to=14  # open-ended range: 7- means 7 to last section
+        for (( _i=_from; _i<=_to; _i++ )); do RUN_SECTIONS+=("$_i"); done
+      else
+        RUN_SECTIONS+=("$2")
+      fi
+      shift 2 ;;
     --sample-ns)   SAMPLE_NS="$2"; shift 2 ;;
     --skip-bulk)   SKIP_BULK=true; shift ;;
     --skip-exec)   SKIP_EXEC=true; shift ;;
@@ -356,10 +368,111 @@ fi
 fi  # section 2
 
 # ══════════════════════════════════════════════════════════════════════════════
-# SECTION 3: Konk CR status
+# SECTION 3: Image version consistency
+# ══════════════════════════════════════════════════════════════════════════════
+section "Image version consistency"
+if should_run 3; then
+# Extract operator's expected image tags from RELATED_IMAGE env vars
+OPERATOR_DEPLOY_JSON=$(kc get deploy konk-operator -n "$KONK_NAMESPACE" -o json 2>/dev/null)
+OPERATOR_TAG=$(echo "$OPERATOR_DEPLOY_JSON" | jq -r '
+  .spec.template.spec.containers[0].env[]
+  | select(.name=="RELATED_IMAGE_APISERVER") | .value' 2>/dev/null || echo "")
+OPERATOR_PROVISION_TAG=$(echo "$OPERATOR_DEPLOY_JSON" | jq -r '
+  .spec.template.spec.containers[0].env[]
+  | select(.name=="RELATED_IMAGE_PROVISION") | .value' 2>/dev/null || echo "")
+OPERATOR_SERVICE_TAG=$(echo "$OPERATOR_DEPLOY_JSON" | jq -r '
+  .spec.template.spec.containers[0].env[]
+  | select(.name=="RELATED_IMAGE_KIND") | .value' 2>/dev/null || echo "")
+OPERATOR_APISERVER_REPO=$(echo "$OPERATOR_DEPLOY_JSON" | jq -r '
+  .spec.template.spec.containers[0].env[]
+  | select(.name=="RELATED_IMAGE_APISERVER_REPO") | .value' 2>/dev/null || echo "")
+OPERATOR_PROVISION_REPO=$(echo "$OPERATOR_DEPLOY_JSON" | jq -r '
+  .spec.template.spec.containers[0].env[]
+  | select(.name=="RELATED_IMAGE_PROVISION_REPO") | .value' 2>/dev/null || echo "")
+OPERATOR_SERVICE_REPO=$(echo "$OPERATOR_DEPLOY_JSON" | jq -r '
+  .spec.template.spec.containers[0].env[]
+  | select(.name=="RELATED_IMAGE_KIND_REPO") | .value' 2>/dev/null || echo "")
+
+EXPECTED_APISERVER_IMG="${OPERATOR_APISERVER_REPO}:${OPERATOR_TAG}"
+EXPECTED_PROVISION_IMG="${OPERATOR_PROVISION_REPO}:${OPERATOR_PROVISION_TAG}"
+EXPECTED_SERVICE_IMG="${OPERATOR_SERVICE_REPO}:${OPERATOR_SERVICE_TAG}"
+
+OPERATOR_IMG_TAG=$(echo "$OPERATOR_DEPLOY_JSON" | jq -r '
+  .spec.template.spec.containers[0].image' 2>/dev/null || echo "")
+OPERATOR_IMG_VER="${OPERATOR_IMG_TAG##*:}"
+
+# --- 1. konk-operator ---
+info "konk-operator          : ${OPERATOR_IMG_VER}"
+
+# --- 2. bulk-konk (apiserver) ---
+ACTUAL_APISERVER_IMG=$(kc get deploy "$KONK_CR_NAME" -n "$AGGREGATE_NAMESPACE" \
+  -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null || echo "")
+ACTUAL_APISERVER_TAG="${ACTUAL_APISERVER_IMG##*:}"
+if [[ -z "$OPERATOR_TAG" ]]; then
+  skip "bulk-konk (apiserver): cannot determine expected tag"
+elif [[ -z "$ACTUAL_APISERVER_IMG" ]]; then
+  skip "bulk-konk (apiserver): deployment not found"
+elif [[ "$ACTUAL_APISERVER_TAG" == "$OPERATOR_TAG" ]]; then
+  pass "bulk-konk (apiserver)  : ${ACTUAL_APISERVER_TAG}"
+else
+  warn "bulk-konk (apiserver)  : ${ACTUAL_APISERVER_TAG} — expected ${OPERATOR_TAG} (reconcile failing)"
+fi
+
+# --- 3. bulk-konk-init (provision) ---
+ACTUAL_PROVISION_IMG=$(kc get deploy "${KONK_CR_NAME}-init" -n "$AGGREGATE_NAMESPACE" \
+  -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null || echo "")
+ACTUAL_PROVISION_TAG="${ACTUAL_PROVISION_IMG##*:}"
+if [[ -z "$OPERATOR_PROVISION_TAG" ]]; then
+  skip "bulk-konk (provision) : cannot determine expected tag"
+elif [[ -z "$ACTUAL_PROVISION_IMG" ]]; then
+  skip "bulk-konk (provision) : deployment not found"
+elif [[ "$ACTUAL_PROVISION_TAG" == "$OPERATOR_PROVISION_TAG" ]]; then
+  pass "bulk-konk (provision)  : ${ACTUAL_PROVISION_TAG}"
+else
+  warn "bulk-konk (provision)  : ${ACTUAL_PROVISION_TAG} — expected ${OPERATOR_PROVISION_TAG} (reconcile failing)"
+fi
+
+# --- 4. konk-service pods (per namespace) ---
+if [[ -n "$OPERATOR_SERVICE_TAG" && -n "$OPERATOR_SERVICE_REPO" ]]; then
+  KONK_SVC_NAMESPACES=("$SAMPLE_NS" "ddi" "atcapi" "hostapp" "ngp-cp" "ntp" "endpoints")
+  SVC_VERSION_SUMMARY=""
+  SVC_MISMATCH=0
+  SVC_FOUND=0
+
+  for _ns in "${KONK_SVC_NAMESPACES[@]}"; do
+    _img=$(kc get deploy -n "$_ns" -l app.kubernetes.io/name=konk-service \
+      -o jsonpath='{.items[0].spec.template.spec.containers[0].image}' 2>/dev/null || true)
+    [[ -z "$_img" ]] && continue
+    ((SVC_FOUND++)) || true
+    _tag="${_img##*:}"
+    if [[ "$_tag" != "$OPERATOR_SERVICE_TAG" ]]; then
+      ((SVC_MISMATCH++)) || true
+      SVC_VERSION_SUMMARY="${SVC_VERSION_SUMMARY}    ${_ns}: ${_tag} (expected ${OPERATOR_SERVICE_TAG})\n"
+    else
+      SVC_VERSION_SUMMARY="${SVC_VERSION_SUMMARY}    ${_ns}: ${_tag}\n"
+    fi
+  done
+
+  if [[ "$SVC_FOUND" -eq 0 ]]; then
+    skip "konk-service          : no deployments found"
+  elif [[ "$SVC_MISMATCH" -eq 0 ]]; then
+    pass "konk-service (${SVC_FOUND}/${#KONK_SVC_NAMESPACES[@]} namespaces) : ${OPERATOR_SERVICE_TAG}"
+  else
+    warn "konk-service (${SVC_FOUND}/${#KONK_SVC_NAMESPACES[@]} namespaces) : ${SVC_MISMATCH}/${SVC_FOUND} namespace(s) have version mismatch"
+  fi
+  if [[ "$VERBOSE" == true && -n "$SVC_VERSION_SUMMARY" ]]; then
+    echo -e "$SVC_VERSION_SUMMARY"
+  fi
+else
+  skip "konk-service          : cannot determine expected tag (RELATED_IMAGE_KIND not set)"
+fi
+fi  # section 3
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SECTION 4: Konk CR status
 # ══════════════════════════════════════════════════════════════════════════════
 section "Konk CR status (${KONK_CR_NAME})"
-if should_run 3; then
+if should_run 4; then
 KONK_CR_REASON=$(kc get konk "$KONK_CR_NAME" -n "$AGGREGATE_NAMESPACE" \
   -o jsonpath='{.status.conditions[?(@.type=="Deployed")].reason}')
 if [[ -z "$KONK_CR_REASON" ]]; then
@@ -384,13 +497,13 @@ fi
 KONK_CR_SCOPE=$(kc get konk "$KONK_CR_NAME" -n "$AGGREGATE_NAMESPACE" \
   -o jsonpath='{.spec.scope}')
 vinfo "Konk scope: ${KONK_CR_SCOPE:-default}"
-fi  # section 3
+fi  # section 4
 
 # ══════════════════════════════════════════════════════════════════════════════
-# SECTION 4: KonkService CR statuses
+# SECTION 5: KonkService CR statuses
 # ══════════════════════════════════════════════════════════════════════════════
 section "KonkService CRs (all namespaces)"
-if should_run 4; then
+if should_run 5; then
 # Fetch all KonkServices and Deployments once (much faster than per-resource calls
 # through high-latency proxies like Teleport).
 info "fetching KonkService CRs and Deployments..."
@@ -479,13 +592,13 @@ else
     info "${KSVC_OK}/${KSVC_TOTAL} KonkService CRs ok | ${KSVC_FAIL} not Successful | ${KSVC_RELEASE_FAILED} ReleaseFailed | ${KSVC_OWNERSHIP_ERR} with Helm ownership conflict | ${KSVC_KUBECONFIG_SCALED_DOWN} kubeconfig Deployments scaled to 0"
   fi
 fi
-fi  # section 4
+fi  # section 5
 
 # ══════════════════════════════════════════════════════════════════════════════
-# SECTION 5: konk-service pods health (all namespaces)
+# SECTION 6: konk-service pods health (all namespaces)
 # ══════════════════════════════════════════════════════════════════════════════
 section "konk-service pods health (all namespaces)"
-if should_run 5; then
+if should_run 6; then
 
 # --- kubectl-apiservice pods ---
 APISERVICE_PODS=$(kc get pods -A --no-headers -l app.kubernetes.io/component=apiservice \
@@ -596,13 +709,13 @@ else
 fi
 
 # --- per-KonkService Deployment completeness ---
-# Each KonkService must have these Deployments (identified by chart labels) with ≥1 available replica:
+# Each KonkService must have these Deployments with ≥1 available replica:
 #   component=kubeconfig  (renews 12h client cert in kubeconfig secret)
 #   component=apiservice  (registers/maintains the APIService inside konk; aka "kubectl-apiservice")
 # component=apiservice-test is optional and not enforced.
-# We look up by `app.kubernetes.io/instance=<ks>,app.kubernetes.io/component=<comp>` because the
-# chart truncates Deployment NAMES to fit K8s' 63-char DNS-1123 limit (e.g. "konk-service" → "konk-ser"),
-# so name-based lookups produce false negatives for long release names.
+# Primary lookup: `app.kubernetes.io/instance=<ks>,app.kubernetes.io/component=<comp>`.
+# Fallback: if the component label is absent, match by Deployment name suffix (-kubeconfig, -kubectl-apiservice).
+# The chart truncates names to fit K8s' 63-char DNS-1123 limit but always preserves the suffix.
 ALL_KSVC_FOR_DEPLOY_CHECK=$(kc get konkservice -A --no-headers | awk '{print $1, $2}')
 KSVC_INCOMPLETE=0
 KSVC_CHECKED=0
@@ -622,12 +735,15 @@ if [[ -n "$ALL_KSVC_FOR_DEPLOY_CHECK" ]]; then
     for entry in "${REQUIRED_COMPONENTS[@]}"; do
       comp="${entry%%:*}"
       display="${entry##*:}"
-      # Look up by labels (resilient to chart name truncation)
-      dep_info=$(echo "$ALL_DEPLOY_FOR_CHECK" | jq -r --arg ns "$ns" --arg inst "$name" --arg comp "$comp" '
+      # Look up by labels first (resilient to chart name truncation), then fall back
+      # to name-based matching since the chart may not set app.kubernetes.io/component.
+      dep_info=$(echo "$ALL_DEPLOY_FOR_CHECK" | jq -r --arg ns "$ns" --arg inst "$name" --arg comp "$comp" --arg display "$display" '
         .items[]
         | select(.metadata.namespace==$ns
                  and .metadata.labels["app.kubernetes.io/instance"]==$inst
-                 and .metadata.labels["app.kubernetes.io/component"]==$comp)
+                 and (.metadata.labels["app.kubernetes.io/component"]==$comp
+                      or (.metadata.labels["app.kubernetes.io/component"] == null
+                          and (.metadata.name | endswith("-" + $display)))))
         | "\(.metadata.name)\t\(.spec.replicas // 0)\t\(.status.availableReplicas // 0)"' \
         | head -1)
       if [[ -z "$dep_info" ]]; then
@@ -661,13 +777,13 @@ if [[ -n "$ALL_KSVC_FOR_DEPLOY_CHECK" ]]; then
     info "${KSVC_INCOMPLETE}/${KSVC_CHECKED} KonkServices have missing/unavailable konk-service Deployments"
   fi
 fi
-fi  # section 5
+fi  # section 6
 
 # ══════════════════════════════════════════════════════════════════════════════
-# SECTION 6: CA trust chain validation
+# SECTION 7: CA trust chain validation
 # ══════════════════════════════════════════════════════════════════════════════
 section "CA trust chain (bulk-konk CA vs kubeconfig secrets)"
-if should_run 6; then
+if should_run 7; then
 if [[ "$SKIP_CA" == true ]]; then
   skip "CA chain validation (--skip-ca)"
 else
@@ -767,73 +883,122 @@ else
     fi
   fi
 fi
-fi  # section 6
+fi  # section 7
 
 # ══════════════════════════════════════════════════════════════════════════════
-# SECTION 7: APIServices inside konk (with detailed enumeration & error analysis)
+# SECTION 8: APIServices inside konk (with detailed enumeration & error analysis)
 # ══════════════════════════════════════════════════════════════════════════════
 section "APIServices registered in konk"
-if should_run 7; then
+if should_run 8; then
 if [[ "$SKIP_EXEC" == true ]]; then
   skip "APIService checks via exec (--skip-exec)"
 else
-  # 7.0: Find a healthy kubectl-apiservice pod to exec into
-  #      This is cluster-agnostic and progressively searches multiple patterns
-  EXEC_POD=""
-  EXEC_NS=""
-  
-  # Try 1: Label-based discovery (most reliable)
-  EXEC_CANDIDATES=$(kc get pods -A --no-headers -l app.kubernetes.io/component=apiservice \
-    2>/dev/null | awk '$4=="Running"{split($3,a,"/"); if(a[1]==a[2]) print}' || true)
+  # 7.0: Establish direct access to konk API via port-forward + extracted kubeconfig.
+  #      The konk-service image is distroless (no kubectl binary), so we extract the
+  #      kubeconfig secret and use the local kubectl to query konk directly.
+  KONK_TMPDIR=""
+  KONK_PF_PID=""
+  KONK_KUBECTL=""   # will be set to the kubectl command prefix for konk queries
 
-  # Try 2: Name pattern fallback (if labels not present on some clusters)
-  if [[ -z "$EXEC_CANDIDATES" ]]; then
-    EXEC_CANDIDATES=$(kc get pods -A --no-headers 2>/dev/null \
-      | grep "konk-service-kubectl-apiservice" | awk '$4=="Running"{split($3,a,"/"); if(a[1]==a[2]) print}' || true)
+  # Find a kubeconfig secret (any namespace works — they all point to the same bulk-konk)
+  KUBECONFIG_SECRET=$(kc get secrets -A --no-headers \
+    -l app.kubernetes.io/name=konk-service \
+    --field-selector type=Opaque 2>/dev/null \
+    | grep "konk-service-kubeconfig " | head -1 || true)
+
+  if [[ -z "$KUBECONFIG_SECRET" ]]; then
+    # Fallback: search by name pattern
+    KUBECONFIG_SECRET=$(kc get secrets -A --no-headers 2>/dev/null \
+      | grep "konk-service-kubeconfig " | grep -v "cert" | head -1 || true)
   fi
 
-  # Try 3: Any pod with "apiservice" in name (final fallback)
-  if [[ -z "$EXEC_CANDIDATES" ]]; then
-    EXEC_CANDIDATES=$(kc get pods -A --no-headers 2>/dev/null \
-      | grep -i "apiservice" | awk '$4=="Running"{split($3,a,"/"); if(a[1]==a[2]) print}' || true)
-  fi
+  if [[ -n "$KUBECONFIG_SECRET" ]]; then
+    KC_SECRET_NS=$(echo "$KUBECONFIG_SECRET" | awk '{print $1}')
+    KC_SECRET_NAME=$(echo "$KUBECONFIG_SECRET" | awk '{print $2}')
 
-  if [[ -n "$EXEC_CANDIDATES" ]]; then
-    # Prefer sample namespace pods first, then test each candidate for kubectl availability.
-    ORDERED_CANDIDATES=$( {
-      echo "$EXEC_CANDIDATES" | grep "^${SAMPLE_NS}" || true
-      echo "$EXEC_CANDIDATES" | grep -v "^${SAMPLE_NS}" || true
-    } )
+    KONK_TMPDIR=$(mktemp -d)
+    # Extract secret data (use plain kubectl to avoid kc wrapper affecting pipe output)
+    kubectl get secret "$KC_SECRET_NAME" -n "$KC_SECRET_NS" -o "jsonpath={.data.tls\.crt}" 2>/dev/null | base64 -d > "$KONK_TMPDIR/tls.crt"
+    kubectl get secret "$KC_SECRET_NAME" -n "$KC_SECRET_NS" -o "jsonpath={.data.tls\.key}" 2>/dev/null | base64 -d > "$KONK_TMPDIR/tls.key"
 
-    while IFS= read -r candidate; do
-      [[ -z "$candidate" ]] && continue
-      cand_ns=$(echo "$candidate" | awk '{print $1}')
-      cand_pod=$(echo "$candidate" | awk '{print $2}')
+    if [[ ! -s "$KONK_TMPDIR/tls.crt" || ! -s "$KONK_TMPDIR/tls.key" ]]; then
+      warn "failed to extract client certs from secret ${KC_SECRET_NS}/${KC_SECRET_NAME}"
+    else
+      # Start port-forward to bulk-konk service
+      LOCAL_PORT=$(( (RANDOM % 10000) + 30000 ))
+      kubectl port-forward "svc/${KONK_CR_NAME}" -n "$AGGREGATE_NAMESPACE" "${LOCAL_PORT}:6443" >/dev/null 2>&1 &
+      KONK_PF_PID=$!
+      disown "$KONK_PF_PID" 2>/dev/null  # suppress shell 'Terminated' message on cleanup
+      # Wait for port-forward to be ready (Teleport-proxied clusters can take 5+ seconds)
+      PF_READY=false
+      for i in $(seq 1 10); do
+        if ! kill -0 "$KONK_PF_PID" 2>/dev/null; then
+          break
+        fi
+        if nc -z -w 1 localhost "$LOCAL_PORT" 2>/dev/null; then
+          PF_READY=true
+          break
+        fi
+        sleep 1
+      done
 
-      if kubectl exec -n "$cand_ns" "$cand_pod" -- kubectl version --client >/dev/null 2>&1; then
-        EXEC_NS="$cand_ns"
-        EXEC_POD="$cand_pod"
-        break
+    if [[ "$PF_READY" == "true" ]] && kill -0 "$KONK_PF_PID" 2>/dev/null; then
+      # Build kubeconfig pointing to localhost.
+      # insecure-skip-tls-verify is needed because konk's server cert has SANs for
+      # bulk-konk.aggregate.svc, not localhost. Client certs are still used for auth.
+      cat > "$KONK_TMPDIR/kubeconfig" <<EOF
+apiVersion: v1
+kind: Config
+clusters:
+- cluster:
+    insecure-skip-tls-verify: true
+    server: https://localhost:${LOCAL_PORT}
+  name: bulk-konk
+contexts:
+- context:
+    cluster: bulk-konk
+    user: kubernetes-admin
+  name: bulk-konk
+current-context: bulk-konk
+users:
+- name: kubernetes-admin
+  user:
+    client-certificate: ${KONK_TMPDIR}/tls.crt
+    client-key: ${KONK_TMPDIR}/tls.key
+EOF
+      # Verify connectivity
+      if kubectl --kubeconfig="$KONK_TMPDIR/kubeconfig" get --raw /healthz >/dev/null 2>&1; then
+        KONK_KUBECTL="kubectl --kubeconfig=${KONK_TMPDIR}/kubeconfig"
+        info "connected to konk API via port-forward (localhost:${LOCAL_PORT})"
+      else
+        warn "port-forward established but konk API not reachable (TLS handshake or auth failed)"
       fi
-    done <<< "$ORDERED_CANDIDATES"
+    else
+      warn "port-forward to ${KONK_CR_NAME}.${AGGREGATE_NAMESPACE}:6443 failed to start"
+    fi
+    fi  # end cert extraction check
   fi
 
-  if [[ -z "$EXEC_POD" ]]; then
-    warn "no healthy kubectl-apiservice pod with kubectl binary available for konk API queries"
-    info "To find a suitable pod: kubectl get pods -A | grep 'konk-service-kubectl-apiservice' | grep '1/1'"
-    info "Pod images can vary by cluster; check that at least one selected pod contains kubectl"
+  # Cleanup function for port-forward and temp dir
+  cleanup_konk_pf() {
+    [[ -n "$KONK_PF_PID" ]] && kill "$KONK_PF_PID" 2>/dev/null || true
+    [[ -n "$KONK_TMPDIR" && -d "$KONK_TMPDIR" ]] && rm -rf "$KONK_TMPDIR" || true
+  }
+  trap 'cleanup_konk_pf' EXIT
+
+  if [[ -z "$KONK_KUBECTL" ]]; then
+    warn "no healthy konk API access available for API queries (no kubeconfig secret found or port-forward failed)"
+    info "Ensure a kubeconfig secret exists: kubectl get secrets -A | grep konk-service-kubeconfig"
   else
-    info "using pod ${EXEC_NS}/${EXEC_POD} for konk API queries"
 
     # 7.1: List all APIServices in konk (non-Local ones)
     # Capture both stdout and stderr to detect and report connection errors
     if [[ "$DEBUG" == true ]]; then
-      info "command: kubectl exec -n ${EXEC_NS} ${EXEC_POD} -- kubectl get apiservices -o wide --no-headers"
+      info "command: ${KONK_KUBECTL} get apiservices -o wide --no-headers"
     fi
-    APISERVICES_OUT=$(kubectl exec -n "$EXEC_NS" "$EXEC_POD" -- \
-      kubectl get apiservices -o wide --no-headers 2>&1 || true)
-    APISERVICES_RAW=$(echo "$APISERVICES_OUT" | grep -v "^error:" | grep -v "Local" || true)
-    APISERVICES_ERRORS=$(echo "$APISERVICES_OUT" | grep "^error:" || true)
+    APISERVICES_OUT=$($KONK_KUBECTL get apiservices -o wide --no-headers 2>&1 || true)
+    APISERVICES_RAW=$(echo "$APISERVICES_OUT" | grep -v "^error:" | grep -v "^[EWI][0-9]" | grep -v "Local" || true)
+    APISERVICES_ERRORS=$(echo "$APISERVICES_OUT" | grep -E "^error:|^[EWI][0-9]" || true)
 
     if [[ -n "$APISERVICES_ERRORS" ]]; then
       warn "errors while querying APIServices from konk:"
@@ -880,10 +1045,9 @@ else
 
     # 7.2: List all API resources (this will show which APIs are working)
     if [[ "$DEBUG" == true ]]; then
-      info "command: kubectl exec -n ${EXEC_NS} ${EXEC_POD} -- kubectl api-resources --no-headers"
+      info "command: ${KONK_KUBECTL} api-resources --no-headers"
     fi
-    API_RESOURCES_OUT=$(kubectl exec -n "$EXEC_NS" "$EXEC_POD" -- \
-      kubectl api-resources --no-headers 2>&1 || true)
+    API_RESOURCES_OUT=$($KONK_KUBECTL api-resources --no-headers 2>&1 || true)
     API_RESOURCES_ERRORS=$(echo "$API_RESOURCES_OUT" | grep "^error:" || true)
 
     if [[ -n "$API_RESOURCES_ERRORS" ]]; then
@@ -893,10 +1057,9 @@ else
 
     # 7.3: Check api-versions are reachable (bulk APIs only)
     if [[ "$DEBUG" == true ]]; then
-      info "command: kubectl exec -n ${EXEC_NS} ${EXEC_POD} -- kubectl api-versions"
+      info "command: ${KONK_KUBECTL} api-versions"
     fi
-    API_VERSIONS=$(kubectl exec -n "$EXEC_NS" "$EXEC_POD" -- \
-      kubectl api-versions 2>/dev/null || true)
+    API_VERSIONS=$($KONK_KUBECTL api-versions 2>/dev/null || true)
     API_VERSION_COUNT=$(echo "$API_VERSIONS" | grep -c "bulk.infoblox.com" || true)
     API_VERSION_COUNT=${API_VERSION_COUNT:-0}
     if [[ "$API_VERSION_COUNT" -gt 0 ]]; then
@@ -912,8 +1075,12 @@ else
     if [[ "$TRIGGER_REGISTRATION" == true ]]; then
       info "trigger-registration enabled: forcing reconcile for an existing APIService"
 
-      TARGET_NS="$EXEC_NS"
-      TARGET_POD="$EXEC_POD"
+      # Find a kubectl-apiservice pod to restart
+      TARGET_LINE=$(kc get pods -A --no-headers 2>/dev/null \
+        | grep "konk-service-kubectl-apiservice" | grep -v "test" \
+        | awk '$4=="Running"{split($3,a,"/"); if(a[1]==a[2]) print}' | head -1 || true)
+      TARGET_NS=$(echo "$TARGET_LINE" | awk '{print $1}')
+      TARGET_POD=$(echo "$TARGET_LINE" | awk '{print $2}')
 
       RS_NAME=$(kc get pod "$TARGET_POD" -n "$TARGET_NS" -o jsonpath='{.metadata.ownerReferences[0].name}')
       DEPLOY_NAME=""
@@ -954,8 +1121,7 @@ else
 
               # 7.4b: Delete an APIService from inside konk and verify it gets re-registered
               # Find a True (healthy) APIService to use as the delete target
-              DELETE_TARGET=$(kubectl exec -n "$TARGET_NS" "$NEW_POD" -- \
-                kubectl get apiservices --no-headers 2>/dev/null \
+              DELETE_TARGET=$($KONK_KUBECTL get apiservices --no-headers 2>/dev/null \
                 | grep 'True' | grep 'bulk.infoblox.com' \
                 | grep -v 'FailedDiscovery' \
                 | awk '{print $1}' | head -1 || true)
@@ -964,15 +1130,13 @@ else
                 warn "no healthy konk APIService found to delete for re-registration test"
               else
                 info "deleting konk APIService ${DELETE_TARGET} to trigger re-registration ..."
-                if kubectl exec -n "$TARGET_NS" "$NEW_POD" -- \
-                    kubectl delete apiservice "$DELETE_TARGET" >/dev/null 2>&1; then
+                if $KONK_KUBECTL delete apiservice "$DELETE_TARGET" >/dev/null 2>&1; then
 
                   # Wait up to 60s for the APIService to be re-registered
                   RESTORED=false
                   for _i in $(seq 1 12); do
                     sleep 5
-                    STATE=$(kubectl exec -n "$TARGET_NS" "$NEW_POD" -- \
-                      kubectl get apiservice "$DELETE_TARGET" --no-headers 2>/dev/null | awk '{print $2}' || true)
+                    STATE=$($KONK_KUBECTL get apiservice "$DELETE_TARGET" --no-headers 2>/dev/null | awk '{print $2}' || true)
                     if [[ -n "$STATE" ]]; then
                       RESTORED=true
                       break
@@ -999,13 +1163,13 @@ else
     fi
   fi
 fi
-fi  # section 7
+fi  # section 8
 
 # ══════════════════════════════════════════════════════════════════════════════
-# SECTION 8: Deep test — sample namespace
+# SECTION 9: Deep test — sample namespace
 # ══════════════════════════════════════════════════════════════════════════════
 section "Deep test: ${SAMPLE_NS} namespace"
-if should_run 8; then
+if should_run 9; then
 # 8a. KonkService CR exists and is healthy
 # With -n (not -A), columns are: NAME  KONK  APISERVICE  AGE → name is $1
 SAMPLE_KSVC_NAME=$(kc get konkservice -n "$SAMPLE_NS" --no-headers | awk '{print $1}' | head -1)
@@ -1253,13 +1417,13 @@ if [[ -z "$SAMPLE_APIPOD_NAME" || "$SAMPLE_APIPOD_READY" != "1/1" ]]; then
     kubectl logs "$TARGET_POD" -n "$SAMPLE_NS" --tail=10 2>/dev/null | sed 's/^/         /' || true
   fi
 fi
-fi  # section 8
+fi  # section 9
 
 # ══════════════════════════════════════════════════════════════════════════════
-# SECTION 9: Bulk (atlas.bulk) integration
+# SECTION 10: Bulk (atlas.bulk) integration
 # ══════════════════════════════════════════════════════════════════════════════
 section "Bulk (atlas.bulk) integration with konk"
-if should_run 9; then
+if should_run 10; then
 if [[ "$SKIP_BULK" == true ]]; then
   skip "bulk integration test (--skip-bulk)"
 else
@@ -1302,77 +1466,20 @@ else
     fi
   fi
 
-  # 9d. bulk-konk /healthz check from an apiservice pod
-  # Refresh EXEC_POD if section 7 deleted/restarted the previously selected pod.
-  if [[ "$SKIP_EXEC" != true ]]; then
-    if [[ -n "${EXEC_POD:-}" ]] && ! kubectl get pod -n "${EXEC_NS:-}" "$EXEC_POD" >/dev/null 2>&1; then
-      EXEC_POD=""
-      EXEC_NS=""
-    fi
-
-    if [[ -z "${EXEC_POD:-}" ]]; then
-      EXEC_CANDIDATES=$(kc get pods -A --no-headers -l app.kubernetes.io/component=apiservice \
-        | awk '$4=="Running"{split($3,a,"/"); if(a[1]==a[2]) print}' || true)
-      if [[ -z "$EXEC_CANDIDATES" ]]; then
-        EXEC_CANDIDATES=$(kc get pods -A --no-headers \
-          | grep "konk-service-kubectl-apiservice" | awk '$4=="Running"{split($3,a,"/"); if(a[1]==a[2]) print}' || true)
-      fi
-
-      if [[ -n "$EXEC_CANDIDATES" ]]; then
-        ORDERED_CANDIDATES=$( {
-          echo "$EXEC_CANDIDATES" | grep "^${SAMPLE_NS}" || true
-          echo "$EXEC_CANDIDATES" | grep -v "^${SAMPLE_NS}" || true
-        } )
-
-        while IFS= read -r candidate; do
-          [[ -z "$candidate" ]] && continue
-          cand_ns=$(echo "$candidate" | awk '{print $1}')
-          cand_pod=$(echo "$candidate" | awk '{print $2}')
-          if kubectl exec -n "$cand_ns" "$cand_pod" -- kubectl version --client >/dev/null 2>&1; then
-            EXEC_NS="$cand_ns"
-            EXEC_POD="$cand_pod"
-            break
-          fi
-        done <<< "$ORDERED_CANDIDATES"
-      fi
-    fi
-  fi
-
-  # We can check if konk apiserver responds to direct API calls
-  if [[ "$SKIP_EXEC" != true && -n "${EXEC_POD:-}" ]]; then
-    KONK_HEALTHZ=$(kubectl exec -n "${EXEC_NS:-}" "$EXEC_POD" -- \
-      kubectl get --raw /healthz 2>/dev/null || true)
-    if [[ "$KONK_HEALTHZ" == "ok" ]]; then
-      pass "konk apiserver /healthz returns 'ok'"
-
-      # 9d-ii. /readyz check — informer-sync failure is expected/harmless (StorageClass/IngressClass disabled)
-      KONK_READYZ=$(kubectl exec -n "${EXEC_NS:-}" "$EXEC_POD" -- \
-        kubectl get --raw /readyz 2>/dev/null || true)
-      if [[ "$KONK_READYZ" == "ok" ]]; then
-        pass "konk apiserver /readyz returns 'ok'"
-      else
-        info "konk apiserver /readyz is non-ok — this is expected and harmless on all konk clusters (informer-sync fails because StorageClass/IngressClass/VolumeAttachment APIs are disabled in konk; internal informers can't list them). Use /healthz for real health status."
-      fi
-    elif [[ -n "$KONK_HEALTHZ" ]]; then
-      warn "konk apiserver /healthz returned: ${KONK_HEALTHZ:0:50}"
+  # 9d. konk apiserver /healthz — already validated by section 2 (bulk-konk pod readiness probe IS /healthz).
+  # If port-forward from section 7 is still alive, do a direct check as a bonus.
+  if [[ -n "${KONK_KUBECTL:-}" ]]; then
+    if [[ -n "${KONK_PF_PID:-}" ]] && ! kill -0 "$KONK_PF_PID" 2>/dev/null; then
+      info "port-forward from section 7 is no longer active; healthz already covered by section 2"
     else
-      KONK_APISVC_AVAIL=$(kc get apiservices --no-headers 2>/dev/null \
-        | grep 'bulk.infoblox.com' | awk '$3=="True" {c++} END {print c+0}' || true)
-      KONK_APISVC_AVAIL=${KONK_APISVC_AVAIL:-0}
-      if [[ "$KONK_APISVC_AVAIL" -gt 0 ]] 2>/dev/null; then
-        pass "konk health inferred from APIService availability (${KONK_APISVC_AVAIL} bulk APIService(s) Available=True)"
+      KONK_HEALTHZ=$($KONK_KUBECTL get --raw /healthz --request-timeout=10s 2>/dev/null || true)
+      if [[ "$KONK_HEALTHZ" == "ok" ]]; then
+        pass "konk apiserver /healthz returns 'ok' (via port-forward)"
+      elif [[ -n "$KONK_HEALTHZ" ]]; then
+        warn "konk apiserver /healthz returned: ${KONK_HEALTHZ:0:50}"
       else
-        warn "could not check konk /healthz and no Available=True bulk APIServices found"
+        info "konk apiserver /healthz unreachable via port-forward (health covered by section 2 pod readiness)"
       fi
-    fi
-  elif [[ "$SKIP_EXEC" != true ]]; then
-    KONK_APISVC_AVAIL=$(kc get apiservices --no-headers 2>/dev/null \
-      | grep 'bulk.infoblox.com' | awk '$3=="True" {c++} END {print c+0}' || true)
-    KONK_APISVC_AVAIL=${KONK_APISVC_AVAIL:-0}
-    if [[ "$KONK_APISVC_AVAIL" -gt 0 ]] 2>/dev/null; then
-      pass "konk health inferred from APIService availability (${KONK_APISVC_AVAIL} bulk APIService(s) Available=True)"
-    else
-      warn "could not find a live kubectl-apiservice pod for /healthz check and no Available bulk APIServices"
     fi
   fi
 
@@ -1478,13 +1585,13 @@ except: pass
     vinfo "bulk-konk apiserver pod not found — skipping expired cert log check"
   fi
 fi
-fi  # section 9
+fi  # section 10
 
 # ══════════════════════════════════════════════════════════════════════════════
-# SECTION 10: konk-operator log health
+# SECTION 11: konk-operator log health
 # ══════════════════════════════════════════════════════════════════════════════
 section "konk-operator log health"
-if should_run 10; then
+if should_run 11; then
 # Collect logs from the operator container only (pod may have linkerd sidecar)
 OPERATOR_POD_NAME=$(kc get pods -n "$KONK_NAMESPACE" -l app.kubernetes.io/name=konk-operator \
   -o jsonpath='{.items[0].metadata.name}')
@@ -1512,13 +1619,97 @@ RECONCILE_ERRORS=$(echo "$OPERATOR_LOGS" | { grep -ic 'reconcile.*error\|error.*
 if [[ "$RECONCILE_ERRORS" -gt 0 ]]; then
   warn "konk-operator: ${RECONCILE_ERRORS} reconcile error(s) in recent logs"
 fi
-fi  # section 10
+
+# Check for Helm "Release failed" — indicates operator cannot apply the chart
+# Pull more logs (last 500) to catch failures that might be outside the tail-100 window
+# (bulk-konk-etcd reconciles every ~60s which pushes bulk-konk failures out quickly)
+OPERATOR_LOGS_EXTENDED=""
+if [[ -n "$OPERATOR_POD_NAME" && -n "$OPERATOR_CONTAINER" ]]; then
+  OPERATOR_LOGS_EXTENDED=$(kubectl logs -n "$KONK_NAMESPACE" "$OPERATOR_POD_NAME" \
+    -c "$OPERATOR_CONTAINER" --tail=500 2>/dev/null || true)
+elif [[ -n "$OPERATOR_POD_NAME" ]]; then
+  OPERATOR_LOGS_EXTENDED=$(kubectl logs -n "$KONK_NAMESPACE" "$OPERATOR_POD_NAME" --tail=500 2>/dev/null || true)
+fi
+
+# Check each release separately: bulk-konk (Konk CR) and bulk-konk-etcd (Etcd CR)
+for RELEASE_CHECK in "$KONK_CR_NAME" "${KONK_CR_NAME}-etcd"; do
+  RELEASE_FAILED_LINES=$(echo "$OPERATOR_LOGS_EXTENDED" | grep '"Release failed"' | grep "\"release\":\"${RELEASE_CHECK}\"" || true)
+  if [[ -n "$RELEASE_FAILED_LINES" ]]; then
+    RELEASE_FAILED_COUNT=$(echo "$RELEASE_FAILED_LINES" | wc -l | tr -d ' ')
+    # Get timestamps of first and last failure
+    FIRST_TS=$(echo "$RELEASE_FAILED_LINES" | head -1 | sed -n 's/.*"ts":"\([^"]*\)".*/\1/p')
+    LAST_TS=$(echo "$RELEASE_FAILED_LINES" | tail -1 | sed -n 's/.*"ts":"\([^"]*\)".*/\1/p')
+    fail "konk-operator: release '${RELEASE_CHECK}' has ${RELEASE_FAILED_COUNT} 'Release failed' error(s)"
+    # Extract the error reason from the most recent failure
+    RELEASE_ERROR=$(echo "$RELEASE_FAILED_LINES" | tail -1 | sed 's/.*"error":"//;s/","stacktrace".*//;s/"}.*//')
+    RELEASE_NS=$(echo "$RELEASE_FAILED_LINES" | tail -1 | sed -n 's/.*"namespace":"\([^"]*\)".*/\1/p')
+    if [[ -n "$RELEASE_ERROR" ]]; then
+      echo "       Release: ${RELEASE_CHECK} (ns: ${RELEASE_NS:-unknown})"
+      echo "       Period:  ${FIRST_TS} → ${LAST_TS} (${RELEASE_FAILED_COUNT} retries)"
+      echo "       Reason:  ${RELEASE_ERROR}"
+      # Suggest fix if it's the common ownership annotation issue
+      if echo "$RELEASE_ERROR" | grep -q "meta.helm.sh/release-name"; then
+        RESOURCE_INFO=$(echo "$RELEASE_ERROR" | sed -n 's/.*with install: \([^ ]* "[^"]*"\).*/\1/p')
+        echo "       Fix:     kubectl annotate ${RESOURCE_INFO:-serviceaccount ${RELEASE_CHECK}} -n ${RELEASE_NS} meta.helm.sh/release-name=${RELEASE_CHECK} meta.helm.sh/release-namespace=${RELEASE_NS} --overwrite"
+      fi
+      echo "       Check:   kubectl logs -n konk -l app.kubernetes.io/name=konk-operator --tail=50 | grep '\"release\":\"${RELEASE_CHECK}\"' | grep 'Release failed'"
+    fi
+  else
+    pass "konk-operator: release '${RELEASE_CHECK}' — no 'Release failed' errors"
+  fi
+done
+
+# Check actual Helm release status and last-deployed time for all Konk-related releases
+# NOTE: CR condition lastTransitionTime is unreliable (only updates on status flip True↔False).
+# Helm release 'updated' timestamp is the real source of truth for when a release was last deployed.
+vinfo "Checking Helm release status for all Konk CRs..."
+HELM_RELEASE_ISSUES=0
+# Get unique namespaces from konk CRs, then query helm per-namespace (avoids slow helm list -A with 776+ releases)
+KONK_NS_LIST=$(kubectl get konks.konk.infoblox.com,etcds.konk.infoblox.com,konkservices.konk.infoblox.com \
+  -A --no-headers 2>/dev/null | awk '{print $1}' | sort -u)
+for HELM_NS in $KONK_NS_LIST; do
+  # --deployed --failed --pending covers all actionable states (skip superseded/uninstalled)
+  helm list -n "$HELM_NS" --deployed --failed --pending -o json 2>/dev/null | python3 -c "
+import sys, json
+try:
+    releases = json.load(sys.stdin)
+except:
+    sys.exit(0)
+konk_charts = ('konk-', 'etcd-', 'konk-service-')
+for rel in releases:
+    chart = rel.get('chart', '')
+    if any(chart.startswith(prefix) for prefix in konk_charts):
+        updated_raw = rel.get('updated', '')
+        updated = updated_raw[:19] if len(updated_raw) >= 19 else updated_raw
+        print(f\"{rel.get('namespace','')}\t{rel.get('name','')}\t{rel.get('status','')}\t{chart}\t{updated}\t{rel.get('app_version','')}\")
+" | while IFS=$'\t' read -r REL_NS REL_NAME REL_STATUS REL_CHART REL_UPDATED REL_APP_VER; do
+    if [[ -z "$REL_NAME" ]]; then
+      continue
+    fi
+    # Pad release label to align columns (longest konk release name ~50 chars)
+    REL_LABEL=$(printf "%-55s" "${REL_NAME} (${REL_NS})")
+    if [[ "$REL_STATUS" == "deployed" ]]; then
+      pass "${REL_LABEL} —  deployed   — updated ${REL_UPDATED}"
+    elif [[ "$REL_STATUS" == "failed" ]]; then
+      fail "${REL_LABEL} —  FAILED    — last attempt ${REL_UPDATED}"
+      HELM_RELEASE_ISSUES=$((HELM_RELEASE_ISSUES + 1))
+    elif [[ "$REL_STATUS" == "pending-upgrade" || "$REL_STATUS" == "pending-install" ]]; then
+      warn "${REL_LABEL} —  ${REL_STATUS} — stuck since ${REL_UPDATED}"
+      HELM_RELEASE_ISSUES=$((HELM_RELEASE_ISSUES + 1))
+    else
+      warn "${REL_LABEL} —  ${REL_STATUS} — updated ${REL_UPDATED}"
+      HELM_RELEASE_ISSUES=$((HELM_RELEASE_ISSUES + 1))
+    fi
+  done
+done  # for HELM_NS
+[[ "$HELM_RELEASE_ISSUES" -gt 0 ]] && vinfo "${HELM_RELEASE_ISSUES} release(s) not in 'deployed' state"
+fi  # section 11
 
 # ══════════════════════════════════════════════════════════════════════════════
-# SECTION 11: cert-manager CA integration
+# SECTION 12: cert-manager CA integration
 # ══════════════════════════════════════════════════════════════════════════════
 section "cert-manager CA integration"
-if should_run 11; then
+if should_run 12; then
 # Check that CA Certificate resource exists and is Ready
 # Certificate name may vary: bulk-konk-ca, bulk-konk-ca-cert, etc.
 CA_CERT_STATUS=$(kc get certificate -n "$AGGREGATE_NAMESPACE" --no-headers \
@@ -1588,76 +1779,87 @@ if kubectl api-resources 2>/dev/null | grep -q 'certificates.*cert-manager' 2>/d
     vinfo "no konk-service certificates found in cluster"
   fi
 fi
-fi  # section 11
+fi  # section 12
 
 # ══════════════════════════════════════════════════════════════════════════════
-# SECTION 12: Konk API deep test — query actual resources via konk
+# SECTION 13: Konk API deep test — query actual resources via konk
 # ══════════════════════════════════════════════════════════════════════════════
 section "Konk API deep test (query resources inside konk)"
-if should_run 12; then
+if should_run 13; then
 if [[ "$SKIP_EXEC" == true ]]; then
   skip "konk API deep test (--skip-exec)"
 else
-  # Find a healthy kubectl-apiservice pod for exec (reuse from section 7 if available)
-  EXEC_CONTAINER=""
-  if [[ -z "${EXEC_POD:-}" ]]; then
-    # Prefer 2/2 pods (have 'kind' sidecar with kubectl) then fall back to 1/1
-    EXEC_CANDIDATES=$(kc get pods -A --no-headers \
-      | grep "konk-service-kubectl-apiservice" | grep "Running" \
-      | sort -t'/' -k1 -rn || true)  # 2/2 sorts before 1/1
-    if [[ -z "$EXEC_CANDIDATES" ]]; then
-      EXEC_CANDIDATES=$(kc get pods -A --no-headers -l app.kubernetes.io/component=apiservice \
-        | grep "Running" || true)
+  # Reuse $KONK_KUBECTL from section 7 if available, otherwise set up port-forward now
+  if [[ -z "${KONK_KUBECTL:-}" ]]; then
+    # Try to establish konk access (same logic as section 7)
+    KUBECONFIG_SECRET=$(kc get secrets -A --no-headers \
+      -l app.kubernetes.io/name=konk-service \
+      --field-selector type=Opaque 2>/dev/null \
+      | grep "konk-service-kubeconfig " | head -1 || true)
+    if [[ -z "$KUBECONFIG_SECRET" ]]; then
+      KUBECONFIG_SECRET=$(kc get secrets -A --no-headers 2>/dev/null \
+        | grep "konk-service-kubeconfig " | grep -v "cert" | head -1 || true)
     fi
-    if [[ -n "$EXEC_CANDIDATES" ]]; then
-      # Find a pod where kubectl is actually available, probing the 'kind' container first
-      _find_kubectl_pod() {
-        local candidates="$1"
-        while IFS= read -r line; do
-          local ns pod
-          ns=$(echo "$line" | awk '{print $1}')
-          pod=$(echo "$line" | awk '{print $2}')
-          # Try 'kind' container first (older 2/2 pods), then default container
-          if kubectl exec -n "$ns" "$pod" -c kind -- kubectl version --client >/dev/null 2>&1; then
-            echo "$ns $pod kind"
-            return 0
-          elif kubectl exec -n "$ns" "$pod" -- kubectl version --client >/dev/null 2>&1; then
-            echo "$ns $pod"
-            return 0
+    if [[ -n "$KUBECONFIG_SECRET" ]]; then
+      KC_SECRET_NS=$(echo "$KUBECONFIG_SECRET" | awk '{print $1}')
+      KC_SECRET_NAME=$(echo "$KUBECONFIG_SECRET" | awk '{print $2}')
+      KONK_TMPDIR=$(mktemp -d)
+      kubectl get secret "$KC_SECRET_NAME" -n "$KC_SECRET_NS" -o "jsonpath={.data.tls\.crt}" 2>/dev/null | base64 -d > "$KONK_TMPDIR/tls.crt"
+      kubectl get secret "$KC_SECRET_NAME" -n "$KC_SECRET_NS" -o "jsonpath={.data.tls\.key}" 2>/dev/null | base64 -d > "$KONK_TMPDIR/tls.key"
+
+      if [[ -s "$KONK_TMPDIR/tls.crt" && -s "$KONK_TMPDIR/tls.key" ]]; then
+        LOCAL_PORT=$(( (RANDOM % 10000) + 30000 ))
+        kubectl port-forward "svc/${KONK_CR_NAME}" -n "$AGGREGATE_NAMESPACE" "${LOCAL_PORT}:6443" >/dev/null 2>&1 &
+        KONK_PF_PID=$!
+        disown "$KONK_PF_PID" 2>/dev/null
+        # Wait for port-forward to be ready
+        PF_READY=false
+        for i in $(seq 1 10); do
+          if ! kill -0 "$KONK_PF_PID" 2>/dev/null; then
+            break
           fi
-        done <<< "$candidates"
-        return 1
-      }
-      # First try SAMPLE_NS candidates, then fall back to any namespace
-      SAMPLE_CANDIDATES=$(echo "$EXEC_CANDIDATES" | grep "^${SAMPLE_NS}" || true)
-      OTHER_CANDIDATES=$(echo "$EXEC_CANDIDATES" | grep -v "^${SAMPLE_NS}" || true)
-      ORDERED_CANDIDATES=$(printf '%s\n%s' "$SAMPLE_CANDIDATES" "$OTHER_CANDIDATES" | grep -v '^$' || true)
-      if FOUND=$(_find_kubectl_pod "$ORDERED_CANDIDATES" 2>/dev/null); then
-        EXEC_NS=$(echo "$FOUND" | awk '{print $1}')
-        EXEC_POD=$(echo "$FOUND" | awk '{print $2}')
-        EXEC_CONTAINER=$(echo "$FOUND" | awk '{print $3}')  # 'kind' or empty
-      else
-        # Fallback: pick first candidate even if distroless (api-resources may still fail)
-        EXEC_NS=$(echo "$EXEC_CANDIDATES" | head -1 | awk '{print $1}')
-        EXEC_POD=$(echo "$EXEC_CANDIDATES" | head -1 | awk '{print $2}')
-        EXEC_CONTAINER=""
+          if nc -z -w 1 localhost "$LOCAL_PORT" 2>/dev/null; then
+            PF_READY=true
+            break
+          fi
+          sleep 1
+        done
+        if [[ "$PF_READY" == "true" ]] && kill -0 "$KONK_PF_PID" 2>/dev/null; then
+          cat > "$KONK_TMPDIR/kubeconfig" <<EOF
+apiVersion: v1
+kind: Config
+clusters:
+- cluster:
+    insecure-skip-tls-verify: true
+    server: https://localhost:${LOCAL_PORT}
+  name: bulk-konk
+contexts:
+- context:
+    cluster: bulk-konk
+    user: kubernetes-admin
+  name: bulk-konk
+current-context: bulk-konk
+users:
+- name: kubernetes-admin
+  user:
+    client-certificate: ${KONK_TMPDIR}/tls.crt
+    client-key: ${KONK_TMPDIR}/tls.key
+EOF
+          if kubectl --kubeconfig="$KONK_TMPDIR/kubeconfig" get --raw /healthz >/dev/null 2>&1; then
+            KONK_KUBECTL="kubectl --kubeconfig=${KONK_TMPDIR}/kubeconfig"
+          fi
+        fi
       fi
     fi
   fi
-  # Build -c flag if a specific container was found
-  EXEC_C_FLAG=""
-  [[ -n "${EXEC_CONTAINER:-}" ]] && EXEC_C_FLAG="-c ${EXEC_CONTAINER}"
 
-  if [[ -z "${EXEC_POD:-}" ]]; then
-    warn "no healthy kubectl-apiservice pod for konk API deep test"
+  if [[ -z "${KONK_KUBECTL:-}" ]]; then
+    warn "no konk API access available for deep test (no kubeconfig secret or port-forward failed)"
   else
-    _EXEC_CONTAINER_INFO="${EXEC_CONTAINER:+ (container: ${EXEC_CONTAINER})}"
-    info "using pod ${EXEC_NS}/${EXEC_POD}${_EXEC_CONTAINER_INFO} for konk API deep queries"
+    info "using konk API via port-forward for deep queries"
 
     # 12a. List api-resources in konk — verify bulk API groups are registered
-    # shellcheck disable=SC2086
-    KONK_API_RESOURCES=$(kubectl exec -n "$EXEC_NS" "$EXEC_POD" $EXEC_C_FLAG -- \
-      kubectl api-resources --no-headers 2>/dev/null || true)
+    KONK_API_RESOURCES=$($KONK_KUBECTL api-resources --no-headers 2>/dev/null || true)
 
     if [[ -z "$KONK_API_RESOURCES" ]]; then
       fail "konk api-resources returned empty — konk connectivity issue"
@@ -1665,8 +1867,7 @@ else
       # Check for expected API groups
       EXPECTED_GROUPS=("tagging.bulk.infoblox.com" "dnsconfig.bulk.infoblox.com" "dnsdata.bulk.infoblox.com")
       # Pre-fetch all APIService statuses from konk once for cross-referencing
-      _ALL_APSVCS=$(kubectl exec -n "$EXEC_NS" "$EXEC_POD" $EXEC_C_FLAG -- \
-        kubectl get apiservices --no-headers 2>/dev/null || true)
+      _ALL_APSVCS=$($KONK_KUBECTL get apiservices --no-headers 2>/dev/null || true)
       for grp in "${EXPECTED_GROUPS[@]}"; do
         if echo "$KONK_API_RESOURCES" | grep -q "$grp" 2>/dev/null; then
           pass "konk api-resources contains group: ${grp}"
@@ -1684,11 +1885,7 @@ else
     fi
 
     # 12b. Query specific resources inside konk via the tagging API
-    # This tests the full data path: kubectl-apiservice pod → konk apiserver → tagging aggregate API
-    # shellcheck disable=SC2086
-    TAGGING_TAGS=$(kubectl exec -n "$EXEC_NS" "$EXEC_POD" $EXEC_C_FLAG -- \
-      kubectl get tags.tagging.bulk.infoblox.com --all-namespaces --no-headers 2>/dev/null || true)
-    TAGGING_ERR=$?
+    TAGGING_TAGS=$($KONK_KUBECTL get tags.tagging.bulk.infoblox.com --all-namespaces --no-headers 2>/dev/null || true)
 
     if [[ -n "$TAGGING_TAGS" ]]; then
       TAG_COUNT=$(echo "$TAGGING_TAGS" | wc -l | tr -d ' ')
@@ -1698,11 +1895,7 @@ else
         [[ $TAG_COUNT -gt 5 ]] && echo "         ... (${TAG_COUNT} total)"
       fi
     else
-      # Empty is not necessarily an error — could be no tags exist
-      # Check if the API itself responds (vs connection error)
-      # shellcheck disable=SC2086
-      TAG_TEST=$(kubectl exec -n "$EXEC_NS" "$EXEC_POD" $EXEC_C_FLAG -- \
-        kubectl get tags.tagging.bulk.infoblox.com --all-namespaces 2>&1 || true)
+      TAG_TEST=$($KONK_KUBECTL get tags.tagging.bulk.infoblox.com --all-namespaces 2>&1 || true)
       if echo "$TAG_TEST" | grep -qi "No resources found\|^$" 2>/dev/null; then
         pass "konk: tagging API reachable (no tags exist — OK)"
       elif echo "$TAG_TEST" | grep -qi "x509\|tls\|connection refused\|unauthorized" 2>/dev/null; then
@@ -1713,16 +1906,12 @@ else
     fi
 
     # 12c. Query values from tagging API
-    # shellcheck disable=SC2086
-    TAGGING_VALUES=$(kubectl exec -n "$EXEC_NS" "$EXEC_POD" $EXEC_C_FLAG -- \
-      kubectl get values.tagging.bulk.infoblox.com --all-namespaces --no-headers 2>/dev/null || true)
+    TAGGING_VALUES=$($KONK_KUBECTL get values.tagging.bulk.infoblox.com --all-namespaces --no-headers 2>/dev/null || true)
     if [[ -n "$TAGGING_VALUES" ]]; then
       VALUE_COUNT=$(echo "$TAGGING_VALUES" | wc -l | tr -d ' ')
       pass "konk: kubectl get values returned ${VALUE_COUNT} value(s) from tagging API"
     else
-      # shellcheck disable=SC2086
-      TAG_VAL_TEST=$(kubectl exec -n "$EXEC_NS" "$EXEC_POD" $EXEC_C_FLAG -- \
-        kubectl get values.tagging.bulk.infoblox.com --all-namespaces 2>&1 || true)
+      TAG_VAL_TEST=$($KONK_KUBECTL get values.tagging.bulk.infoblox.com --all-namespaces 2>&1 || true)
       if echo "$TAG_VAL_TEST" | grep -qi "No resources found\|^$" 2>/dev/null; then
         pass "konk: tagging values API reachable (no values — OK)"
       elif echo "$TAG_VAL_TEST" | grep -qi "x509\|tls\|connection refused\|unauthorized" 2>/dev/null; then
@@ -1743,52 +1932,25 @@ else
     done
 
     # 12e. Verify konk /healthz and /livez
-    # shellcheck disable=SC2086
-    KONK_LIVEZ=$(kubectl exec -n "$EXEC_NS" "$EXEC_POD" $EXEC_C_FLAG -- \
-      kubectl get --raw /livez 2>/dev/null || true)
+    KONK_LIVEZ=$($KONK_KUBECTL get --raw /livez 2>/dev/null || true)
     if [[ "$KONK_LIVEZ" == "ok" ]]; then
       pass "konk apiserver /livez returns 'ok'"
     else
       warn "konk apiserver /livez returned: ${KONK_LIVEZ:-empty}"
     fi
 
-    # 12f. In-cluster health check — call aggregate-api service healthz directly
-    # Tests the TLS serving cert + service DNS + network path inside the cluster
-    SAMPLE_SVC=$(kc get svc -n "$SAMPLE_NS" --no-headers \
-      | grep 'apiservice' | awk '{print $1}' | head -1)
-    if [[ -n "$SAMPLE_SVC" ]]; then
-      SVC_FQDN="${SAMPLE_SVC}.${SAMPLE_NS}.svc.cluster.local"
-      # shellcheck disable=SC2086
-      HEALTHZ_RESP=$(kubectl exec -n "$EXEC_NS" "$EXEC_POD" $EXEC_C_FLAG -- \
-        wget -q -O- --timeout=5 "https://${SVC_FQDN}:443/healthz" \
-        --no-check-certificate 2>/dev/null || true)
-      if [[ -z "$HEALTHZ_RESP" ]]; then
-        # Try curl if wget is not available
-        # shellcheck disable=SC2086
-        HEALTHZ_RESP=$(kubectl exec -n "$EXEC_NS" "$EXEC_POD" $EXEC_C_FLAG -- \
-          curl -sk --connect-timeout 5 "https://${SVC_FQDN}:443/healthz" \
-          2>/dev/null || true)
-      fi
-      if [[ "$HEALTHZ_RESP" == "ok" || "$HEALTHZ_RESP" == *"healthy"* || "$HEALTHZ_RESP" == *"200"* ]]; then
-        pass "in-cluster healthz: ${SVC_FQDN}/healthz returns ok"
-      elif [[ -n "$HEALTHZ_RESP" ]]; then
-        # Got some response — endpoint is reachable even if it returns a different body
-        pass "in-cluster healthz: ${SVC_FQDN} reachable (response: ${HEALTHZ_RESP:0:60})"
-      else
-        warn "in-cluster healthz: could not reach ${SVC_FQDN}/healthz (wget/curl may not be in pod)"
-      fi
-    else
-      vinfo "no apiservice service found in ${SAMPLE_NS} for health check"
-    fi
+    # 12f. In-cluster health check — not possible via port-forward (service DNS is cluster-internal)
+    # This check is skipped when using port-forward mode; section 8 covers in-cluster connectivity.
+    vinfo "in-cluster healthz skipped (using port-forward mode; see section 8 for in-cluster tests)"
   fi
 fi
-fi  # section 12
+fi  # section 13
 
 # ══════════════════════════════════════════════════════════════════════════════
-# SECTION 13: External API integration — tagging + bulk via CSP endpoint
+# SECTION 14: External API integration — tagging + bulk via CSP endpoint
 # ══════════════════════════════════════════════════════════════════════════════
 section "External API integration (tagging + bulk via CSP)"
-if should_run 13; then
+if should_run 14; then
 
 # Auto-detect CSP URL from cluster context using CLUSTER_KEYS/CLUSTER_URLS
 if [[ -z "$CSP_URL" ]]; then
@@ -1999,10 +2161,10 @@ elif [[ -n "$CSP_TOKEN" && -n "$CSP_URL" ]]; then
         /tmp/konk-e2e-export-resp.json /tmp/konk-e2e-export-headers.txt \
         /tmp/konk-e2e-op-status.json /tmp/konk-e2e-op-list.json 2>/dev/null
 fi
-fi  # section 13
+fi  # section 14
 
 # ══════════════════════════════════════════════════════════════════════════════
-# SECTION 14: Konk APIService backend health
+# SECTION 15: Konk APIService backend health
 # ══════════════════════════════════════════════════════════════════════════════
 # Section 5 only checks konk-service-managed pods (kubectl-apiservice, kubeconfig,
 # apiservice-test) by label. This section sweeps ALL pods in namespaces that host
@@ -2010,7 +2172,7 @@ fi  # section 13
 # dns-data-importexport (2/3) that section 5 would never see.
 # These are the pods whose notReady state causes 503s in konk (see gov-stg-2 incident).
 section "Konk APIService backend health"
-if should_run 14; then
+if should_run 15; then
   BACKEND_NAMESPACES=("$AGGREGATE_NAMESPACE" "ddi" "hostapp" "ngp-cp" "ntp" "tagging-v2" "redirect" "endpoints")
   BACKEND_NOT_READY_COUNT=0
   BACKEND_TOTAL=0
@@ -2043,7 +2205,36 @@ if should_run 14; then
   else
     info "${BACKEND_NOT_READY_COUNT} not-ready pod(s) found — check warnings above. Not-ready APIService backend pods will cause 503s in konk's available_controller."
   fi
-fi  # section 14
+fi  # section 15
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SECTION 16: Stale node containers (Helm adopt/merge ghost detection)
+# ══════════════════════════════════════════════════════════════════════════════
+# After upgrading from the old chart (which had a "kind" container using
+# kindest/node) to the new chart (single "kubeconfig" container using konk-service),
+# Helm's strategic merge on fresh install can leave ghost "kind" containers.
+# These cause "permission denied" errors because the node container (running as root)
+# writes to the shared emptyDir before the kubeconfig container (nonroot) tries to.
+section "Stale node containers (Helm merge ghost detection)"
+if should_run 16; then
+  NODE_PODS=$(kubectl get pods -A -o custom-columns='NAMESPACE:.metadata.namespace,NAME:.metadata.name,IMAGES:.spec.containers[*].image,INIT-IMAGES:.spec.initContainers[*].image' 2>&1 | grep "/node:" || true)
+
+  if [[ -z "$NODE_PODS" ]]; then
+    pass "no pods running stale node container images"
+  else
+    NODE_POD_COUNT=$(echo "$NODE_PODS" | wc -l | tr -d ' ')
+    fail "${NODE_POD_COUNT} pod(s) still have stale /node: container images (ghost from Helm adopt/merge)"
+    echo "$NODE_PODS" | while IFS= read -r line; do
+      ns=$(echo "$line" | awk '{print $1}')
+      pod=$(echo "$line" | awk '{print $2}')
+      warn "  ${ns}/${pod}"
+    done
+    echo ""
+    info "Fix: delete the Helm release secret + deployment, let the operator re-create cleanly:"
+    info "  kubectl delete secret -n <ns> sh.helm.release.v1.<release>.v1"
+    info "  kubectl delete deploy -n <ns> <deployment-name>"
+  fi
+fi  # section 16
 
 # ══════════════════════════════════════════════════════════════════════════════
 # SUMMARY
