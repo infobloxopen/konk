@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "konk-service.fullname" . | trunc 39 | trimSuffix "-" }}-kubectl-apiservice-test
+  name: {{ include "konk-service.fullname" . | trunc 46 | trimSuffix "-" }}-apiservice-test
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "konk-service.labels" . | nindent 4 }}
