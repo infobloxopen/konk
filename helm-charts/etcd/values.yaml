@@ -64,6 +64,8 @@ service:
 ## @section Persistence parameters
 persistence:
   enabled: true
+  ## @param persistence.claimName Name for the volumeClaimTemplate. Change to provision fresh PVCs on upgrade (e.g. "data-v2").
+  claimName: data
   storageClass: ""
   accessModes:
     - ReadWriteOnce
