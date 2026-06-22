@@ -10,7 +10,7 @@
 #   1.  konk-operator (konk namespace)
 #   2.  Core infrastructure (aggregate namespace: bulk-konk, etcd, init)
 #   3.  Image version consistency (operator expected vs running)
-#   4.  Konk CR status
+#   4.  Konk CR + Etcd CR status (Deployed condition + ReleaseFailed detection)
 #   5.  KonkService CR statuses (all namespaces)
 #   6.  konk-service pods health (all namespaces)
 #   7.  CA trust chain (bulk-konk CA vs kubeconfig secrets)
@@ -469,9 +469,9 @@ fi
 fi  # section 3
 
 # ══════════════════════════════════════════════════════════════════════════════
-# SECTION 4: Konk CR status
+# SECTION 4: Konk CR + Etcd CR status
 # ══════════════════════════════════════════════════════════════════════════════
-section "Konk CR status (${KONK_CR_NAME})"
+section "Konk CR + Etcd CR status (${KONK_CR_NAME})"
 if should_run 4; then
 KONK_CR_REASON=$(kc get konk "$KONK_CR_NAME" -n "$AGGREGATE_NAMESPACE" \
   -o jsonpath='{.status.conditions[?(@.type=="Deployed")].reason}')
@@ -497,6 +497,56 @@ fi
 KONK_CR_SCOPE=$(kc get konk "$KONK_CR_NAME" -n "$AGGREGATE_NAMESPACE" \
   -o jsonpath='{.spec.scope}')
 vinfo "Konk scope: ${KONK_CR_SCOPE:-default}"
+
+# ── Etcd CR status ──
+ETCD_CR_NAME="${KONK_CR_NAME}-etcd"
+ETCD_CR_REASON=$(kc get etcds.konk.infoblox.com "$ETCD_CR_NAME" -n "$AGGREGATE_NAMESPACE" \
+  -o jsonpath='{.status.conditions[?(@.type=="Deployed")].reason}' 2>/dev/null || true)
+if [[ -z "$ETCD_CR_REASON" ]]; then
+  warn "Etcd CR '${ETCD_CR_NAME}' not found or has no Deployed condition"
+else
+  assert_contains "Etcd CR reason=Successful" "$ETCD_CR_REASON" "Successful"
+fi
+
+ETCD_CR_STATUS=$(kc get etcds.konk.infoblox.com "$ETCD_CR_NAME" -n "$AGGREGATE_NAMESPACE" \
+  -o jsonpath='{.status.conditions[?(@.type=="Deployed")].status}' 2>/dev/null || true)
+assert_equals "Etcd CR Deployed=True" "${ETCD_CR_STATUS:-False}" "True"
+
+# Check for ReleaseFailed condition on Etcd CR
+ETCD_RF_STATUS=$(kc get etcds.konk.infoblox.com "$ETCD_CR_NAME" -n "$AGGREGATE_NAMESPACE" \
+  -o jsonpath='{.status.conditions[?(@.type=="ReleaseFailed")].status}' 2>/dev/null || true)
+if [[ "$ETCD_RF_STATUS" == "True" ]]; then
+  ETCD_RF_REASON=$(kc get etcds.konk.infoblox.com "$ETCD_CR_NAME" -n "$AGGREGATE_NAMESPACE" \
+    -o jsonpath='{.status.conditions[?(@.type=="ReleaseFailed")].reason}' 2>/dev/null || true)
+  ETCD_RF_MSG=$(kc get etcds.konk.infoblox.com "$ETCD_CR_NAME" -n "$AGGREGATE_NAMESPACE" \
+    -o jsonpath='{.status.conditions[?(@.type=="ReleaseFailed")].message}' 2>/dev/null || true)
+  fail "Etcd CR '${ETCD_CR_NAME}': ReleaseFailed=True reason='${ETCD_RF_REASON}'"
+  echo "       Message: $(echo "$ETCD_RF_MSG" | head -c 300)"
+  if echo "$ETCD_RF_MSG" | grep -q "meta.helm.sh/release-name"; then
+    ETCD_BAD_RESOURCE=$(echo "$ETCD_RF_MSG" | sed -n 's/.*with install: \([^ ]* "[^"]*"\).*/\1/p')
+    echo "       Fix:     kubectl annotate ${ETCD_BAD_RESOURCE} -n ${AGGREGATE_NAMESPACE} meta.helm.sh/release-name=${ETCD_CR_NAME} meta.helm.sh/release-namespace=${AGGREGATE_NAMESPACE} --overwrite"
+  fi
+else
+  pass "Etcd CR '${ETCD_CR_NAME}': no ReleaseFailed condition"
+fi
+
+# Check for ReleaseFailed condition on Konk CR too
+KONK_RF_STATUS=$(kc get konk "$KONK_CR_NAME" -n "$AGGREGATE_NAMESPACE" \
+  -o jsonpath='{.status.conditions[?(@.type=="ReleaseFailed")].status}' 2>/dev/null || true)
+if [[ "$KONK_RF_STATUS" == "True" ]]; then
+  KONK_RF_REASON=$(kc get konk "$KONK_CR_NAME" -n "$AGGREGATE_NAMESPACE" \
+    -o jsonpath='{.status.conditions[?(@.type=="ReleaseFailed")].reason}' 2>/dev/null || true)
+  KONK_RF_MSG=$(kc get konk "$KONK_CR_NAME" -n "$AGGREGATE_NAMESPACE" \
+    -o jsonpath='{.status.conditions[?(@.type=="ReleaseFailed")].message}' 2>/dev/null || true)
+  fail "Konk CR '${KONK_CR_NAME}': ReleaseFailed=True reason='${KONK_RF_REASON}'"
+  echo "       Message: $(echo "$KONK_RF_MSG" | head -c 300)"
+  if echo "$KONK_RF_MSG" | grep -q "meta.helm.sh/release-name"; then
+    KONK_BAD_RESOURCE=$(echo "$KONK_RF_MSG" | sed -n 's/.*with install: \([^ ]* "[^"]*"\).*/\1/p')
+    echo "       Fix:     kubectl annotate ${KONK_BAD_RESOURCE} -n ${AGGREGATE_NAMESPACE} meta.helm.sh/release-name=${KONK_CR_NAME} meta.helm.sh/release-namespace=${AGGREGATE_NAMESPACE} --overwrite"
+  fi
+else
+  pass "Konk CR '${KONK_CR_NAME}': no ReleaseFailed condition"
+fi
 fi  # section 4
 
 # ══════════════════════════════════════════════════════════════════════════════
