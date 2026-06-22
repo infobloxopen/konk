@@ -7,6 +7,7 @@ pipeline {
   environment {
     HELM_IMAGE = "infoblox/helm:3.2.4-5b243a2"
     HELM="""docker run --rm \
+      --entrypoint=helm \
       -e AWS_REGION \
       -e AWS_ACCESS_KEY_ID \
       -e AWS_SECRET_ACCESS_KEY \
@@ -60,23 +61,29 @@ pipeline {
       steps {
         dir("helm-charts") {
           withAWS(credentials: "CICD_HELM", region: "us-east-1") {
-            sh '''\
-              for chart in konk*
+            sh '''
+              docker run --rm \
+                --entrypoint=/bin/sh \
+                -e AWS_REGION \
+                -e AWS_ACCESS_KEY_ID \
+                -e AWS_SECRET_ACCESS_KEY \
+                -v $WORKSPACE:/pkg \
+                -w /pkg \
+                $HELM_IMAGE -c "
+                  helm s3 init s3://infoblox-helm-dev/charts 2>/dev/null || true
+                  helm repo add infobloxcto s3://infoblox-helm-dev/charts
+                  helm s3 push /pkg/konk-$GIT_VERSION.tgz infobloxcto
+                  helm s3 push /pkg/konk-operator-$GIT_VERSION.tgz infobloxcto
+                  helm s3 push /pkg/konk-service-$GIT_VERSION.tgz infobloxcto
+                  helm s3 push /pkg/example-apiserver-$GIT_VERSION.tgz infobloxcto
+                "
+
+              for chart in konk konk-operator konk-service example-apiserver
               do
-
-              chart_file=$chart-$GIT_VERSION.tgz
-
-              $HELM s3 push /pkg/$chart_file infobloxcto
-
-              cat << EOF > $WORKSPACE/$chart.properties
-              repo=infoblox-helm-dev
-              chart=$chart_file
-              messageFormat=s3-artifact
-              customFormat=true
-              EOF
-
+                chart_file=$chart-$GIT_VERSION.tgz
+                printf 'repo=infoblox-helm-dev\nchart=%s\nmessageFormat=s3-artifact\ncustomFormat=true\n' "$chart_file" > $WORKSPACE/$chart.properties
               done
-            '''.stripIndent()
+            '''
           }
         }
         archiveArtifacts artifacts: '*.properties'
