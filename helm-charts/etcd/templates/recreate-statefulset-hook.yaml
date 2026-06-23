@@ -1,0 +1,136 @@
+{{- /*
+StatefulSet volumeClaimTemplate names are immutable. When persistence.claimName
+changes (e.g. "data" -> "data-v2"), Kubernetes rejects the in-place StatefulSet
+update and the Helm operator loops in a failed-upgrade / rollback cycle. This
+pre-upgrade hook deletes the existing StatefulSet so Helm recreates it with the
+new claimName (a CREATE, which has no immutable-field restriction).
+
+It is gated two ways so it is safe to leave enabled:
+  1. recreateStatefulSet.enabled must be true, AND
+  2. the LIVE StatefulSet's volumeClaimTemplate name must differ from the desired
+     persistence.claimName (looked up at render time).
+Once migrated, the live claimName matches the target and the hook renders nothing.
+
+Existing PVCs are retained (StatefulSet PVCs are not garbage-collected on delete),
+so the old volumes remain available as a backup.
+*/ -}}
+{{- if and .Values.recreateStatefulSet.enabled .Values.persistence.enabled }}
+{{- $name := include "etcd.fullname" . }}
+{{- $target := .Values.persistence.claimName | default "data" }}
+{{- $live := lookup "apps/v1" "StatefulSet" .Release.Namespace $name }}
+{{- $currentClaim := "" }}
+{{- if and $live $live.spec.volumeClaimTemplates }}
+{{- $currentClaim = (index $live.spec.volumeClaimTemplates 0).metadata.name }}
+{{- end }}
+{{- if and $currentClaim (ne $currentClaim $target) }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $name }}-recreate-hook
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "etcd.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: pre-upgrade
+    helm.sh/hook-weight: "-5"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $name }}-recreate-hook
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "etcd.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: pre-upgrade
+    helm.sh/hook-weight: "-5"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+rules:
+  - apiGroups: ["apps"]
+    resources: ["statefulsets"]
+    resourceNames: ["{{ $name }}"]
+    verbs: ["get", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $name }}-recreate-hook
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "etcd.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: pre-upgrade
+    helm.sh/hook-weight: "-4"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $name }}-recreate-hook
+subjects:
+  - kind: ServiceAccount
+    name: {{ $name }}-recreate-hook
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ $name | trunc 50 | trimSuffix "-" }}-recreate-sts
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "etcd.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: pre-upgrade
+    helm.sh/hook-weight: "0"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      # Deliberately NOT etcd.selectorLabels: the etcd client/headless Services
+      # select on {name: etcd, instance: <release>}. Reusing those labels would
+      # add this kubectl pod to the etcd Service Endpoints (it has no readiness
+      # probe, so it is Ready immediately), causing the apiserver to route etcd
+      # traffic to a pod that does not serve etcd. Use a distinct name instead.
+      labels:
+        app.kubernetes.io/name: {{ include "etcd.name" . }}-recreate-hook
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: recreate-hook
+    spec:
+      restartPolicy: Never
+      serviceAccountName: {{ $name }}-recreate-hook
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+      containers:
+        - name: recreate-sts
+          image: "{{ .Values.recreateStatefulSet.image.repository }}:{{ .Values.recreateStatefulSet.image.tag }}"
+          imagePullPolicy: {{ .Values.recreateStatefulSet.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          command:
+            - kubectl
+            - delete
+            - statefulset
+            - {{ $name }}
+            - --namespace
+            - {{ .Release.Namespace }}
+            - --ignore-not-found
+            - --wait=true
+          env:
+            - name: HOME
+              value: /tmp
+          resources:
+            {{- toYaml .Values.recreateStatefulSet.resources | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+{{- end }}
+{{- end }}
