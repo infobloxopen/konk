@@ -87,8 +87,15 @@ spec:
   backoffLimit: 3
   template:
     metadata:
+      # Deliberately NOT etcd.selectorLabels: the etcd client/headless Services
+      # select on {name: etcd, instance: <release>}. Reusing those labels would
+      # add this kubectl pod to the etcd Service Endpoints (it has no readiness
+      # probe, so it is Ready immediately), causing the apiserver to route etcd
+      # traffic to a pod that does not serve etcd. Use a distinct name instead.
       labels:
-        {{- include "etcd.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/name: {{ include "etcd.name" . }}-recreate-hook
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: recreate-hook
     spec:
       restartPolicy: Never
       serviceAccountName: {{ $name }}-recreate-hook
