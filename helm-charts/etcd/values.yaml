@@ -74,6 +74,33 @@ persistence:
   size: 8Gi
   annotations: {}
 
+## @section StatefulSet recreate hook (claimName / PVC migration)
+## A StatefulSet's volumeClaimTemplate name is immutable. When persistence.claimName
+## changes (e.g. "data" -> "data-v2"), an in-place upgrade is rejected by the API
+## server ("updates to statefulset spec for fields other than ... are forbidden"),
+## and the Helm operator loops in a failed-upgrade / rollback cycle. This optional
+## pre-upgrade hook deletes the existing StatefulSet so Helm recreates it with the
+## new claimName. It only runs when the LIVE volumeClaimTemplate name differs from
+## persistence.claimName, so it is idempotent and a no-op once migrated. Existing
+## PVCs are retained (StatefulSet PVCs are not garbage-collected on delete) as a backup.
+recreateStatefulSet:
+  ## @param recreateStatefulSet.enabled Enable the pre-upgrade hook that recreates the StatefulSet when persistence.claimName changes
+  enabled: false
+  image:
+    ## @param recreateStatefulSet.image.repository kubectl image used by the recreate hook Job (override for air-gapped registries)
+    repository: registry.k8s.io/kubectl
+    ## @param recreateStatefulSet.image.tag kubectl image tag
+    tag: "v1.31.4"
+    ## @param recreateStatefulSet.image.pullPolicy kubectl image pull policy
+    pullPolicy: IfNotPresent
+  ## @param recreateStatefulSet.resources Resource requests/limits for the recreate hook Job
+  resources:
+    limits:
+      memory: 128Mi
+    requests:
+      cpu: 10m
+      memory: 32Mi
+
 ## @section Pod parameters
 podAnnotations: {}
 podLabels: {}
