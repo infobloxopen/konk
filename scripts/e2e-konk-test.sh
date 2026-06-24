@@ -242,7 +242,8 @@ echo -e "${BOLD}================================================================
 echo -e "${BOLD} Konk End-to-End Health Validation${RESET}"
 echo -e "${BOLD}================================================================${RESET}"
 echo -e "  Cluster:      $(kubectl config current-context 2>/dev/null || echo 'unknown')"
-echo -e "  Date:         $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+echo -e "  Date (UTC):   $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+echo -e "  Date (IST):   $(TZ=Asia/Kolkata date '+%Y-%m-%d %H:%M:%S IST')"
 echo -e "  Sample NS:    ${SAMPLE_NS}"
 SKIP_TRIGGER_DISPLAY="false"
 if [[ "$TRIGGER_REGISTRATION" != true ]]; then
@@ -640,6 +641,28 @@ else
     pass "all ${KSVC_TOTAL} KonkService CRs report Successful with no ReleaseFailed and kubeconfig Deployments scaled up"
   else
     info "${KSVC_OK}/${KSVC_TOTAL} KonkService CRs ok | ${KSVC_FAIL} not Successful | ${KSVC_RELEASE_FAILED} ReleaseFailed | ${KSVC_OWNERSHIP_ERR} with Helm ownership conflict | ${KSVC_KUBECONFIG_SCALED_DOWN} kubeconfig Deployments scaled to 0"
+  fi
+
+  # ── Proactive Helm ownership annotation check ──
+  # Detect deployments missing meta.helm.sh/release-name BEFORE the operator fails.
+  # These will cause "cannot be imported" errors on the next reconcile attempt.
+  MISSING_ANN=$(echo "$ALL_DEPLOY_JSON" | jq -r '
+    .items[]
+    | select(.metadata.labels["app.kubernetes.io/name"] == "konk-service")
+    | select((.metadata.annotations["meta.helm.sh/release-name"] // "") == "")
+    | "\(.metadata.namespace)/\(.metadata.name)"' 2>/dev/null || true)
+
+  if [[ -z "$MISSING_ANN" ]]; then
+    pass "all konk-service Deployments have Helm ownership annotations"
+  else
+    MISSING_COUNT=$(echo "$MISSING_ANN" | wc -l | tr -d ' ')
+    fail "${MISSING_COUNT} konk-service Deployment(s) missing meta.helm.sh/release-name annotation (will cause 'cannot be imported' on next reconcile)"
+    echo "$MISSING_ANN" | head -5 | while IFS= read -r line; do
+      warn "  ${line}"
+    done
+    if [[ $MISSING_COUNT -gt 5 ]]; then
+      info "  ... and $((MISSING_COUNT - 5)) more"
+    fi
   fi
 fi
 fi  # section 5
