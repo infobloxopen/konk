@@ -70,7 +70,6 @@ pipeline {
                 -v $WORKSPACE:/pkg \
                 -w /pkg \
                 $HELM_IMAGE -c "
-                  helm s3 init s3://infoblox-helm-dev/charts 2>/dev/null || true
                   helm repo add infobloxcto s3://infoblox-helm-dev/charts
                   helm s3 push /pkg/konk-$GIT_VERSION.tgz infobloxcto
                   helm s3 push /pkg/konk-operator-$GIT_VERSION.tgz infobloxcto
