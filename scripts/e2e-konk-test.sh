@@ -60,6 +60,7 @@ TRIGGER_REGISTRATION=true
 VERBOSE=false
 DEBUG=false
 RUN_SECTIONS=()          # empty = run all
+LAST_SECTION=17          # update when adding new sections
 CSP_URL="${KONK_E2E_CSP_URL:-}"
 CSP_TOKEN="${KONK_E2E_TOKEN:-}"
 TOKEN_FILE="$(cd "$(dirname "$0")" && pwd)/token-file.txt"
@@ -82,7 +83,7 @@ while [[ $# -gt 0 ]]; do
     --section)
       if [[ "$2" == *-* ]]; then
         _from=${2%%-*}; _to=${2##*-}
-        [[ -z "$_to" ]] && _to=14  # open-ended range: 7- means 7 to last section
+        [[ -z "$_to" ]] && _to=$LAST_SECTION  # open-ended range: 7- means 7 to last
         for (( _i=_from; _i<=_to; _i++ )); do RUN_SECTIONS+=("$_i"); done
       else
         RUN_SECTIONS+=("$2")
@@ -291,6 +292,20 @@ assert_equals "konk-operator pod Ready condition" "${OPERATOR_POD_READY:-False}"
 OPERATOR_IMG=$(kc get deploy konk-operator -n "$KONK_NAMESPACE" \
   -o jsonpath='{.spec.template.spec.containers[0].image}')
 vinfo "operator image: ${OPERATOR_IMG}"
+
+# Check konk-operator HelmRelease status (flux)
+if kubectl get hr -n vela-system konk-operator &>/dev/null; then
+  KONK_OP_HR_READY=$(kubectl get hr -n vela-system konk-operator -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null)
+  KONK_OP_HR_MSG=$(kubectl get hr -n vela-system konk-operator -o jsonpath='{.status.conditions[?(@.type=="Ready")].message}' 2>/dev/null)
+  if [[ "$KONK_OP_HR_READY" == "True" ]]; then
+    pass "konk-operator HelmRelease Ready: $(echo "$KONK_OP_HR_MSG" | head -c 120)"
+  else
+    fail "konk-operator HelmRelease NOT Ready (status=${KONK_OP_HR_READY}): $(echo "$KONK_OP_HR_MSG" | head -c 200)"
+  fi
+else
+  skip "konk-operator HelmRelease not found in vela-system"
+fi
+
 fi  # section 1
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -366,6 +381,20 @@ if [[ -n "$AGG_BAD_PODS" ]]; then
 else
   pass "no pods in error state in aggregate namespace"
 fi
+
+# Check bulk HelmRelease status (flux)
+if kubectl get hr -n vela-system bulk &>/dev/null; then
+  BULK_HR_READY=$(kubectl get hr -n vela-system bulk -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null)
+  BULK_HR_MSG=$(kubectl get hr -n vela-system bulk -o jsonpath='{.status.conditions[?(@.type=="Ready")].message}' 2>/dev/null)
+  if [[ "$BULK_HR_READY" == "True" ]]; then
+    pass "bulk HelmRelease Ready: ${BULK_HR_MSG}"
+  else
+    fail "bulk HelmRelease NOT Ready (status=${BULK_HR_READY}): ${BULK_HR_MSG}"
+  fi
+else
+  skip "bulk HelmRelease not found in vela-system (flux not managing bulk here)"
+fi
+
 fi  # section 2
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1150,19 +1179,22 @@ EOF
 
       # Find a kubectl-apiservice pod to restart
       TARGET_LINE=$(kc get pods -A --no-headers 2>/dev/null \
-        | grep "konk-service-kubectl-apiservice" | grep -v "test" \
+        | grep "\-kubectl-ap" | grep -v "test" \
         | awk '$4=="Running"{split($3,a,"/"); if(a[1]==a[2]) print}' | head -1 || true)
       TARGET_NS=$(echo "$TARGET_LINE" | awk '{print $1}')
       TARGET_POD=$(echo "$TARGET_LINE" | awk '{print $2}')
 
-      RS_NAME=$(kc get pod "$TARGET_POD" -n "$TARGET_NS" -o jsonpath='{.metadata.ownerReferences[0].name}')
-      DEPLOY_NAME=""
-      if [[ -n "$RS_NAME" ]]; then
-        DEPLOY_NAME=$(kc get rs "$RS_NAME" -n "$TARGET_NS" -o jsonpath='{.metadata.ownerReferences[0].name}')
-      fi
+      if [[ -z "$TARGET_POD" ]]; then
+        skip "no suitable kubectl-apiservice pod found for trigger test"
+      else
+        RS_NAME=$(kc get pod "$TARGET_POD" -n "$TARGET_NS" -o jsonpath='{.metadata.ownerReferences[0].name}')
+        DEPLOY_NAME=""
+        if [[ -n "$RS_NAME" ]]; then
+          DEPLOY_NAME=$(kc get rs "$RS_NAME" -n "$TARGET_NS" -o jsonpath='{.metadata.ownerReferences[0].name}')
+        fi
 
-      if [[ -z "$DEPLOY_NAME" ]]; then
-        warn "unable to determine deployment owner for ${TARGET_NS}/${TARGET_POD}; skipping trigger test"
+        if [[ -z "$DEPLOY_NAME" ]]; then
+          warn "unable to determine deployment owner for ${TARGET_NS}/${TARGET_POD}; skipping trigger test"
       else
         if [[ "$DEBUG" == true ]]; then
           info "command: kubectl delete pod -n ${TARGET_NS} ${TARGET_POD}"
@@ -1233,6 +1265,7 @@ EOF
           fail "failed to delete pod ${TARGET_NS}/${TARGET_POD} for trigger test"
         fi
       fi
+      fi  # if TARGET_POD not empty
     fi
   fi
 fi
@@ -2025,6 +2058,12 @@ fi  # section 13
 section "External API integration (tagging + bulk via CSP)"
 if should_run 14; then
 
+# Skip on production clusters (com-prod, gov-prd)
+_ctx_14=$(kubectl config current-context 2>/dev/null || echo "")
+if [[ "$_ctx_14" == *"-com-"* || "$_ctx_14" == *"-prd-"* ]]; then
+  skip "production cluster detected (${_ctx_14}) — skipping external API tests"
+else
+
 # Auto-detect CSP URL from cluster context using CLUSTER_KEYS/CLUSTER_URLS
 if [[ -z "$CSP_URL" ]]; then
   CLUSTER_CTX=$(kubectl config current-context 2>/dev/null || echo "")
@@ -2234,80 +2273,236 @@ elif [[ -n "$CSP_TOKEN" && -n "$CSP_URL" ]]; then
         /tmp/konk-e2e-export-resp.json /tmp/konk-e2e-export-headers.txt \
         /tmp/konk-e2e-op-status.json /tmp/konk-e2e-op-list.json 2>/dev/null
 fi
+fi  # else (non-prod)
 fi  # section 14
 
 # ══════════════════════════════════════════════════════════════════════════════
 # SECTION 15: Konk APIService backend health
 # ══════════════════════════════════════════════════════════════════════════════
-# Section 5 only checks konk-service-managed pods (kubectl-apiservice, kubeconfig,
-# apiservice-test) by label. This section sweeps ALL pods in namespaces that host
-# APIService backends that register into konk — catching application pods like
-# dns-data-importexport (2/3) that section 5 would never see.
-# These are the pods whose notReady state causes 503s in konk (see gov-stg-2 incident).
+# Checks ONLY the aggregate API server pods that are actual APIService backends —
+# i.e. the pods backing each KonkService's spec.service.name.
+# These are the pods whose notReady state causes 503s in konk's available_controller
+# (gov-stg-2 cert expiry incident pattern).
+#
+# NOT checked here (covered by section 6): konk-service-managed pods
+# (kubectl-apiservice, kubeconfig, apiservice-test).
 section "Konk APIService backend health"
 if should_run 15; then
-  BACKEND_NAMESPACES=("$AGGREGATE_NAMESPACE" "ddi" "hostapp" "ngp-cp" "ntp" "tagging-v2" "redirect" "endpoints")
-  BACKEND_NOT_READY_COUNT=0
-  BACKEND_TOTAL=0
+  # Fetch all KonkService CRs once
+  ALL_KSVC_15=$(kc get konkservice -A -o json 2>/dev/null)
 
-  for ns in "${BACKEND_NAMESPACES[@]}"; do
-    NS_PODS=$(kc get pods -n "$ns" --no-headers 2>/dev/null | (grep -v 'Completed\|Terminating' || true) || true)
-    [[ -z "$NS_PODS" ]] && continue
-
-    while IFS= read -r line; do
-      [[ -z "$line" ]] && continue
-      pod=$(echo "$line" | awk '{print $1}')
-      ready=$(echo "$line" | awk '{print $2}')
-      status=$(echo "$line" | awk '{print $3}')
-      current=$(echo "$ready" | cut -d/ -f1)
-      total=$(echo "$ready" | cut -d/ -f2)
-      # Skip konk-service-managed pods — already covered by section 5
-      [[ "$pod" == *"konk-service"* ]] && continue
-      ((BACKEND_TOTAL++)) || true
-      if [[ "$current" != "$total" ]] 2>/dev/null; then
-        warn "backend pod not fully ready: ${ns}/${pod} (${ready} ${status})"
-        ((BACKEND_NOT_READY_COUNT++)) || true
-      else
-        vinfo "backend pod ok: ${ns}/${pod} (${ready})"
-      fi
-    done <<< "$NS_PODS"
-  done
-
-  if [[ $BACKEND_NOT_READY_COUNT -eq 0 ]]; then
-    pass "all ${BACKEND_TOTAL} pods across konk-adjacent namespaces are fully ready"
+  if [[ -z "$ALL_KSVC_15" ]] || [[ "$(echo "$ALL_KSVC_15" | jq '.items | length' 2>/dev/null)" == "0" ]]; then
+    warn "no KonkService CRs found — skipping backend health check"
   else
-    info "${BACKEND_NOT_READY_COUNT} not-ready pod(s) found — check warnings above. Not-ready APIService backend pods will cause 503s in konk's available_controller."
+    BACKEND_TOTAL=0
+    BACKEND_NOT_READY=0
+    BACKEND_MISSING_SVC=0
+
+    # For each KonkService, find spec.service.name and check the pods behind it
+    while IFS=$'\t' read -r ns name svc_name; do
+      [[ -z "$ns" || -z "$name" ]] && continue
+
+      # Fall back to CR name if spec.service.name is empty
+      [[ -z "$svc_name" || "$svc_name" == "null" ]] && svc_name="$name"
+
+      # Get endpoints for the backend service
+      EP_JSON=$(kc get endpoints "$svc_name" -n "$ns" -o json 2>/dev/null || true)
+      if [[ -z "$EP_JSON" ]]; then
+        fail "KonkService ${ns}/${name}: backend service '${svc_name}' has no Endpoints object"
+        ((BACKEND_MISSING_SVC++)) || true
+        continue
+      fi
+
+      # Extract ready and not-ready pod names from endpoints
+      READY_PODS=$(echo "$EP_JSON" | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+names = []
+for subset in data.get('subsets', []):
+    for addr in subset.get('addresses', []):
+        ref = addr.get('targetRef', {})
+        if ref.get('kind') == 'Pod':
+            names.append(ref.get('name', addr.get('ip', '?')))
+print('\n'.join(names))
+" 2>/dev/null || true)
+
+      NOT_READY_PODS=$(echo "$EP_JSON" | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+names = []
+for subset in data.get('subsets', []):
+    for addr in subset.get('notReadyAddresses', []):
+        ref = addr.get('targetRef', {})
+        if ref.get('kind') == 'Pod':
+            names.append(ref.get('name', addr.get('ip', '?')))
+print('\n'.join(names))
+" 2>/dev/null || true)
+
+      READY_COUNT=$(echo "$READY_PODS" | grep -c '[^[:space:]]' 2>/dev/null || true); READY_COUNT=${READY_COUNT:-0}
+      NOT_READY_COUNT=$(echo "$NOT_READY_PODS" | grep -c '[^[:space:]]' 2>/dev/null || true); NOT_READY_COUNT=${NOT_READY_COUNT:-0}
+      BACKEND_TOTAL=$((BACKEND_TOTAL + READY_COUNT + NOT_READY_COUNT))
+
+      if [[ "$NOT_READY_COUNT" -gt 0 ]]; then
+        fail "KonkService ${ns}/${name}: backend service '${svc_name}' has ${NOT_READY_COUNT} pod(s) in notReadyAddresses — konk will get 503 probing this APIService"
+        echo "$NOT_READY_PODS" | grep -v '^$' | while IFS= read -r pod; do
+          # Get pod status for context
+          pod_status=$(kc get pod "$pod" -n "$ns" --no-headers 2>/dev/null | awk '{print $2, $3}' || true)
+          warn "  not-ready: ${ns}/${pod} ${pod_status}"
+        done
+        ((BACKEND_NOT_READY++)) || true
+      elif [[ "$READY_COUNT" -eq 0 ]]; then
+        fail "KonkService ${ns}/${name}: backend service '${svc_name}' has NO ready endpoints — APIService backend completely down"
+        ((BACKEND_NOT_READY++)) || true
+      else
+        vinfo "KonkService ${ns}/${name}: backend '${svc_name}' — ${READY_COUNT} ready pod(s)"
+        pass "KonkService ${ns}/${name}: backend '${svc_name}' has ${READY_COUNT} ready pod(s)"
+      fi
+    done < <(echo "$ALL_KSVC_15" | jq -r '
+      .items[] |
+      [.metadata.namespace, .metadata.name, (.spec.service.name // "")] | @tsv')
+
+    if [[ $BACKEND_NOT_READY -eq 0 && $BACKEND_MISSING_SVC -eq 0 ]]; then
+      info "${BACKEND_TOTAL} backend pod(s) checked across all KonkService APIService endpoints"
+    else
+      info "${BACKEND_NOT_READY} KonkService(s) with not-ready backend pods — these cause 503s in konk's available_controller"
+    fi
   fi
 fi  # section 15
 
 # ══════════════════════════════════════════════════════════════════════════════
 # SECTION 16: Stale node containers (Helm adopt/merge ghost detection)
 # ══════════════════════════════════════════════════════════════════════════════
-# After upgrading from the old chart (which had a "kind" container using
+# ETCD-MIGRATION-SPECIFIC: remove after etcd migration is complete
 # kindest/node) to the new chart (single "kubeconfig" container using konk-service),
 # Helm's strategic merge on fresh install can leave ghost "kind" containers.
 # These cause "permission denied" errors because the node container (running as root)
 # writes to the shared emptyDir before the kubeconfig container (nonroot) tries to.
+#
+# NOTE: Only relevant for operator versions < j191. Operators >= j191 no longer
+# have the old kind/node container in the chart, so this check can be skipped.
 section "Stale node containers (Helm merge ghost detection)"
 if should_run 16; then
-  NODE_PODS=$(kubectl get pods -A -o custom-columns='NAMESPACE:.metadata.namespace,NAME:.metadata.name,IMAGES:.spec.containers[*].image,INIT-IMAGES:.spec.initContainers[*].image' 2>&1 | grep "/node:" || true)
+  # Get operator image to check if this section is relevant
+  OPERATOR_IMG_16=${OPERATOR_IMG:-$(kc get deploy konk-operator -n "$KONK_NAMESPACE" \
+    -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null || true)}
+  # Extract Jenkins build number (e.g. v0.2.1-155-gd4614c2-j191 → 191)
+  OPERATOR_JOB_NUM=$(echo "$OPERATOR_IMG_16" | grep -oE 'j[0-9]+' | tail -1 | tr -d 'j')
 
-  if [[ -z "$NODE_PODS" ]]; then
-    pass "no pods running stale node container images"
+  if [[ -n "$OPERATOR_JOB_NUM" && "$OPERATOR_JOB_NUM" -lt 191 ]] 2>/dev/null; then
+    skip "operator < j191 — still uses kindest/node legitimately; ghost containers not possible"
   else
-    NODE_POD_COUNT=$(echo "$NODE_PODS" | wc -l | tr -d ' ')
-    fail "${NODE_POD_COUNT} pod(s) still have stale /node: container images (ghost from Helm adopt/merge)"
-    echo "$NODE_PODS" | while IFS= read -r line; do
-      ns=$(echo "$line" | awk '{print $1}')
-      pod=$(echo "$line" | awk '{print $2}')
-      warn "  ${ns}/${pod}"
-    done
-    echo ""
-    info "Fix: delete the Helm release secret + deployment, let the operator re-create cleanly:"
-    info "  kubectl delete secret -n <ns> sh.helm.release.v1.<release>.v1"
-    info "  kubectl delete deploy -n <ns> <deployment-name>"
+    NODE_PODS=$(kubectl get pods -A -o custom-columns='NAMESPACE:.metadata.namespace,NAME:.metadata.name,IMAGES:.spec.containers[*].image,INIT-IMAGES:.spec.initContainers[*].image' 2>&1 | grep "/node:" || true)
+
+    if [[ -z "$NODE_PODS" ]]; then
+      pass "no pods running stale node container images"
+    else
+      NODE_POD_COUNT=$(echo "$NODE_PODS" | wc -l | tr -d ' ')
+      fail "${NODE_POD_COUNT} pod(s) still have stale /node: container images (ghost from Helm adopt/merge)"
+      echo "$NODE_PODS" | head -5 | while IFS= read -r line; do
+        ns=$(echo "$line" | awk '{print $1}')
+        pod=$(echo "$line" | awk '{print $2}')
+        warn "  ${ns}/${pod}"
+      done
+      if [[ $NODE_POD_COUNT -gt 5 ]]; then
+        info "  ... and $((NODE_POD_COUNT - 5)) more"
+      fi
+      echo ""
+      info "Fix: delete the Helm release secret + deployment, let the operator re-create cleanly:"
+      info "  kubectl delete secret -n <ns> sh.helm.release.v1.<release>.v1"
+      info "  kubectl delete deploy -n <ns> <deployment-name>"
+    fi
   fi
 fi  # section 16
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SECTION 17: Wrong konk-service image (ghcr.io/infobloxopen/konk-service)
+# ══════════════════════════════════════════════════════════════════════════════
+# ETCD-MIGRATION-SPECIFIC: remove after etcd migration is complete
+# ETCD-MIGRATION-SPECIFIC: remove after etcd migration is complete
+# The konk-service chart uses kindest/node:<K8S_RELEASE> (or harbor .../node:<K8S_RELEASE>)
+# as the "kind" container image. After the distroless migration (j191+), the image
+# changed to konk-service. On clusters still running older operator versions, the
+# konk-service image is a ghost container left by Helm strategic merge — the pod
+# should only have the node image.
+section "Stale konk-service container image (ghost detection)"
+if should_run 17; then
+  # Get operator image to check if this section is relevant
+  OPERATOR_IMG_17=${OPERATOR_IMG:-$(kc get deploy konk-operator -n "$KONK_NAMESPACE" \
+    -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null || true)}
+  OPERATOR_JOB_NUM_17=$(echo "$OPERATOR_IMG_17" | grep -oE 'j[0-9]+' | tail -1 | tr -d 'j')
+
+  if [[ -n "$OPERATOR_JOB_NUM_17" && "$OPERATOR_JOB_NUM_17" -ge 191 ]] 2>/dev/null; then
+    skip "operator >= j191 — uses konk-service image legitimately; check not applicable"
+  else
+    # On pre-j191 operators, pods should only have /node: image, NOT /konk-service: image
+    # The /konk-service: container is a ghost from Helm strategic merge after chart change
+    BAD_IMG_PODS=$(kubectl get pods -A -o custom-columns='NAMESPACE:.metadata.namespace,NAME:.metadata.name,READY:.status.containerStatuses[*].ready,IMAGES:.spec.containers[*].image' --no-headers 2>/dev/null \
+      | grep "konk-service-kubeconfig" | grep "/konk-service:" || true)
+
+    if [[ -z "$BAD_IMG_PODS" ]]; then
+      pass "no konk-service-kubeconfig pods with stale /konk-service: container image"
+    else
+      BAD_IMG_COUNT=$(echo "$BAD_IMG_PODS" | wc -l | tr -d ' ')
+      fail "${BAD_IMG_COUNT} pod(s) have ghost konk-service container (Helm strategic merge leftover)"
+      echo "$BAD_IMG_PODS" | head -10 | while IFS= read -r line; do
+        ns=$(echo "$line" | awk '{print $1}')
+        pod=$(echo "$line" | awk '{print $2}')
+        ready=$(echo "$line" | awk '{print $3}')
+        warn "  ${ns}/${pod}  ready=${ready}"
+      done
+      if [[ $BAD_IMG_COUNT -gt 10 ]]; then
+        info "  ... and $((BAD_IMG_COUNT - 10)) more"
+      fi
+      echo ""
+      info "Expected: only /node:v1.25.8 container"
+      info "Found:    ghost /konk-service:<operator-version> container from Helm merge"
+      info "Fix: delete the deployment (operator will recreate with correct single container):"
+      info "  kubectl delete deploy -n <ns> <deployment-name>"
+    fi
+
+    # Check for ghost konk-app container in apiserver pods (aggregate namespace)
+    # Pre-j191: apiserver should use /kube-apiserver:v1.25.8, NOT /konk-app:
+    BAD_APP_PODS=$(kubectl get pods -n "${AGGREGATE_NAMESPACE}" -o custom-columns='NAME:.metadata.name,READY:.status.containerStatuses[*].ready,IMAGES:.spec.containers[*].image' --no-headers 2>/dev/null \
+      | grep "/konk-app:" || true)
+
+    if [[ -z "$BAD_APP_PODS" ]]; then
+      pass "no pods with stale /konk-app: container image in ${AGGREGATE_NAMESPACE}"
+    else
+      BAD_APP_COUNT=$(echo "$BAD_APP_PODS" | wc -l | tr -d ' ')
+      fail "${BAD_APP_COUNT} pod(s) have ghost /konk-app: image in ${AGGREGATE_NAMESPACE} (expected /kube-apiserver:v1.25.8)"
+      echo "$BAD_APP_PODS" | head -5 | while IFS= read -r line; do
+        pod=$(echo "$line" | awk '{print $1}')
+        ready=$(echo "$line" | awk '{print $2}')
+        warn "  ${AGGREGATE_NAMESPACE}/${pod}  ready=${ready}"
+      done
+      echo ""
+      info "Expected: /kube-apiserver:v1.25.8"
+      info "Found:    ghost /konk-app:<operator-version> from Helm merge"
+      info "Fix: kubectl delete deploy -n ${AGGREGATE_NAMESPACE} <deployment-name>"
+    fi
+
+    # Check for ghost konk-provision container in provision/init pods (aggregate namespace)
+    # Pre-j191: provision should use /node:v1.25.8, NOT /konk-provision:
+    BAD_PROV_PODS=$(kubectl get pods -n "${AGGREGATE_NAMESPACE}" -o custom-columns='NAME:.metadata.name,READY:.status.containerStatuses[*].ready,IMAGES:.spec.containers[*].image' --no-headers 2>/dev/null \
+      | grep "/konk-provision:" || true)
+
+    if [[ -z "$BAD_PROV_PODS" ]]; then
+      pass "no pods with stale /konk-provision: container image in ${AGGREGATE_NAMESPACE}"
+    else
+      BAD_PROV_COUNT=$(echo "$BAD_PROV_PODS" | wc -l | tr -d ' ')
+      fail "${BAD_PROV_COUNT} pod(s) have ghost /konk-provision: image in ${AGGREGATE_NAMESPACE} (expected /node:v1.25.8)"
+      echo "$BAD_PROV_PODS" | head -5 | while IFS= read -r line; do
+        pod=$(echo "$line" | awk '{print $1}')
+        ready=$(echo "$line" | awk '{print $2}')
+        warn "  ${AGGREGATE_NAMESPACE}/${pod}  ready=${ready}"
+      done
+      echo ""
+      info "Expected: /node:v1.25.8"
+      info "Found:    ghost /konk-provision:<operator-version> from Helm merge"
+      info "Fix: kubectl delete deploy -n ${AGGREGATE_NAMESPACE} <deployment-name>"
+    fi
+  fi
+fi  # section 17
 
 # ══════════════════════════════════════════════════════════════════════════════
 # SUMMARY
