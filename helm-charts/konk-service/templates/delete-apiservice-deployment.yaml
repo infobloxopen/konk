@@ -6,6 +6,7 @@ metadata:
   labels:
     {{- include "konk-service.labels" . | nindent 4 }}
   annotations:
+    {{- include "konk-service.helmAnnotations" . | nindent 4 }}
     helm.sh/hook: pre-delete
 spec:
   template:
