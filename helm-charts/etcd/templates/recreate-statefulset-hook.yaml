@@ -5,11 +5,15 @@ update and the Helm operator loops in a failed-upgrade / rollback cycle. This
 pre-upgrade hook deletes the existing StatefulSet so Helm recreates it with the
 new claimName (a CREATE, which has no immutable-field restriction).
 
-It is gated two ways so it is safe to leave enabled:
-  1. recreateStatefulSet.enabled must be true, AND
-  2. the LIVE StatefulSet's volumeClaimTemplate name must differ from the desired
-     persistence.claimName (looked up at render time).
-Once migrated, the live claimName matches the target and the hook renders nothing.
+It also prevents strategic merge patch issues when upgrading between chart
+variants (e.g. Bitnami → upstream). A strategic merge on the env array can
+merge conflicting fields (value + valueFrom on the same env var), causing pod
+creation failures. Deleting the STS forces a fresh CREATE that uses the chart's
+clean template without merge artifacts.
+
+The hook is gated by recreateStatefulSet.enabled, which is manually set for
+migration and removed after. It fires whenever a live StatefulSet exists, so it
+is safe: once disabled, the hook renders nothing.
 
 Existing PVCs are retained (StatefulSet PVCs are not garbage-collected on delete),
 so the old volumes remain available as a backup.
@@ -22,7 +26,7 @@ so the old volumes remain available as a backup.
 {{- if and $live $live.spec.volumeClaimTemplates }}
 {{- $currentClaim = (index $live.spec.volumeClaimTemplates 0).metadata.name }}
 {{- end }}
-{{- if and $currentClaim (ne $currentClaim $target) }}
+{{- if $currentClaim }}
 apiVersion: v1
 kind: ServiceAccount
 metadata:
