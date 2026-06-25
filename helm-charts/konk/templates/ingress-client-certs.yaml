@@ -24,6 +24,9 @@ metadata:
     {{- include "konk.labels" . | nindent 4 }}
 spec:
   secretName: {{ include "konk.fullname" . }}-ingress-client
+  secretTemplate:
+    annotations:
+      {{- include "konk.helmAnnotations" . | nindent 6 }}
   # SubjectAltName
   # TODO: change to view, update RBAC to allow view
   subject:

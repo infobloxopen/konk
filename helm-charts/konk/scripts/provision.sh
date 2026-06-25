@@ -110,6 +110,9 @@ then
   kubectl -n $NAMESPACE create secret generic $FULLNAME-kubeconfig \
     --from-file=/etc/kubernetes/admin.conf
   kubectl -n $NAMESPACE label secret $FULLNAME-kubeconfig $LABELS
+  kubectl -n $NAMESPACE annotate secret $FULLNAME-kubeconfig \
+    meta.helm.sh/release-name=$RELEASE \
+    meta.helm.sh/release-namespace=$NAMESPACE --overwrite
 fi
 
 kubectl -n $NAMESPACE wait --timeout=3m --for=condition=progressing deployments.apps -l app.kubernetes.io/instance=$RELEASE
@@ -117,5 +120,8 @@ kubectl -n $NAMESPACE wait --timeout=3m --for=condition=progressing deployments.
 DEPLOYMENT_UID=$(kubectl get deployments.apps -n $NAMESPACE $FULLNAME -o jsonpath='{.metadata.uid}')
 for name in $FULLNAME-apiserver-cert $FULLNAME-etcd-cert $FULLNAME-ca $FULLNAME-etcd-ca $FULLNAME-kubeconfig
 do
+  kubectl annotate -n $NAMESPACE secret $name \
+    meta.helm.sh/release-name=$RELEASE \
+    meta.helm.sh/release-namespace=$NAMESPACE --overwrite
   kubectl patch -n $NAMESPACE secret $name -p '{"metadata":{"ownerReferences":[{"apiVersion":"apps/v1", "kind":"Deployment", "name":"'${FULLNAME}'", "uid":"'${DEPLOYMENT_UID}'"}]}}'
 done

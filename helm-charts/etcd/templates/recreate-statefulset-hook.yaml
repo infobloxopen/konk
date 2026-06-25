@@ -31,6 +31,7 @@ metadata:
   labels:
     {{- include "etcd.labels" . | nindent 4 }}
   annotations:
+    {{- include "etcd.helmAnnotations" . | nindent 4 }}
     helm.sh/hook: pre-upgrade
     helm.sh/hook-weight: "-5"
     helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
@@ -43,6 +44,7 @@ metadata:
   labels:
     {{- include "etcd.labels" . | nindent 4 }}
   annotations:
+    {{- include "etcd.helmAnnotations" . | nindent 4 }}
     helm.sh/hook: pre-upgrade
     helm.sh/hook-weight: "-5"
     helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
@@ -60,6 +62,7 @@ metadata:
   labels:
     {{- include "etcd.labels" . | nindent 4 }}
   annotations:
+    {{- include "etcd.helmAnnotations" . | nindent 4 }}
     helm.sh/hook: pre-upgrade
     helm.sh/hook-weight: "-4"
     helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
@@ -80,6 +83,7 @@ metadata:
   labels:
     {{- include "etcd.labels" . | nindent 4 }}
   annotations:
+    {{- include "etcd.helmAnnotations" . | nindent 4 }}
     helm.sh/hook: pre-upgrade
     helm.sh/hook-weight: "0"
     helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
