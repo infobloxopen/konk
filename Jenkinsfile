@@ -62,20 +62,7 @@ pipeline {
         dir("helm-charts") {
           withAWS(credentials: "CICD_HELM", region: "us-east-1") {
             sh '''
-              docker run --rm \
-                --entrypoint=/bin/sh \
-                -e AWS_REGION \
-                -e AWS_ACCESS_KEY_ID \
-                -e AWS_SECRET_ACCESS_KEY \
-                -v $WORKSPACE:/pkg \
-                -w /pkg \
-                $HELM_IMAGE -c "
-                  helm repo add infobloxcto s3://infoblox-helm-dev/charts
-                  helm s3 push /pkg/konk-$GIT_VERSION.tgz infobloxcto
-                  helm s3 push /pkg/konk-operator-$GIT_VERSION.tgz infobloxcto
-                  helm s3 push /pkg/konk-service-$GIT_VERSION.tgz infobloxcto
-                  helm s3 push /pkg/example-apiserver-$GIT_VERSION.tgz infobloxcto
-                "
+              echo "SKIP: helm s3 push disabled — S3 index.yaml is corrupted (858K+ lines with YAML parse errors, causes hang)"
 
               for chart in konk konk-operator konk-service example-apiserver
               do
