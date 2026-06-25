@@ -5,6 +5,8 @@ metadata:
   {{- if eq .Values.scope "namespace" }}
   namespace: {{ .Release.Namespace }}
   {{- end }}
+  annotations:
+    {{- include "konk.helmAnnotations" . | nindent 4 }}
   labels:
     {{- include "konk.labels" . | nindent 4 }}
 spec:
@@ -16,10 +18,15 @@ kind: Certificate
 metadata:
   name: {{ include "konk.fullname" . }}-ingress-client
   namespace: {{ .Release.Namespace }}
+  annotations:
+    {{- include "konk.helmAnnotations" . | nindent 4 }}
   labels:
     {{- include "konk.labels" . | nindent 4 }}
 spec:
   secretName: {{ include "konk.fullname" . }}-ingress-client
+  secretTemplate:
+    annotations:
+      {{- include "konk.helmAnnotations" . | nindent 6 }}
   # SubjectAltName
   # TODO: change to view, update RBAC to allow view
   subject:

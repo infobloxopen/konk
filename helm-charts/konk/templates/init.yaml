@@ -3,6 +3,8 @@ kind: Deployment
 metadata:
   name: {{ include "konk.fullname" . }}-init
   namespace: {{ .Release.Namespace }}
+  annotations:
+    {{- include "konk.helmAnnotations" . | nindent 4 }}
   labels:
     {{- include "konk.labels" . | nindent 4 }}
 spec:

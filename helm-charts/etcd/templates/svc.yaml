@@ -5,10 +5,11 @@ metadata:
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "etcd.labels" . | nindent 4 }}
-  {{- with .Values.service.annotations }}
   annotations:
+    {{- include "etcd.helmAnnotations" . | nindent 4 }}
+    {{- with .Values.service.annotations }}
     {{- toYaml . | nindent 4 }}
-  {{- end }}
+    {{- end }}
 spec:
   type: {{ .Values.service.type }}
   ports:
