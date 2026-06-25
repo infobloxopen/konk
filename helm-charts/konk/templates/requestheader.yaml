@@ -25,6 +25,9 @@ metadata:
     {{- include "konk.labels" . | nindent 4 }}
 spec:
   secretName: {{ include "konk.fullname" . }}-requestheader-self-signed
+  secretTemplate:
+    annotations:
+      {{- include "konk.helmAnnotations" . | nindent 6 }}
   duration: 17520h #2y
   issuerRef:
     name: {{ include "konk.fullname" . }}-requestheader-self-signed
@@ -61,6 +64,9 @@ metadata:
     component: proxy-client
 spec:
   secretName: {{ include "konk.fullname" . }}-proxy-client
+  secretTemplate:
+    annotations:
+      {{- include "konk.helmAnnotations" . | nindent 6 }}
   # SubjectAltName
   # TODO: change to view, update RBAC to allow view
   subject:

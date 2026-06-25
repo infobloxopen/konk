@@ -3,6 +3,8 @@ kind: Service
 metadata:
   name: {{ include "etcd.headlessServiceName" . }}
   namespace: {{ .Release.Namespace }}
+  annotations:
+    {{- include "etcd.helmAnnotations" . | nindent 4 }}
   labels:
     {{- include "etcd.labels" . | nindent 4 }}
 spec:

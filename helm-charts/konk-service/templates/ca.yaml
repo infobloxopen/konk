@@ -22,6 +22,9 @@ metadata:
     {{- include "konk-service.labels" . | nindent 4 }}
 spec:
   secretName: {{ include "konk-service.fullname" . }}
+  secretTemplate:
+    annotations:
+      {{- include "konk-service.helmAnnotations" . | nindent 6 }}
   duration: 17520h #2y
   issuerRef:
     name: {{ include "konk-service.fullname" . }}-self-signed

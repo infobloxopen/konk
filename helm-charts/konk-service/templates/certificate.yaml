@@ -9,6 +9,9 @@ metadata:
     {{- include "konk-service.labels" . | nindent 4 }}
 spec:
   secretName: {{ include "konk-service.fullname" . }}-server
+  secretTemplate:
+    annotations:
+      {{- include "konk-service.helmAnnotations" . | nindent 6 }}
   duration: 8760h # 1y
   issuerRef:
     name: {{ include "konk-service.fullname" . }}-ca

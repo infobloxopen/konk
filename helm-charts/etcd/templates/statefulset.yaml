@@ -3,6 +3,8 @@ kind: StatefulSet
 metadata:
   name: {{ include "etcd.fullname" . }}
   namespace: {{ .Release.Namespace }}
+  annotations:
+    {{- include "etcd.helmAnnotations" . | nindent 4 }}
   labels:
     {{- include "etcd.labels" . | nindent 4 }}
 spec:
