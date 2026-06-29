@@ -2,7 +2,7 @@
 ARG KUBERNETES_IMG=infoblox/konk-app:latest
 
 # Stage 1: Build the Go provisioner
-FROM golang:1.25.5-alpine AS builder
+FROM golang:1.26.4-alpine AS builder
 
 WORKDIR /workspace
 COPY cmd/provision/go.mod cmd/provision/go.sum* ./

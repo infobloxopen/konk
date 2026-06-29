@@ -1,5 +1,5 @@
 # Multi-stage build: Build helm-operator with updated Go version
-FROM golang:1.25.5-alpine AS go-builder
+FROM golang:1.26.4-alpine AS go-builder
 
 # Install necessary build tools
 RUN apk add --no-cache git make bash
