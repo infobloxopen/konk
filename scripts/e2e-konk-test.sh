@@ -528,6 +528,36 @@ KONK_CR_SCOPE=$(kc get konk "$KONK_CR_NAME" -n "$AGGREGATE_NAMESPACE" \
   -o jsonpath='{.spec.scope}')
 vinfo "Konk scope: ${KONK_CR_SCOPE:-default}"
 
+# Proactive ownership check: resources in aggregate that belong to bulk-konk
+# should carry Helm ownership annotations. Missing keys can cause
+# "cannot be imported into the current release" on future reconcile.
+KONK_OWNERSHIP_MISSING=0
+KONK_OWNERSHIP_CHECKED=0
+KONK_OWNERSHIP_MISSING_LIST=""
+KONK_CANDIDATE_RES=$(kc get svc,deploy,sts,secret,sa -n "$AGGREGATE_NAMESPACE" -o name 2>/dev/null \
+  | grep "$KONK_CR_NAME" \
+  | grep -v '^secret/sh\.helm\.release\.' || true)
+if [[ -n "$KONK_CANDIDATE_RES" ]]; then
+  while IFS= read -r _res; do
+    [[ -z "$_res" ]] && continue
+    KONK_OWNERSHIP_CHECKED=$((KONK_OWNERSHIP_CHECKED + 1))
+    _ann_rel=$(kc get "$_res" -n "$AGGREGATE_NAMESPACE" -o jsonpath='{.metadata.annotations.meta\.helm\.sh/release-name}' 2>/dev/null || true)
+    _ann_ns=$(kc get "$_res" -n "$AGGREGATE_NAMESPACE" -o jsonpath='{.metadata.annotations.meta\.helm\.sh/release-namespace}' 2>/dev/null || true)
+    if [[ -z "$_ann_rel" || -z "$_ann_ns" ]]; then
+      KONK_OWNERSHIP_MISSING=$((KONK_OWNERSHIP_MISSING + 1))
+      KONK_OWNERSHIP_MISSING_LIST+="$_res\n"
+    fi
+  done <<< "$KONK_CANDIDATE_RES"
+fi
+if [[ "$KONK_OWNERSHIP_CHECKED" -eq 0 ]]; then
+  warn "Konk ownership check: no ${KONK_CR_NAME} resources found in ${AGGREGATE_NAMESPACE}"
+elif [[ "$KONK_OWNERSHIP_MISSING" -eq 0 ]]; then
+  pass "Konk ownership check: all ${KONK_OWNERSHIP_CHECKED} ${KONK_CR_NAME} resources have Helm annotations"
+else
+  fail "Konk ownership check: ${KONK_OWNERSHIP_MISSING}/${KONK_OWNERSHIP_CHECKED} ${KONK_CR_NAME} resources missing meta.helm.sh ownership annotations"
+  echo -e "$KONK_OWNERSHIP_MISSING_LIST" | head -10 | sed 's/^/       [WARN]   /'
+fi
+
 # ── Etcd CR status ──
 ETCD_CR_NAME="${KONK_CR_NAME}-etcd"
 ETCD_CR_REASON=$(kc get etcds.konk.infoblox.com "$ETCD_CR_NAME" -n "$AGGREGATE_NAMESPACE" \
