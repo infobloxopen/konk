@@ -1,0 +1,564 @@
+name: Vulnerability Scan and Auto-Fix
+
+on:
+  schedule:
+    - cron: "00 01 * * *" # Run daily at 1:00 AM UTC
+  workflow_dispatch: {}
+
+concurrency:
+  group: auto-vuln-fix-${{ github.workflow }}-${{ github.ref_name }}
+  cancel-in-progress: true
+
+env:
+  SERVICE_CONFIG_PATH: .github/skills/go-vuln-remediate/konk/service-config.env
+
+jobs:
+  resolve-config:
+    runs-on: ubuntu-latest
+    outputs:
+      target_branch: ${{ steps.config.outputs.target_branch }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ vars.TARGET_BRANCH || 'main' }}
+          fetch-depth: 1
+
+      - name: Resolve target branch from service config
+        id: config
+        run: |
+          load_env_file_strict() {
+            local file="$1"
+            local raw line key value
+            while IFS= read -r raw || [[ -n "$raw" ]]; do
+              line="$raw"
+              line="${line#"${line%%[![:space:]]*}"}"
+              line="${line%"${line##*[![:space:]]}"}"
+              [[ -z "$line" || "$line" == \#* ]] && continue
+
+              if [[ ! "$line" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; then
+                echo "Invalid config line in $file: $raw" >&2
+                exit 1
+              fi
+
+              key="${line%%=*}"
+              value="${line#*=}"
+              value="${value#"${value%%[![:space:]]*}"}"
+              value="${value%"${value##*[![:space:]]}"}"
+
+              if [[ "$value" == \"*\" && "$value" == *\" ]]; then
+                value="${value:1:${#value}-2}"
+              elif [[ "$value" == \'*\' && "$value" == *\' ]]; then
+                value="${value:1:${#value}-2}"
+              fi
+
+              export "$key=$value"
+            done < "$file"
+          }
+
+          CONFIG_PATH="${{ env.SERVICE_CONFIG_PATH }}"
+          TARGET_BRANCH="${{ vars.TARGET_BRANCH || 'main' }}"
+          if [[ -f "$CONFIG_PATH" ]]; then
+            load_env_file_strict "$CONFIG_PATH"
+            TARGET_BRANCH="${TARGET_BRANCH:-${{ vars.TARGET_BRANCH || 'main' }}}"
+          fi
+          echo "target_branch=$TARGET_BRANCH" >> "$GITHUB_OUTPUT"
+
+  scan-and-remediate:
+    needs: resolve-config
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve-config.outputs.target_branch }}
+          fetch-depth: 0
+
+      - name: Load service config
+        id: load_config
+        run: |
+          load_env_file_strict() {
+            local file="$1"
+            local raw line key value
+            while IFS= read -r raw || [[ -n "$raw" ]]; do
+              line="$raw"
+              line="${line#"${line%%[![:space:]]*}"}"
+              line="${line%"${line##*[![:space:]]}"}"
+              [[ -z "$line" || "$line" == \#* ]] && continue
+
+              if [[ ! "$line" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; then
+                echo "Invalid config line in $file: $raw" >&2
+                exit 1
+              fi
+
+              key="${line%%=*}"
+              value="${line#*=}"
+              value="${value#"${value%%[![:space:]]*}"}"
+              value="${value%"${value##*[![:space:]]}"}"
+
+              if [[ "$value" == \"*\" && "$value" == *\" ]]; then
+                value="${value:1:${#value}-2}"
+              elif [[ "$value" == \'*\' && "$value" == *\' ]]; then
+                value="${value:1:${#value}-2}"
+              fi
+
+              export "$key=$value"
+            done < "$file"
+          }
+
+          CONFIG_PATH="${{ env.SERVICE_CONFIG_PATH }}"
+          if [[ -f "$CONFIG_PATH" ]]; then
+            load_env_file_strict "$CONFIG_PATH"
+          fi
+
+          {
+            echo "IMAGE_NAME=${IMAGE_NAME:-konk-service}"
+            echo "DOCKERFILE_PATH=${DOCKERFILE_PATH:-Dockerfile.konk-service}"
+            echo "SERVER_BUILD_PATH=${SERVER_BUILD_PATH:-.}"
+            echo "SCAN_TARGETS=${SCAN_TARGETS:-konk-service|Dockerfile.konk-service|.|konk-service|cmd/konk-service;konk-provision|Dockerfile.provision|.|konk-provision|cmd/provision}"
+            echo "BUILD_TAGS=${BUILD_TAGS:-}"
+            echo "BUILD_LDFLAGS=${BUILD_LDFLAGS:--s -w}"
+            echo "DOCKER_BUILD_EXTRA_ARGS=${DOCKER_BUILD_EXTRA_ARGS:-}"
+            echo "HARBOR_REGISTRY=${HARBOR_REGISTRY:-}"
+            echo "BASE_IMAGE=${BASE_IMAGE:-gcr.io/distroless/static-debian12:nonroot}"
+            echo "GO_PRIVATE=${GO_PRIVATE:-github.com/${{ github.repository_owner }}/*}"
+            echo "WIZ_CLI_VERSION=${WIZ_CLI_VERSION:-latest}"
+            echo "MODE=${MODE:-heuristic}"
+            echo "RISK_THRESHOLD_AUTO=${RISK_THRESHOLD_AUTO:-0.85}"
+            echo "RISK_THRESHOLD_REVIEW=${RISK_THRESHOLD_REVIEW:-0.90}"
+            echo "MIN_CONFIDENCE=${MIN_CONFIDENCE:-0.70}"
+            echo "CONFIDENCE=${CONFIDENCE:-0.75}"
+            echo "EXPLOIT_WEIGHT=${EXPLOIT_WEIGHT:-0.40}"
+            echo "VERSION_WEIGHT=${VERSION_WEIGHT:-0.35}"
+            echo "CYCLE_WEIGHT=${CYCLE_WEIGHT:-0.25}"
+            echo "CI_METRICS_FILE=${CI_METRICS_FILE:-ci-metrics.tsv}"
+          } >> "$GITHUB_ENV"
+
+          echo "artifact_retention_days=${ARTIFACT_RETENTION_DAYS:-30}" >> "$GITHUB_OUTPUT"
+
+      - name: Configure git auth for private modules
+        run: |
+          if [[ -n "${{ secrets.GITPAT }}" ]]; then
+            git config --global url."https://${{ secrets.GITPAT }}@github.com/".insteadOf "https://github.com/"
+          else
+            echo "Skipping private module git auth; GITPAT not configured"
+          fi
+
+      - name: Configure Go module access
+        run: |
+          if [[ -n "$GO_PRIVATE" ]]; then
+            echo "GOPRIVATE=$GO_PRIVATE" >> "$GITHUB_ENV"
+            echo "GONOSUMDB=$GO_PRIVATE" >> "$GITHUB_ENV"
+          fi
+          echo "GOPROXY=https://proxy.golang.org,direct" >> "$GITHUB_ENV"
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          # konk has no root go.mod; use one of the per-command modules for version detection.
+          go-version-file: cmd/konk-service/go.mod
+          cache: true
+          cache-dependency-path: |
+            cmd/konk-service/go.sum
+            cmd/provision/go.sum
+
+      - name: Check Wiz credentials
+        id: wiz_guard
+        run: |
+          if [[ -n "${{ secrets.WIZ_CLIENT_ID }}" && -n "${{ secrets.WIZ_CLIENT_SECRET }}" ]]; then
+            echo "wiz_ready=true" >> "$GITHUB_OUTPUT"
+            echo "reason=" >> "$GITHUB_OUTPUT"
+          else
+            echo "wiz_ready=false" >> "$GITHUB_OUTPUT"
+            echo "reason=Missing WIZ_CLIENT_ID/WIZ_CLIENT_SECRET; skipping Wiz auth and scan." >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Report skipped Wiz scan
+        if: steps.wiz_guard.outputs.wiz_ready != 'true'
+        run: |
+          MSG="${{ steps.wiz_guard.outputs.reason }}"
+          {
+            echo "## Auto Vulnerability Fix Result"
+            echo ""
+            echo "$MSG"
+            echo ""
+            echo "No scan/remediation steps were executed in this run."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Login to Harbor registry
+        if: steps.wiz_guard.outputs.wiz_ready == 'true'
+        run: |
+          if [[ -z "$HARBOR_REGISTRY" && -z "${{ secrets.HARBOR_SERVICES_PROD_USERNAME }}" && -z "${{ secrets.HARBOR_SERVICES_PROD_PASSWORD }}" ]]; then
+            echo "Skipping Harbor login; registry and credentials not configured"
+          elif [[ -n "$HARBOR_REGISTRY" && -n "${{ secrets.HARBOR_SERVICES_PROD_USERNAME }}" && -n "${{ secrets.HARBOR_SERVICES_PROD_PASSWORD }}" ]]; then
+            echo "${{ secrets.HARBOR_SERVICES_PROD_PASSWORD }}" | docker login "$HARBOR_REGISTRY" -u "${{ secrets.HARBOR_SERVICES_PROD_USERNAME }}" --password-stdin
+          else
+            echo "Harbor login configuration is incomplete. Set HARBOR_REGISTRY, HARBOR_SERVICES_PROD_USERNAME, and HARBOR_SERVICES_PROD_PASSWORD together."
+            exit 1
+          fi
+
+      - name: Build Docker images for scanning
+        if: steps.wiz_guard.outputs.wiz_ready == 'true'
+        run: |
+          EXTRA_ARGS=()
+          if [[ -n "${DOCKER_BUILD_EXTRA_ARGS:-}" ]]; then
+            read -r -a EXTRA_ARGS <<< "$DOCKER_BUILD_EXTRA_ARGS"
+          fi
+
+          IFS=';' read -r -a TARGETS <<< "$SCAN_TARGETS"
+          for entry in "${TARGETS[@]}"; do
+            [[ -z "$entry" ]] && continue
+            IFS='|' read -r t_name t_dockerfile t_buildpath t_image t_module <<< "$entry"
+            if [[ -z "$t_name" || -z "$t_dockerfile" || -z "$t_image" || -z "$t_module" ]]; then
+              echo "Invalid SCAN_TARGETS entry: '$entry' (expected name|dockerfile|build_path|image_tag|module_dir)" >&2
+              exit 1
+            fi
+            echo "Building $t_image:scan from $t_dockerfile (target: $t_name, module: $t_module)"
+            docker build \
+              -f "$t_dockerfile" \
+              --build-arg BASE_IMAGE="$BASE_IMAGE" \
+              "${EXTRA_ARGS[@]}" \
+              -t "$t_image:scan" .
+          done
+
+      - name: Install Wiz CLI
+        if: steps.wiz_guard.outputs.wiz_ready == 'true'
+        run: |
+          curl -sL --fail -o wizcli "https://downloads.wiz.io/v1/wizcli/${WIZ_CLI_VERSION}/wizcli-linux-amd64"
+          chmod +x wizcli
+          sudo mv wizcli /usr/local/bin/wizcli
+          wizcli version
+
+      - name: Authenticate Wiz
+        if: steps.wiz_guard.outputs.wiz_ready == 'true'
+        run: wizcli auth --id "${{ secrets.WIZ_CLIENT_ID }}" --secret "${{ secrets.WIZ_CLIENT_SECRET }}"
+
+      - name: Run Wiz scan
+        if: steps.wiz_guard.outputs.wiz_ready == 'true'
+        run: |
+          set -o pipefail
+          IFS=';' read -r -a TARGETS <<< "$SCAN_TARGETS"
+          for entry in "${TARGETS[@]}"; do
+            [[ -z "$entry" ]] && continue
+            IFS='|' read -r t_name t_dockerfile t_buildpath t_image t_module <<< "$entry"
+            echo "Scanning $t_image:scan (target: $t_name)"
+            wizcli docker scan -i "$t_image:scan" \
+              -p "PSE: Vulnerability - Critical - Audit/Warn - All Projects" \
+              -p "PSE: Vulnerability - High - Audit/Warn - All Projects" \
+              --json-output-file "wiz-scan-results-${t_name}.json" \
+              --file-hashes-scan \
+              2>&1 | tee "wiz-scan-raw-${t_name}.txt"
+            SCAN_EXIT=${PIPESTATUS[0]}
+            if [ "$SCAN_EXIT" -ne 0 ]; then
+              echo "Wiz scan failed for $t_name with exit code $SCAN_EXIT"
+              exit "$SCAN_EXIT"
+            fi
+            if [ ! -s "wiz-scan-results-${t_name}.json" ]; then
+              echo "Wiz scan produced empty JSON output for $t_name"
+              exit 1
+            fi
+          done
+
+      - name: Parse Wiz JSON vulnerabilities
+        if: steps.wiz_guard.outputs.wiz_ready == 'true'
+        run: |
+          chmod +x .github/skills/go-vuln-remediate/scripts/wiz-json-parse.sh
+          shopt -s nullglob
+          JSON_FILES=(wiz-scan-results-*.json)
+          if [[ ${#JSON_FILES[@]} -eq 0 ]]; then
+            echo "No Wiz scan result files found to parse" >&2
+            exit 1
+          fi
+          echo "Merging findings from: ${JSON_FILES[*]}"
+          .github/skills/go-vuln-remediate/scripts/wiz-json-parse.sh \
+            "${JSON_FILES[@]}" \
+            --parsed parsed-vulns.txt \
+            --cve-map cve-map.txt \
+            --cve-version-map cve-version-map.txt
+
+      - name: Recommend safest fix versions (#3)
+        if: steps.wiz_guard.outputs.wiz_ready == 'true'
+        run: |
+          chmod +x .github/skills/go-vuln-remediate/scripts/version-selector.sh
+          .github/skills/go-vuln-remediate/scripts/version-selector.sh \
+            parsed-vulns.txt \
+            version-recommendations.jsonl
+
+      - name: Risk scoring with exploit urgency (#4)
+        if: steps.wiz_guard.outputs.wiz_ready == 'true'
+        run: |
+          chmod +x .github/skills/go-vuln-remediate/scripts/risk-score.sh
+          .github/skills/go-vuln-remediate/scripts/risk-score.sh \
+            --input parsed-vulns.txt \
+            --recommendations version-recommendations.jsonl \
+            --output risk-decisions.jsonl \
+            --mode "${MODE:-heuristic}" \
+            --auto-threshold "${RISK_THRESHOLD_AUTO:-0.85}" \
+            --review-threshold "${RISK_THRESHOLD_REVIEW:-0.90}" \
+            --min-confidence "${MIN_CONFIDENCE:-0.70}" \
+            --confidence "${CONFIDENCE:-0.75}" \
+            --exploit-weight "${EXPLOIT_WEIGHT:-0.40}" \
+            --version-weight "${VERSION_WEIGHT:-0.35}" \
+            --cycle-weight "${CYCLE_WEIGHT:-0.25}" \
+            --metrics-file "${CI_METRICS_FILE:-ci-metrics.tsv}"
+
+      - name: Build review queue section
+        if: steps.wiz_guard.outputs.wiz_ready == 'true'
+        run: |
+          : > review-queue.md
+          if [[ ! -s risk-decisions.jsonl ]]; then
+            echo "No risk-decisions.jsonl file; skipping review queue section"
+            exit 0
+          fi
+
+          total=$(jq -s '[.[] | select(.decision=="review_required" or .decision=="skip_auto")] | length' risk-decisions.jsonl)
+          if [[ "${total:-0}" -eq 0 ]]; then
+            echo "No review_required or skip_auto items; skipping review queue section"
+            exit 0
+          fi
+
+          rows=$(jq -r '
+            select(.decision=="review_required" or .decision=="skip_auto")
+            | "| "
+              + (.package|tostring|gsub("\\|";"\\\\|"))
+              + " | "
+              + ((.current_version + " -> " + .fixed_version)|tostring|gsub("\\|";"\\\\|"))
+              + " | "
+              + (.decision|tostring)
+              + " | "
+              + (.risk_score|tostring)
+              + " | "
+              + (.confidence|tostring)
+              + " | "
+              + (((.reasons // [])[:2] | join("; "))|tostring|gsub("\\|";"\\\\|"))
+              + " |"
+          ' risk-decisions.jsonl | head -n 20)
+
+          {
+            echo "### Risk Review Queue"
+            echo ""
+            echo "| Package | Version Change | Decision | Risk | Confidence | Reasons |"
+            echo "|---|---|---|---:|---:|---|"
+            echo "$rows"
+            if [[ "$total" -gt 20 ]]; then
+              echo ""
+              echo "_Showing first 20 of $total items. See workflow artifact risk-decisions.jsonl for full list._"
+            fi
+          } > review-queue.md
+
+      - name: Build allowlist from decisions
+        if: steps.wiz_guard.outputs.wiz_ready == 'true'
+        run: |
+          jq -r 'select(.decision=="auto_apply") | "\(.package)\t\(.fixed_version)"' \
+            risk-decisions.jsonl > allowlist.txt || true
+          echo "Allowlist entries: $(wc -l < allowlist.txt)"
+
+      - name: Apply Risk-approved fixes (per module)
+        if: steps.wiz_guard.outputs.wiz_ready == 'true'
+        run: |
+          chmod +x .github/skills/go-vuln-remediate/scripts/parse-fix.sh
+          WORK="$PWD"
+          IFS=';' read -r -a TARGETS <<< "$SCAN_TARGETS"
+          for entry in "${TARGETS[@]}"; do
+            [[ -z "$entry" ]] && continue
+            IFS='|' read -r t_name t_dockerfile t_buildpath t_image t_module <<< "$entry"
+            if [[ ! -d "$t_module" ]]; then
+              echo "Module dir '$t_module' for target '$t_name' does not exist; skipping" >&2
+              continue
+            fi
+            echo "Applying fixes for target '$t_name' in module '$t_module'"
+            ( cd "$t_module" && "${WORK}/.github/skills/go-vuln-remediate/scripts/parse-fix.sh" \
+                --mode apply \
+                --parsed "${WORK}/parsed-vulns.txt" \
+                --recommendations "${WORK}/version-recommendations.jsonl" \
+                --allowlist "${WORK}/allowlist.txt" \
+                --summary "${WORK}/vuln-fix-summary-${t_name}.md" )
+          done
+
+          # Combine per-module summaries into a single vuln-fix-summary.md
+          {
+            echo "## Automated Vulnerability Fix Summary"
+            echo ""
+            for entry in "${TARGETS[@]}"; do
+              [[ -z "$entry" ]] && continue
+              IFS='|' read -r t_name t_dockerfile t_buildpath t_image t_module <<< "$entry"
+              summary_file="vuln-fix-summary-${t_name}.md"
+              echo "### Module: ${t_module} (${t_name})"
+              echo ""
+              if [[ -s "$summary_file" ]]; then
+                cat "$summary_file"
+              else
+                echo "_No summary produced for this module._"
+              fi
+              echo ""
+            done
+          } > vuln-fix-summary.md
+
+      - name: Detect dependency changes
+        id: diff
+        run: |
+          IFS=';' read -r -a TARGETS <<< "$SCAN_TARGETS"
+          PATHS=()
+          for entry in "${TARGETS[@]}"; do
+            [[ -z "$entry" ]] && continue
+            IFS='|' read -r t_name t_dockerfile t_buildpath t_image t_module <<< "$entry"
+            PATHS+=("$t_module/go.mod" "$t_module/go.sum")
+          done
+          # Untracked go.sum files (newly created by go mod tidy) also count as changes.
+          NEW_FILES=$(git ls-files --others --exclude-standard -- "${PATHS[@]}" 2>/dev/null || true)
+          if git diff --quiet -- "${PATHS[@]}" && [[ -z "$NEW_FILES" ]]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Write no auto-fix summary
+        if: steps.wiz_guard.outputs.wiz_ready == 'true' && steps.diff.outputs.changed == 'false'
+        run: |
+          STATUS_MSG="No vulnerabilities found by Wiz scan."
+          if [ -s parsed-vulns.txt ]; then
+            STATUS_MSG="Vulnerabilities were detected, but no safe automatic dependency updates were applied."
+          fi
+          {
+            echo "## Auto Vulnerability Fix Result"
+            echo ""
+            echo "$STATUS_MSG"
+            echo ""
+            echo "No changes were made to any module's go.mod/go.sum."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Verify build after fixes
+        if: steps.diff.outputs.changed == 'true'
+        id: build_check
+        run: |
+          mkdir -p bin
+          WORK="$PWD"
+          BUILD_OK=true
+          IFS=';' read -r -a TARGETS <<< "$SCAN_TARGETS"
+          for entry in "${TARGETS[@]}"; do
+            [[ -z "$entry" ]] && continue
+            IFS='|' read -r t_name t_dockerfile t_buildpath t_image t_module <<< "$entry"
+            echo "Verifying build for target $t_name (module: $t_module, build_path: $t_buildpath)"
+            if ! ( cd "$t_module" && CGO_ENABLED=0 go build -v \
+              -tags "$BUILD_TAGS" \
+              -trimpath \
+              -ldflags "$BUILD_LDFLAGS" \
+              -o "${WORK}/bin/${t_name}" "$t_buildpath" ) 2>&1; then
+              echo "Build failed for target $t_name"
+              BUILD_OK=false
+            fi
+          done
+          if [[ "$BUILD_OK" == "true" ]]; then
+            echo "status=passed" >> "$GITHUB_OUTPUT"
+          else
+            echo "status=failed" >> "$GITHUB_OUTPUT"
+          fi
+        continue-on-error: true
+
+      - name: Debug artifact files before upload
+        if: always()
+        run: |
+          echo "## Artifact File Check" >> "$GITHUB_STEP_SUMMARY"
+          shopt -s nullglob
+          for f in \
+            wiz-scan-results-*.json \
+            wiz-scan-raw-*.txt \
+            parsed-vulns.txt \
+            version-recommendations.jsonl \
+            risk-decisions.jsonl \
+            allowlist.txt \
+            cve-map.txt \
+            cve-version-map.txt \
+            vuln-fix-summary.md \
+            vuln-fix-summary-*.md; do
+            if [[ -f "$f" ]]; then
+              bytes=$(wc -c < "$f")
+              lines=$(wc -l < "$f")
+              echo "FOUND  $f (bytes=$bytes, lines=$lines)"
+              echo "- FOUND: $f (bytes=$bytes, lines=$lines)" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "MISSING $f"
+              echo "- MISSING: $f" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
+
+      - name: Upload scan and decision artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: auto-vuln-fix-scan-results-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            wiz-scan-results-*.json
+            wiz-scan-raw-*.txt
+            parsed-vulns.txt
+            version-recommendations.jsonl
+            risk-decisions.jsonl
+            allowlist.txt
+            cve-map.txt
+            cve-version-map.txt
+            vuln-fix-summary.md
+            vuln-fix-summary-*.md
+          retention-days: ${{ steps.load_config.outputs.artifact_retention_days }}
+
+      - name: Create PR body file
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          BUILD_STATUS="${{ steps.build_check.outputs.status }}"
+          RUN_TRIGGER="${{ github.event_name }}"
+          if [[ "$BUILD_STATUS" == "passed" ]]; then
+            BUILD_BADGE="✅ Build passed"
+          else
+            BUILD_BADGE="❌ Build failed — review fixes before merging"
+          fi
+          if [[ "$RUN_TRIGGER" == "schedule" ]]; then
+            RUN_SOURCE="scheduled"
+          elif [[ "$RUN_TRIGGER" == "workflow_dispatch" ]]; then
+            RUN_SOURCE="manual"
+          else
+            RUN_SOURCE="$RUN_TRIGGER"
+          fi
+          {
+            echo "## Automated Vulnerability Fix"
+            echo ""
+            echo "Generated by ${RUN_SOURCE} auto-vuln-fix workflow."
+            echo ""
+            echo "### Build Status"
+            echo "$BUILD_BADGE"
+            echo ""
+            if [ -f vuln-fix-summary.md ]; then
+              cat vuln-fix-summary.md
+            else
+              echo "No summary file found."
+            fi
+            if [ -s review-queue.md ]; then
+              echo ""
+              cat review-queue.md
+            fi
+          } > pr-body.md
+
+      - name: Create or update auto-fix PR
+        if: steps.diff.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          base: ${{ needs.resolve-config.outputs.target_branch }}
+          commit-message: "fix: automated vulnerability remediation"
+          branch: "auto-fix-vulns-daily"
+          branch-suffix: timestamp
+          delete-branch: false
+          title: "fix: automated vulnerability remediation"
+          body-path: pr-body.md
+          labels: |
+            security
+            automated
+          # konk does not commit vendor/ — only commit module manifests.
+          add-paths: |
+            cmd/konk-service/go.mod
+            cmd/konk-service/go.sum
+            cmd/provision/go.mod
+            cmd/provision/go.sum
