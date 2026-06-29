@@ -4,6 +4,8 @@ kind: Issuer
 metadata:
   name: {{ include "konk-service.fullname" . }}-self-signed
   namespace: {{ .Release.Namespace }}
+  annotations:
+    {{- include "konk-service.helmAnnotations" . | nindent 4 }}
   labels:
     {{- include "konk-service.labels" . | nindent 4 }}
 spec:
@@ -14,10 +16,15 @@ kind: Certificate
 metadata:
   name: {{ include "konk-service.fullname" . }}
   namespace: {{ .Release.Namespace }}
+  annotations:
+    {{- include "konk-service.helmAnnotations" . | nindent 4 }}
   labels:
     {{- include "konk-service.labels" . | nindent 4 }}
 spec:
   secretName: {{ include "konk-service.fullname" . }}
+  secretTemplate:
+    annotations:
+      {{- include "konk-service.helmAnnotations" . | nindent 6 }}
   duration: 17520h #2y
   issuerRef:
     name: {{ include "konk-service.fullname" . }}-self-signed
@@ -30,6 +37,8 @@ kind: Issuer
 metadata:
   name: {{ include "konk-service.fullname" . }}-ca
   namespace: {{ .Release.Namespace }}
+  annotations:
+    {{- include "konk-service.helmAnnotations" . | nindent 4 }}
   labels:
     {{- include "konk-service.labels" . | nindent 4 }}
 spec:

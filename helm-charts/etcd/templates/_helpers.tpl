@@ -166,3 +166,11 @@ imagePullSecrets:
   {{- end }}
 {{- end }}
 {{- end -}}
+
+{{/*
+Helm ownership annotations — ensures resources can be adopted after release secret loss.
+*/}}
+{{- define "etcd.helmAnnotations" -}}
+meta.helm.sh/release-name: {{ .Release.Name }}
+meta.helm.sh/release-namespace: {{ .Release.Namespace }}
+{{- end -}}

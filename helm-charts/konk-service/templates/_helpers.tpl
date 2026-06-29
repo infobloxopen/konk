@@ -85,6 +85,16 @@ dummy
 {{- end -}}
 
 {{/*
+Helm ownership annotations — ensures resources can be adopted after release secret loss.
+Without these, a fresh helm install will fail with "cannot be imported" if the
+operator loses its release state (e.g. after an upgrade or ownerRef GC).
+*/}}
+{{- define "konk-service.helmAnnotations" -}}
+meta.helm.sh/release-name: {{ .Release.Name }}
+meta.helm.sh/release-namespace: {{ .Release.Namespace }}
+{{- end -}}
+
+{{/*
 Templates konk name
 */}}
 {{- define "konk-service.konkname" -}}

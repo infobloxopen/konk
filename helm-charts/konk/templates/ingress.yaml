@@ -17,12 +17,13 @@ kind: Ingress
 metadata:
   name: {{ $fullName }}
   namespace: {{ .Release.Namespace }}
+  annotations:
+    {{- include "konk.helmAnnotations" . | nindent 4 }}
+    {{- with .Values.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
   labels:
     {{- include "konk.labels" . | nindent 4 }}
-  {{- with .Values.ingress.annotations }}
-  annotations:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
 spec:
   {{- if and .Values.ingress.className (semverCompare ">=1.18-0" .Capabilities.KubeVersion.Version) }}
   ingressClassName: {{ .Values.ingress.className }}
