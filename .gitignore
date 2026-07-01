@@ -38,3 +38,5 @@ helm-charts/konk-operator/rbac
 helm-charts/konk/image-tag-values.yaml
 cmd/provision/provision
 cmd/konk-service/konk-service
+CVE_REMEDIATION_SUMMARY.md
+WIZ_SCAN_RESULTS.txt
