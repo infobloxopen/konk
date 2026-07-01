@@ -39,7 +39,7 @@ require (
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da
 	github.com/golang/mock v1.6.0
-	github.com/golang/protobuf v1.5.2
+	github.com/golang/protobuf v1.5.4
 	github.com/google/cadvisor v0.45.0
 	github.com/google/gnostic v0.5.7-v3refs
 	github.com/google/go-cmp v0.5.8
@@ -56,7 +56,7 @@ require (
 	github.com/onsi/ginkgo/v2 v2.1.6
 	github.com/onsi/gomega v1.20.1
 	github.com/opencontainers/runc v1.1.3
-	github.com/opencontainers/selinux v1.13.0
+	github.com/opencontainers/selinux v1.10.0
 	github.com/pkg/errors v0.9.1
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/prometheus/client_golang v1.12.1
@@ -79,21 +79,21 @@ require (
 	go.opentelemetry.io/otel/trace v0.20.0
 	go.opentelemetry.io/proto/otlp v0.7.0
 	go.uber.org/zap v1.19.0
-	golang.org/x/crypto v0.45.0
-	golang.org/x/net v0.38.0
-	golang.org/x/oauth2 v0.27.0
-	golang.org/x/sync v0.12.0
-	golang.org/x/sys v0.30.0
-	golang.org/x/term v0.29.0
-	golang.org/x/time v0.11.0
-	golang.org/x/tools v0.30.0
+	golang.org/x/crypto v0.52.0
+	golang.org/x/net v0.55.0
+	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8
+	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4
+	golang.org/x/sys v0.5.0
+	golang.org/x/term v0.5.0
+	golang.org/x/time v0.0.0-20220210224613-90d013bbcef8
+	golang.org/x/tools v0.1.12
 	gonum.org/v1/gonum v0.6.2
 	google.golang.org/api v0.60.0
 	google.golang.org/genproto v0.0.0-20220502173005-c8bf987b8c21
-	google.golang.org/grpc v1.47.0
-	google.golang.org/protobuf v1.28.1
+	google.golang.org/grpc v1.79.3
+	google.golang.org/protobuf v1.33.0
 	gopkg.in/gcfg.v1 v1.2.0
-	gopkg.in/square/go-jose.v2 v2.6.0
+	gopkg.in/square/go-jose.v2 v2.2.2
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.0.0
@@ -245,8 +245,8 @@ require (
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
 	golang.org/x/exp v0.0.0-20210220032938-85be41e4509f // indirect
-	golang.org/x/mod v0.23.0 // indirect
-	golang.org/x/text v0.23.0 // indirect
+	golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4 // indirect
+	golang.org/x/text v0.7.0 // indirect
 	gonum.org/v1/netlib v0.0.0-20190331212654-76723241ea4e // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
@@ -330,7 +330,7 @@ replace (
 	github.com/coreos/go-systemd/v22 => github.com/coreos/go-systemd/v22 v22.3.2
 	github.com/cpuguy83/go-md2man/v2 => github.com/cpuguy83/go-md2man/v2 v2.0.1
 	github.com/creack/pty => github.com/creack/pty v1.1.11
-	github.com/cyphar/filepath-securejoin => github.com/cyphar/filepath-securejoin v0.6.0
+	github.com/cyphar/filepath-securejoin => github.com/cyphar/filepath-securejoin v0.2.3
 	github.com/davecgh/go-spew => github.com/davecgh/go-spew v1.1.1
 	github.com/daviddengcn/go-colortext => github.com/daviddengcn/go-colortext v1.0.0
 	github.com/dnaeon/go-vcr => github.com/dnaeon/go-vcr v1.0.1
@@ -378,7 +378,7 @@ replace (
 	github.com/golang/glog => github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/golang/groupcache => github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da
 	github.com/golang/mock => github.com/golang/mock v1.6.0
-	github.com/golang/protobuf => github.com/golang/protobuf v1.5.2
+	github.com/golang/protobuf => github.com/golang/protobuf v1.5.4
 	github.com/golang/snappy => github.com/golang/snappy v0.0.3
 	github.com/golangplus/bytes => github.com/golangplus/bytes v1.0.0
 	github.com/golangplus/fmt => github.com/golangplus/fmt v1.0.0
@@ -515,8 +515,8 @@ replace (
 	golang.org/x/image => golang.org/x/image v0.0.0-20190802002840-cff245a6509b
 	golang.org/x/lint => golang.org/x/lint v0.0.0-20190930215403-16217165b5de
 	golang.org/x/mobile => golang.org/x/mobile v0.0.0-20201217150744-e6ae53a27f4f
-	golang.org/x/mod => golang.org/x/mod v0.23.0
-	golang.org/x/tools => golang.org/x/tools v0.16.0
+	golang.org/x/mod => golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4
+	golang.org/x/tools => golang.org/x/tools v0.1.12
 	golang.org/x/xerrors => golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1
 	gonum.org/v1/gonum => gonum.org/v1/gonum v0.6.2
 	gonum.org/v1/netlib => gonum.org/v1/netlib v0.0.0-20190331212654-76723241ea4e
@@ -525,14 +525,14 @@ replace (
 	google.golang.org/appengine => google.golang.org/appengine v1.6.7
 	google.golang.org/genproto => google.golang.org/genproto v0.0.0-20220502173005-c8bf987b8c21
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc => google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.1.0
-	google.golang.org/protobuf => google.golang.org/protobuf v1.28.1
+	google.golang.org/protobuf => google.golang.org/protobuf v1.33.0
 	gopkg.in/alecthomas/kingpin.v2 => gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	gopkg.in/check.v1 => gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f
 	gopkg.in/errgo.v2 => gopkg.in/errgo.v2 v2.1.0
 	gopkg.in/gcfg.v1 => gopkg.in/gcfg.v1 v1.2.0
 	gopkg.in/inf.v0 => gopkg.in/inf.v0 v0.9.1
 	gopkg.in/natefinch/lumberjack.v2 => gopkg.in/natefinch/lumberjack.v2 v2.0.0
-	gopkg.in/square/go-jose.v2 => gopkg.in/square/go-jose.v2 v2.6.0
+	gopkg.in/square/go-jose.v2 => gopkg.in/square/go-jose.v2 v2.2.2
 	gopkg.in/warnings.v0 => gopkg.in/warnings.v0 v0.1.1
 	gopkg.in/yaml.v2 => gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 => gopkg.in/yaml.v3 v3.0.1
@@ -584,17 +584,20 @@ replace (
 	sigs.k8s.io/kustomize/kyaml => sigs.k8s.io/kustomize/kyaml v0.13.9
 	sigs.k8s.io/structured-merge-diff/v4 => sigs.k8s.io/structured-merge-diff/v4 v4.2.3
 	sigs.k8s.io/yaml => sigs.k8s.io/yaml v1.2.0
-
-	// CVE patches: force upgraded versions for vulnerable dependencies
-	github.com/docker/distribution => github.com/docker/distribution v2.8.2+incompatible
-	github.com/opencontainers/selinux => github.com/opencontainers/selinux v1.13.0
-	github.com/golang-jwt/jwt/v4 => github.com/golang-jwt/jwt/v4 v4.5.2
-	golang.org/x/crypto => golang.org/x/crypto v0.45.0
-	golang.org/x/net => golang.org/x/net v0.38.0
-	golang.org/x/oauth2 => golang.org/x/oauth2 v0.27.0
-	golang.org/x/sync => golang.org/x/sync v0.12.0
-	golang.org/x/sys => golang.org/x/sys v0.30.0
-	golang.org/x/term => golang.org/x/term v0.29.0
-	golang.org/x/text => golang.org/x/text v0.23.0
-	golang.org/x/time => golang.org/x/time v0.5.0
 )
+
+replace go.opentelemetry.io/otel => go.opentelemetry.io/otel v0.20.0
+
+replace go.opentelemetry.io/otel/metric => go.opentelemetry.io/otel/metric v0.20.0
+
+replace go.opentelemetry.io/otel/trace => go.opentelemetry.io/otel/trace v0.20.0
+
+replace go.opentelemetry.io/otel/sdk => go.opentelemetry.io/otel/sdk v0.20.0
+
+replace go.opentelemetry.io/otel/sdk/metric => go.opentelemetry.io/otel/sdk/metric v0.20.0
+
+replace go.opentelemetry.io/otel/sdk/export/metric => go.opentelemetry.io/otel/sdk/export/metric v0.20.0
+
+replace go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc => go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.20.0
+
+replace github.com/golang-jwt/jwt/v4 => github.com/golang-jwt/jwt/v4 v4.5.2
