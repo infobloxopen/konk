@@ -8,7 +8,7 @@ RUN apk add --no-cache git make bash
 WORKDIR /workspace
 RUN git clone --depth 1 --branch v1.42.0 https://github.com/operator-framework/operator-sdk.git && \
     cd operator-sdk && \
-    go get -u golang.org/x/crypto \
+    go get golang.org/x/crypto@v0.52.0 \
            golang.org/x/net@v0.55.0 \
            google.golang.org/grpc@v1.79.3 \
            go.opentelemetry.io/otel@v1.43.0 \
