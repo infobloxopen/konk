@@ -40,5 +40,3 @@ cmd/provision/provision
 cmd/konk-service/konk-service
 CVE_REMEDIATION_SUMMARY.md
 WIZ_SCAN_RESULTS.txt
-CVE_REMEDIATION_SUMMARY.md
-WIZ_SCAN_RESULTS.txt
