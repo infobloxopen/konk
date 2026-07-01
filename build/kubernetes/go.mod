@@ -56,7 +56,7 @@ require (
 	github.com/onsi/ginkgo/v2 v2.1.6
 	github.com/onsi/gomega v1.20.1
 	github.com/opencontainers/runc v1.1.3
-	github.com/opencontainers/selinux v1.10.0
+	github.com/opencontainers/selinux v1.13.0
 	github.com/pkg/errors v0.9.1
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/prometheus/client_golang v1.12.1
@@ -601,3 +601,9 @@ replace go.opentelemetry.io/otel/sdk/export/metric => go.opentelemetry.io/otel/s
 replace go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc => go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.20.0
 
 replace github.com/golang-jwt/jwt/v4 => github.com/golang-jwt/jwt/v4 v4.5.2
+
+replace github.com/docker/distribution => github.com/docker/distribution v2.8.2+incompatible
+
+replace github.com/opencontainers/selinux => github.com/opencontainers/selinux v1.13.0
+
+replace github.com/cyphar/filepath-securejoin => github.com/cyphar/filepath-securejoin v0.5.0
