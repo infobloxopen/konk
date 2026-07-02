@@ -73,10 +73,6 @@ pipeline {
         '''
 
         script {
-          def ghcrPrefix = 'ghcr.io/infobloxopen'
-          def harborPrefix = 'harbor.services.sdp.infoblox.com/infobloxcto'
-          def images = ['konk', 'konk-app', 'konk-provision', 'konk-service']
-
           if (params.HARBOR_PROMOTION_DRY_RUN) {
             // Dry-run is non-blocking for first rollout.
             catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
@@ -84,9 +80,9 @@ pipeline {
                 set -euo pipefail
                 TAG='${env.GIT_VERSION}'
                 echo 'Harbor promotion dry-run enabled; no copy/sign will be performed.'
-                for name in ${images.join(' ')}; do
-                  src="${ghcrPrefix}/\${name}:\${TAG}"
-                  dst="${harborPrefix}/\${name}:\${TAG}"
+                for name in konk konk-app konk-provision konk-service; do
+                  src="ghcr.io/infobloxopen/\$name:\$TAG"
+                  dst="harbor.services.sdp.infoblox.com/infobloxcto/\$name:\$TAG"
                   digest=$(/tmp/crane digest "\${src}" 2>/dev/null || true)
                   if [[ -n "\${digest}" ]]; then
                     echo "DRY-RUN: would promote \${src} -> \${dst} (digest=\${digest})"
@@ -113,14 +109,14 @@ pipeline {
                 echo "\${HARBOR_PASSWORD}" | /tmp/crane auth login harbor.services.sdp.infoblox.com -u "\${HARBOR_USERNAME}" --password-stdin
 
                 TAG='${env.GIT_VERSION}'
-                for name in ${images.join(' ')}; do
-                  src="${ghcrPrefix}/\${name}:\${TAG}"
-                  dst="${harborPrefix}/\${name}:\${TAG}"
+                for name in konk konk-app konk-provision konk-service; do
+                  src="ghcr.io/infobloxopen/\$name:\$TAG"
+                  dst="harbor.services.sdp.infoblox.com/infobloxcto/\$name:\$TAG"
 
                   digest=$(/tmp/crane digest "\${src}")
                   echo "Verifying SLSA provenance for \${src}@\${digest}"
                   GH_TOKEN="\${GITHUB_PAT}" /tmp/gh attestation verify \
-                    "oci://${ghcrPrefix}/\${name}@\${digest}" \
+                    "oci://ghcr.io/infobloxopen/\$name@\${digest}" \
                     --repo 'infobloxopen/konk' \
                     --predicate-type https://slsa.dev/provenance/v1 \
                     --bundle-from-oci \
@@ -132,7 +128,7 @@ pipeline {
                   /tmp/cosign sign \
                     --key 'hashivault://harbor-cosign' \
                     --yes \
-                    "${harborPrefix}/\${name}@\${digest}"
+                    "harbor.services.sdp.infoblox.com/infobloxcto/\$name@\${digest}"
                 done
               """
             }
