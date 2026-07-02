@@ -38,3 +38,6 @@ helm-charts/konk-operator/rbac
 helm-charts/konk/image-tag-values.yaml
 cmd/provision/provision
 cmd/konk-service/konk-service
+
+# Smoke test artifact (regenerated locally per run)
+/reports/index.html

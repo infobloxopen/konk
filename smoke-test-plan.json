@@ -1,0 +1,486 @@
+{
+  "service_summary": {
+    "service_name": "konk",
+    "description": "konk (Kubernetes On Kubernetes) deploys an independent Kubernetes API server within Kubernetes. The repository ships an operator-sdk Helm-based operator that watches three Custom Resources and reconciles them by installing the corresponding Helm charts.",
+    "components": [
+      {
+        "name": "konk-operator",
+        "type": "operator-sdk Helm operator",
+        "watches_file": "konk/watches.yaml",
+        "watches": [
+          "konk.infoblox.com/v1alpha1/Konk -> helm-charts/konk",
+          "konk.infoblox.com/v1alpha1/KonkService -> helm-charts/konk-service",
+          "konk.infoblox.com/v1alpha1/Etcd -> helm-charts/etcd"
+        ],
+        "deployed_in_us_dev_5": {
+          "namespace": "konk",
+          "deployment": "konk-operator",
+          "image": "harbor.services.sdp.infoblox.com/infobloxcto/konk:v0.2.1-175-g1d5d187",
+          "metrics_service_present": false
+        }
+      },
+      {
+        "name": "konk (deployed instance)",
+        "type": "kube-apiserver + etcd",
+        "purpose": "Independent Kubernetes API server stood up by the Konk CR",
+        "existing_in_us_dev_5": {
+          "namespace": "aggregate",
+          "name": "bulk-konk",
+          "scope": "cluster",
+          "status": "Deployed=True reason=UpgradeSuccessful",
+          "warning": "Production: hosts 16 live KonkServices. Smoke tests must NOT touch it."
+        }
+      },
+      {
+        "name": "konk-service",
+        "type": "Helm chart",
+        "purpose": "Registers an APIService inside the konk-deployed apiserver to enable extension API servers"
+      }
+    ],
+    "core_resource_lifecycle": "User creates a Konk/KonkService/Etcd CR in the parent cluster. The konk-operator (Helm operator) reconciles by installing/upgrading the matching Helm release. Status conditions Initialized/Deployed with reason ending in 'Successful' indicate health. Deleting the CR triggers Helm uninstall.",
+    "authentication_flow": "All exposed surfaces are Kubernetes API endpoints. Authentication is performed by the parent kube-apiserver using the caller's kubeconfig (X.509 client certs or bearer tokens). Authorization is enforced via RBAC. The operator implements no custom HTTP authentication; the kube-rbac-proxy sidecar performs SubjectAccessReview-based RBAC for the /metrics endpoint.",
+    "external_dependencies": [
+      "Parent Kubernetes cluster (kube-apiserver, RBAC)",
+      "cert-manager (certificate issuance for konk and konk-service)",
+      "Helm (release management performed by the operator)",
+      "etcd (deployed via the etcd Helm chart for konk persistence)"
+    ],
+    "endpoint_grouping_by_domain": [
+      "Konk CR lifecycle (CRUD on konks.konk.infoblox.com)",
+      "KonkService CR lifecycle (CRUD on konkservices.konk.infoblox.com)",
+      "Etcd CR lifecycle (CRUD on etcds.konk.infoblox.com)",
+      "Operator observability (/metrics via kube-rbac-proxy) — conditional, may be absent in lower environments"
+    ]
+  },
+  "endpoint_catalog": {
+    "source": "repository_scan",
+    "discovery_notes": [
+      "No Swagger/OpenAPI specification was provided.",
+      "konk-operator is an operator-sdk Helm operator (konk/watches.yaml). Repository scan for router.Handle / HandleFunc / mux / gin / echo / http.NewServeMux / grpc-gateway annotations returned no custom Go HTTP route registrations in the konk source tree.",
+      "All externally observable REST endpoints are therefore the Kubernetes API endpoints that the parent kube-apiserver dynamically serves for the CRDs registered by this project, plus the controller-manager /metrics endpoint exposed via kube-rbac-proxy.",
+      "CRDs scanned: konk/config/crd/bases/konk.infoblox.com_konks.yaml, konk/config/crd/bases/konk.infoblox.com_konkservices.yaml, konk/config/crd/bases/konk.infoblox.com_etcds.yaml.",
+      "Metrics endpoint defined in konk/config/default/manager_auth_proxy_patch.yaml (kube-rbac-proxy --secure-listen-address=0.0.0.0:8443 --upstream=http://127.0.0.1:8080/). Verified ABSENT in us-dev-5 deployment but expected in higher environments; the corresponding scenarios are conditional."
+    ],
+    "endpoints": [
+      { "id": "konk_list",            "method": "GET",    "path": "/apis/konk.infoblox.com/v1alpha1/namespaces/{namespace}/konks",                  "handler": "kube-apiserver (CRD-backed)", "source_file": "konk/config/crd/bases/konk.infoblox.com_konks.yaml",         "resource": "konks.konk.infoblox.com",         "category": "retrieval",      "scope": "Namespaced" },
+      { "id": "konk_create",          "method": "POST",   "path": "/apis/konk.infoblox.com/v1alpha1/namespaces/{namespace}/konks",                  "handler": "kube-apiserver (CRD-backed)", "source_file": "konk/config/crd/bases/konk.infoblox.com_konks.yaml",         "resource": "konks.konk.infoblox.com",         "category": "crud",           "scope": "Namespaced" },
+      { "id": "konk_get",             "method": "GET",    "path": "/apis/konk.infoblox.com/v1alpha1/namespaces/{namespace}/konks/{name}",           "handler": "kube-apiserver (CRD-backed)", "source_file": "konk/config/crd/bases/konk.infoblox.com_konks.yaml",         "resource": "konks.konk.infoblox.com",         "category": "retrieval",      "scope": "Namespaced" },
+      { "id": "konk_update",          "method": "PUT",    "path": "/apis/konk.infoblox.com/v1alpha1/namespaces/{namespace}/konks/{name}",           "handler": "kube-apiserver (CRD-backed)", "source_file": "konk/config/crd/bases/konk.infoblox.com_konks.yaml",         "resource": "konks.konk.infoblox.com",         "category": "crud",           "scope": "Namespaced" },
+      { "id": "konk_patch",           "method": "PATCH",  "path": "/apis/konk.infoblox.com/v1alpha1/namespaces/{namespace}/konks/{name}",           "handler": "kube-apiserver (CRD-backed)", "source_file": "konk/config/crd/bases/konk.infoblox.com_konks.yaml",         "resource": "konks.konk.infoblox.com",         "category": "crud",           "scope": "Namespaced" },
+      { "id": "konk_delete",          "method": "DELETE", "path": "/apis/konk.infoblox.com/v1alpha1/namespaces/{namespace}/konks/{name}",           "handler": "kube-apiserver (CRD-backed)", "source_file": "konk/config/crd/bases/konk.infoblox.com_konks.yaml",         "resource": "konks.konk.infoblox.com",         "category": "crud",           "scope": "Namespaced" },
+      { "id": "konk_status_get",      "method": "GET",    "path": "/apis/konk.infoblox.com/v1alpha1/namespaces/{namespace}/konks/{name}/status",    "handler": "kube-apiserver (CRD status subresource)", "source_file": "konk/config/crd/bases/konk.infoblox.com_konks.yaml", "resource": "konks.konk.infoblox.com/status", "category": "retrieval", "scope": "Namespaced" },
+      { "id": "konk_status_patch",    "method": "PATCH",  "path": "/apis/konk.infoblox.com/v1alpha1/namespaces/{namespace}/konks/{name}/status",    "handler": "kube-apiserver (CRD status subresource)", "source_file": "konk/config/crd/bases/konk.infoblox.com_konks.yaml", "resource": "konks.konk.infoblox.com/status", "category": "administration", "scope": "Namespaced" },
+
+      { "id": "konkservice_list",     "method": "GET",    "path": "/apis/konk.infoblox.com/v1alpha1/namespaces/{namespace}/konkservices",           "handler": "kube-apiserver (CRD-backed)", "source_file": "konk/config/crd/bases/konk.infoblox.com_konkservices.yaml",  "resource": "konkservices.konk.infoblox.com",  "category": "retrieval",      "scope": "Namespaced" },
+      { "id": "konkservice_create",   "method": "POST",   "path": "/apis/konk.infoblox.com/v1alpha1/namespaces/{namespace}/konkservices",           "handler": "kube-apiserver (CRD-backed)", "source_file": "konk/config/crd/bases/konk.infoblox.com_konkservices.yaml",  "resource": "konkservices.konk.infoblox.com",  "category": "crud",           "scope": "Namespaced" },
+      { "id": "konkservice_get",      "method": "GET",    "path": "/apis/konk.infoblox.com/v1alpha1/namespaces/{namespace}/konkservices/{name}",    "handler": "kube-apiserver (CRD-backed)", "source_file": "konk/config/crd/bases/konk.infoblox.com_konkservices.yaml",  "resource": "konkservices.konk.infoblox.com",  "category": "retrieval",      "scope": "Namespaced" },
+      { "id": "konkservice_update",   "method": "PUT",    "path": "/apis/konk.infoblox.com/v1alpha1/namespaces/{namespace}/konkservices/{name}",    "handler": "kube-apiserver (CRD-backed)", "source_file": "konk/config/crd/bases/konk.infoblox.com_konkservices.yaml",  "resource": "konkservices.konk.infoblox.com",  "category": "crud",           "scope": "Namespaced" },
+      { "id": "konkservice_patch",    "method": "PATCH",  "path": "/apis/konk.infoblox.com/v1alpha1/namespaces/{namespace}/konkservices/{name}",    "handler": "kube-apiserver (CRD-backed)", "source_file": "konk/config/crd/bases/konk.infoblox.com_konkservices.yaml",  "resource": "konkservices.konk.infoblox.com",  "category": "crud",           "scope": "Namespaced" },
+      { "id": "konkservice_delete",   "method": "DELETE", "path": "/apis/konk.infoblox.com/v1alpha1/namespaces/{namespace}/konkservices/{name}",    "handler": "kube-apiserver (CRD-backed)", "source_file": "konk/config/crd/bases/konk.infoblox.com_konkservices.yaml",  "resource": "konkservices.konk.infoblox.com",  "category": "crud",           "scope": "Namespaced" },
+      { "id": "konkservice_status_get","method": "GET",   "path": "/apis/konk.infoblox.com/v1alpha1/namespaces/{namespace}/konkservices/{name}/status","handler": "kube-apiserver (CRD status subresource)", "source_file": "konk/config/crd/bases/konk.infoblox.com_konkservices.yaml", "resource": "konkservices.konk.infoblox.com/status", "category": "retrieval", "scope": "Namespaced" },
+
+      { "id": "etcd_list",            "method": "GET",    "path": "/apis/konk.infoblox.com/v1alpha1/namespaces/{namespace}/etcds",                  "handler": "kube-apiserver (CRD-backed)", "source_file": "konk/config/crd/bases/konk.infoblox.com_etcds.yaml",         "resource": "etcds.konk.infoblox.com",         "category": "retrieval",      "scope": "Namespaced" },
+      { "id": "etcd_create",          "method": "POST",   "path": "/apis/konk.infoblox.com/v1alpha1/namespaces/{namespace}/etcds",                  "handler": "kube-apiserver (CRD-backed)", "source_file": "konk/config/crd/bases/konk.infoblox.com_etcds.yaml",         "resource": "etcds.konk.infoblox.com",         "category": "crud",           "scope": "Namespaced" },
+      { "id": "etcd_get",             "method": "GET",    "path": "/apis/konk.infoblox.com/v1alpha1/namespaces/{namespace}/etcds/{name}",           "handler": "kube-apiserver (CRD-backed)", "source_file": "konk/config/crd/bases/konk.infoblox.com_etcds.yaml",         "resource": "etcds.konk.infoblox.com",         "category": "retrieval",      "scope": "Namespaced" },
+      { "id": "etcd_update",          "method": "PUT",    "path": "/apis/konk.infoblox.com/v1alpha1/namespaces/{namespace}/etcds/{name}",           "handler": "kube-apiserver (CRD-backed)", "source_file": "konk/config/crd/bases/konk.infoblox.com_etcds.yaml",         "resource": "etcds.konk.infoblox.com",         "category": "crud",           "scope": "Namespaced" },
+      { "id": "etcd_patch",           "method": "PATCH",  "path": "/apis/konk.infoblox.com/v1alpha1/namespaces/{namespace}/etcds/{name}",           "handler": "kube-apiserver (CRD-backed)", "source_file": "konk/config/crd/bases/konk.infoblox.com_etcds.yaml",         "resource": "etcds.konk.infoblox.com",         "category": "crud",           "scope": "Namespaced" },
+      { "id": "etcd_delete",          "method": "DELETE", "path": "/apis/konk.infoblox.com/v1alpha1/namespaces/{namespace}/etcds/{name}",           "handler": "kube-apiserver (CRD-backed)", "source_file": "konk/config/crd/bases/konk.infoblox.com_etcds.yaml",         "resource": "etcds.konk.infoblox.com",         "category": "crud",           "scope": "Namespaced" },
+      { "id": "etcd_status_get",      "method": "GET",    "path": "/apis/konk.infoblox.com/v1alpha1/namespaces/{namespace}/etcds/{name}/status",    "handler": "kube-apiserver (CRD status subresource)", "source_file": "konk/config/crd/bases/konk.infoblox.com_etcds.yaml", "resource": "etcds.konk.infoblox.com/status", "category": "retrieval", "scope": "Namespaced" },
+
+      { "id": "operator_metrics",     "method": "GET",    "path": "/metrics",                                                                       "handler": "controller-runtime metrics server fronted by kube-rbac-proxy", "source_file": "konk/config/default/manager_auth_proxy_patch.yaml", "resource": "operator observability", "category": "observability", "scope": "Cluster (Service: <operator-metrics-service>:8443)", "availability": "conditional", "warning": "NOT present in us-dev-5 (deployed konk-operator has no kube-rbac-proxy sidecar and no metrics Service in the konk namespace). Expected to be enabled in higher environments. Tests must skip with a warning if METRICS_URL is unset." }
+    ]
+  },
+  "smoke_scenarios": [
+    {
+      "scenario_id": "SC-01",
+      "scenario_name": "Konk CR full lifecycle (create -> get -> list -> patch -> status -> delete)",
+      "type": "positive",
+      "category": "crud",
+      "objective": "Validate that the konk-operator accepts a valid Konk CR, the kube-apiserver persists it, the operator reconciles to a healthy state (Deployed=True, reason ending in 'Successful'), and the resource can be cleanly removed.",
+      "involved_endpoints": ["konk_create", "konk_get", "konk_list", "konk_patch", "konk_status_get", "konk_delete"],
+      "auth_type": "user_jwt_or_kubeconfig",
+      "expected_success_conditions": [
+        "POST returns 201 with the created Konk object",
+        "GET returns 200 and metadata.name matches",
+        "LIST returns 200 with items[]",
+        "PATCH (label change) returns 200 and persists",
+        "Status polling observes conditions[type=Deployed,status=True,reason ~ /Successful$/] within timeout",
+        "DELETE returns 200/202; subsequent GET returns 404 within timeout"
+      ],
+      "cleanup_requirements": [
+        "DELETE the Konk by name",
+        "Confirm 404 on follow-up GET",
+        "DELETE the dynamically created namespace used for isolation"
+      ],
+      "dependency_assumptions": [
+        "konk-operator is running in the cluster",
+        "cert-manager is installed",
+        "Caller identity has RBAC for konks.konk.infoblox.com in the test namespace",
+        "Cluster matches allowlist (default: us-dev-5)"
+      ]
+    },
+    {
+      "scenario_id": "SC-02",
+      "scenario_name": "KonkService CR full lifecycle",
+      "type": "positive",
+      "category": "crud",
+      "objective": "Validate that a KonkService CR is accepted, persisted, reconciled by the operator, and cleanly deleted.",
+      "involved_endpoints": ["konkservice_create", "konkservice_get", "konkservice_list", "konkservice_patch", "konkservice_status_get", "konkservice_delete"],
+      "auth_type": "user_jwt_or_kubeconfig",
+      "expected_success_conditions": [
+        "POST returns 201 for a valid KonkService spec referencing an existing Konk (spec.konk.name matches '^.+-konk$')",
+        "GET returns 200 with matching spec",
+        "LIST returns 200 with items[]",
+        "PATCH on metadata.labels succeeds",
+        "Status eventually contains Deployed=True with reason ending in 'Successful'",
+        "DELETE returns 200/202; follow-up GET returns 404"
+      ],
+      "cleanup_requirements": [
+        "DELETE the KonkService",
+        "DELETE the parent Konk created for this scenario",
+        "DELETE the test namespace"
+      ],
+      "dependency_assumptions": [
+        "A Konk created within the scenario is healthy",
+        "cert-manager is available for certificate issuance"
+      ]
+    },
+    {
+      "scenario_id": "SC-03",
+      "scenario_name": "Etcd CR create and delete",
+      "type": "positive",
+      "category": "crud",
+      "objective": "Validate that the Etcd CR can be created, retrieved, listed, and deleted via the operator-managed Helm chart.",
+      "involved_endpoints": ["etcd_create", "etcd_get", "etcd_list", "etcd_delete"],
+      "auth_type": "user_jwt_or_kubeconfig",
+      "expected_success_conditions": [
+        "POST returns 201 for a minimal Etcd spec",
+        "GET returns 200",
+        "LIST returns 200 with items[]",
+        "DELETE returns 200/202; follow-up GET returns 404"
+      ],
+      "cleanup_requirements": [
+        "DELETE the Etcd CR",
+        "DELETE the test namespace"
+      ],
+      "dependency_assumptions": ["konk-operator running and watching Etcd CRs"]
+    },
+    {
+      "scenario_id": "SC-04",
+      "scenario_name": "Operator metrics endpoint reachable with valid token (conditional)",
+      "type": "positive",
+      "category": "observability",
+      "conditional": true,
+      "skip_when": "METRICS_URL or METRICS_TOKEN env var is unset",
+      "warning": "NOT validated in us-dev-5 (metrics surface absent there). Expected to pass in higher environments where the operator is deployed with the kube-rbac-proxy sidecar enabled.",
+      "objective": "Validate that the controller-manager metrics endpoint is reachable through kube-rbac-proxy when called with a ServiceAccount token holding the appropriate ClusterRole binding.",
+      "involved_endpoints": ["operator_metrics"],
+      "auth_type": "service_account_token (s2s)",
+      "expected_success_conditions": [
+        "GET https://<operator-metrics-service>.<ns>.svc:8443/metrics returns 200",
+        "Response body is Prometheus exposition format (contains '# HELP' or '# TYPE' lines)"
+      ],
+      "cleanup_requirements": ["Delete any temporary ClusterRoleBinding/ServiceAccount provisioned by the test"],
+      "dependency_assumptions": [
+        "kube-rbac-proxy sidecar is running in the target environment",
+        "Test caller can mint a ServiceAccount token bound to the metrics ClusterRole"
+      ]
+    },
+    {
+      "scenario_id": "SC-N-01",
+      "scenario_name": "Reject Konk create with invalid spec.scope",
+      "type": "negative",
+      "category": "crud",
+      "objective": "Verify the CRD schema rejects Konk objects whose spec.scope does not match the pattern '^cluster|namespace$'.",
+      "involved_endpoints": ["konk_create"],
+      "auth_type": "user_jwt_or_kubeconfig",
+      "expected_failure_conditions": [
+        "POST returns 422 Invalid (or 400) referencing spec.scope and the regex constraint",
+        "Follow-up GET by name returns 404 (not persisted)"
+      ]
+    },
+    {
+      "scenario_id": "SC-N-02",
+      "scenario_name": "Reject KonkService create missing required fields or violating konk.name regex",
+      "type": "negative",
+      "category": "crud",
+      "objective": "Verify the CRD schema rejects KonkService objects missing required fields (group, konk, service, version) or whose spec.konk.name does not match '^.+-konk$'.",
+      "involved_endpoints": ["konkservice_create"],
+      "auth_type": "user_jwt_or_kubeconfig",
+      "expected_failure_conditions": [
+        "POST without one of the required fields returns 422 Invalid",
+        "POST with spec.konk.name='not-matching-pattern' returns 422 Invalid",
+        "No object is persisted"
+      ]
+    },
+    {
+      "scenario_id": "SC-N-03",
+      "scenario_name": "Reject create without authentication (conditional)",
+      "type": "negative",
+      "category": "configuration",
+      "conditional": true,
+      "skip_when": "KUBE_USE_PROXY=true (kubectl proxy injects kubeconfig identity, so unauthenticated requests cannot be exercised through it)",
+      "objective": "Verify unauthenticated callers cannot create Konk/KonkService/Etcd resources.",
+      "involved_endpoints": ["konk_create", "konkservice_create", "etcd_create"],
+      "auth_type": "none",
+      "expected_failure_conditions": [
+        "POST without Authorization header returns 401 Unauthorized (or 403 if anonymous is bound to a role without create)"
+      ]
+    },
+    {
+      "scenario_id": "SC-N-04",
+      "scenario_name": "Reject get on non-existent resource id",
+      "type": "negative",
+      "category": "retrieval",
+      "objective": "Verify that fetching a non-existent CR returns 404.",
+      "involved_endpoints": ["konk_get", "konkservice_get", "etcd_get"],
+      "auth_type": "user_jwt_or_kubeconfig",
+      "expected_failure_conditions": [
+        "GET .../konks/auto-test-does-not-exist-<rand>-konk returns 404 NotFound"
+      ]
+    },
+    {
+      "scenario_id": "SC-N-05",
+      "scenario_name": "DELETE on non-existent resource returns 404",
+      "type": "negative",
+      "category": "crud",
+      "objective": "Verify that DELETE against a fabricated non-existent (AUTO_TEST_-prefixed) name returns 404 and performs no mutation. The 'no mutation against pre-existing resources' invariant is enforced as a code-level guardrail (ensureAutoTest / safeDelete in helpers/resourceHelpers.js) applied across all scenarios, not as a standalone scenario.",
+      "involved_endpoints": ["konk_delete"],
+      "auth_type": "user_jwt_or_kubeconfig",
+      "expected_failure_conditions": [
+        "DELETE .../konks/auto-test-del-missing-<rand>-konk returns 404 NotFound"
+      ]
+    },
+    {
+      "scenario_id": "SC-N-06",
+      "scenario_name": "Reject create in non-existent namespace",
+      "type": "negative",
+      "category": "crud",
+      "objective": "Verify the kube-apiserver rejects Konk creation when the target namespace does not exist.",
+      "involved_endpoints": ["konk_create"],
+      "auth_type": "user_jwt_or_kubeconfig",
+      "expected_failure_conditions": [
+        "POST to /apis/konk.infoblox.com/v1alpha1/namespaces/<non-existent>/konks returns 4xx (typically 404)",
+        "No object is persisted"
+      ]
+    },
+    {
+      "scenario_id": "SC-N-07",
+      "scenario_name": "Metrics endpoint requires authentication (conditional)",
+      "type": "negative",
+      "category": "observability",
+      "conditional": true,
+      "skip_when": "METRICS_URL env var is unset",
+      "warning": "NOT validated in us-dev-5. Expected to pass in higher environments with kube-rbac-proxy enabled.",
+      "objective": "Verify the kube-rbac-proxy denies unauthenticated and unauthorized requests to /metrics.",
+      "involved_endpoints": ["operator_metrics"],
+      "auth_type": "none",
+      "expected_failure_conditions": [
+        "GET /metrics with no token returns 401 Unauthorized",
+        "GET /metrics with an invalid token returns 401 Unauthorized",
+        "GET /metrics with a valid but unauthorized token returns 403 Forbidden"
+      ]
+    }
+  ],
+  "coverage_design": {
+    "endpoint_coverage_map": {
+      "konk_create":            ["SC-01", "SC-02", "SC-N-01", "SC-N-03", "SC-N-06"],
+      "konk_get":               ["SC-01", "SC-N-01", "SC-N-04"],
+      "konk_list":              ["SC-01"],
+      "konk_update":            [],
+      "konk_patch":             ["SC-01"],
+      "konk_delete":            ["SC-01 (cleanup)", "SC-02 (cleanup)", "SC-N-05"],
+      "konk_status_get":        ["SC-01"],
+      "konk_status_patch":      [],
+      "konkservice_create":     ["SC-02", "SC-N-02", "SC-N-03"],
+      "konkservice_get":        ["SC-02", "SC-N-04"],
+      "konkservice_list":       ["SC-02"],
+      "konkservice_update":     [],
+      "konkservice_patch":      ["SC-02"],
+      "konkservice_delete":     ["SC-02 (cleanup)"],
+      "konkservice_status_get": ["SC-02"],
+      "etcd_create":            ["SC-03", "SC-N-03"],
+      "etcd_get":               ["SC-03", "SC-N-04"],
+      "etcd_list":              ["SC-03"],
+      "etcd_update":            [],
+      "etcd_patch":             [],
+      "etcd_delete":            ["SC-03 (cleanup)"],
+      "etcd_status_get":        [],
+      "operator_metrics":       ["SC-04", "SC-N-07"]
+    },
+    "verification_strategy": {
+      "approach": "Per request: assert HTTP status code; for create/get/list assert response body matches a minimal JSON schema (apiVersion, kind, metadata.name, metadata.uid present). For lifecycle scenarios, additionally poll the status subresource and assert presence of conditions[type=Deployed,status=True,reason matches /Successful$/].",
+      "polling": {
+        "max_wait_seconds": 300,
+        "interval_seconds": 5,
+        "applies_to": ["SC-01", "SC-02", "SC-03"],
+        "deployed_reason_regex": "^(Install|Upgrade)?Successful$"
+      },
+      "logging": "Every request must log method, full URL, status code, and response body (truncated). Failed assertions must fail fast with a clear message identifying scenario_id and endpoint id."
+    },
+    "cleanup_strategy": {
+      "ordering": [
+        "Delete KonkService CRs first",
+        "Delete Etcd CRs",
+        "Delete Konk CRs",
+        "Delete the test namespace last"
+      ],
+      "guards": [
+        "Cleanup only operates on objects whose metadata.name begins with the run-scoped prefix 'AUTO_TEST_' (RFC1123-safe form 'auto-test-' for Kubernetes)",
+        "Cleanup runs in K6 teardown() and must execute even if checks failed",
+        "Each delete is followed by a bounded poll for 404 to confirm removal",
+        "Namespace deletion is best-effort and bounded by a timeout"
+      ]
+    },
+    "authentication_strategy": {
+      "primary_auth": "Two supported modes: (1) BEARER TOKEN — Kubernetes ServiceAccount token or user kubeconfig token, supplied via env var KUBE_BEARER_TOKEN; API URL via KUBE_API_URL; insecure flag KUBE_INSECURE_SKIP_TLS_VERIFY=true (off by default). (2) KUBECTL PROXY — set KUBE_USE_PROXY=true and KUBE_API_URL=http://127.0.0.1:8001 (after running 'kubectl proxy --port=8001'); the proxy uses the caller's kubeconfig identity, and the test suite suppresses any Authorization header. SC-N-03 is auto-skipped in proxy mode because unauthenticated calls cannot be exercised through the proxy. Optional generic JWT mode (AUTH_MODE=jwt) using BASE_URL/USER_EMAIL/USER_PASSWORD against POST /v2/session/users/sign_in is supported per prompt spec but unused for konk (no custom auth surface).",
+      "per_endpoint": {
+        "konk_create": "user_jwt_or_kubeconfig",
+        "konk_get": "user_jwt_or_kubeconfig",
+        "konk_list": "user_jwt_or_kubeconfig",
+        "konk_update": "user_jwt_or_kubeconfig",
+        "konk_patch": "user_jwt_or_kubeconfig",
+        "konk_delete": "user_jwt_or_kubeconfig",
+        "konk_status_get": "user_jwt_or_kubeconfig",
+        "konk_status_patch": "user_jwt_or_kubeconfig",
+        "konkservice_create": "user_jwt_or_kubeconfig",
+        "konkservice_get": "user_jwt_or_kubeconfig",
+        "konkservice_list": "user_jwt_or_kubeconfig",
+        "konkservice_update": "user_jwt_or_kubeconfig",
+        "konkservice_patch": "user_jwt_or_kubeconfig",
+        "konkservice_delete": "user_jwt_or_kubeconfig",
+        "konkservice_status_get": "user_jwt_or_kubeconfig",
+        "etcd_create": "user_jwt_or_kubeconfig",
+        "etcd_get": "user_jwt_or_kubeconfig",
+        "etcd_list": "user_jwt_or_kubeconfig",
+        "etcd_update": "user_jwt_or_kubeconfig",
+        "etcd_patch": "user_jwt_or_kubeconfig",
+        "etcd_delete": "user_jwt_or_kubeconfig",
+        "etcd_status_get": "user_jwt_or_kubeconfig",
+        "operator_metrics": "service_account_token (s2s) bound to metrics ClusterRole via kube-rbac-proxy (conditional)"
+      },
+      "negative_auth_cases": [
+        "Omit Authorization header (expect 401)",
+        "Send Authorization: Bearer invalid (expect 401)",
+        "Send a valid token without RBAC for the resource (expect 403)"
+      ],
+      "no_hardcoded_credentials": true
+    },
+    "data_generation_strategy": {
+      "naming": "All test-created resource names are prefixed with 'AUTO_TEST_' (RFC1123-safe form 'auto-test-') followed by a collision-safe suffix: auto-test-<scenario>-<unix_nano>-<vu_id>-<rand6>. Names are lowercased and trimmed to RFC1123 (max 63 chars).",
+      "namespace": "A dedicated namespace per run: auto-test-konk-<unix_nano>-<vu_id>-<rand6>. Created in setup, deleted in teardown.",
+      "konk_name_constraint": "Konk and KonkService.spec.konk.name MUST end in '-konk' (regex '^.+-konk$'). Generator appends '-konk' suffix automatically.",
+      "scope_value": "Konk.spec.scope is selected from {cluster, namespace}; default 'namespace' to minimize blast radius."
+    },
+    "parallel_execution_safety_notes": [
+      "Each VU uses an independent test namespace generated from unix_nano + VU id, eliminating cross-VU collisions.",
+      "Resource names embed the VU id and a random suffix; never globally shared.",
+      "All mutating requests are gated by an AUTO_TEST_ prefix check before being sent.",
+      "Teardown deletes only resources tagged with the run prefix, so concurrent runs do not interfere.",
+      "Status polling uses bounded retries (max 180s) to avoid runaway loops under contention."
+    ]
+  },
+  "clarifications_required": [],
+  "clarifications_resolved": [
+    {
+      "topic": "Authoritative API spec",
+      "resolution": "Confirmed by user. No custom REST surface; tests target dynamic kube-apiserver endpoints for the three CRDs (konks, konkservices, etcds)."
+    },
+    {
+      "topic": "Target cluster",
+      "resolution": "us-dev-5 confirmed. Verified live: kubectl context teleport.services.sdp.infoblox.com-us-dev-5; konk-operator deployment running in 'konk' namespace; CRDs registered (konks/konkservices/etcds at konk.infoblox.com/v1alpha1)."
+    },
+    {
+      "topic": "Authentication source",
+      "resolution": "Use kubeconfig (Teleport) identity 'rsatal' (group teleport-group:k8s-admin -> cluster-admin equivalent). For K6 either (a) run 'kubectl proxy --port=8001' and set KUBE_API_URL=http://127.0.0.1:8001 (no token), or (b) mint a dedicated ServiceAccount: 'kubectl -n konk create sa konk-smoke-tester' + ClusterRoleBinding to cluster-admin (or a narrower role granting CRUD on konks/konkservices/etcds and namespaces) and 'kubectl -n konk create token konk-smoke-tester --duration=2h' -> KUBE_BEARER_TOKEN. KUBE_API_URL = $(kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}')."
+    },
+    {
+      "topic": "Etcd CR realism",
+      "resolution": "Use minimal realistic spec mirroring the running bulk-konk-etcd: { statefulset: { replicaCount: 1 }, resources: { limits: { memory: '1Gi' } } }. Empty {} also valid (preserve-unknown-fields)."
+    },
+    {
+      "topic": "KonkService dependencies",
+      "resolution": "Each smoke run MUST create its own scenario-local Konk in its dedicated auto-test namespace. Do NOT reuse the production 'bulk-konk' in the 'aggregate' namespace (it currently hosts 16 live KonkServices across atcapi/ddi/hostapp/ntp/tagging-v2/etc.). Konk template: { scope: 'namespace', etcd: { statefulset: { replicaCount: 1 }, resources: { limits: { memory: '1Gi' } } } }."
+    },
+    {
+      "topic": "Metrics ClusterRole",
+      "resolution": "Conditional. NOT applicable in us-dev-5 (the deployed konk-operator image v0.2.1-175-g1d5d187 has no kube-rbac-proxy sidecar, no metrics Service in the konk namespace, and no args). Scenarios SC-04 and SC-N-07 are kept in the plan but flagged conditional: the K6 implementation must skip them with a printed warning when METRICS_URL/METRICS_TOKEN env vars are unset, so they will exercise the surface automatically in higher environments where it is enabled."
+    },
+    {
+      "topic": "Reconciliation timeout",
+      "resolution": "Increased to 300 seconds (poll interval 5s). Reason regex updated to '^(Install|Upgrade)?Successful$' to match both InstallSuccessful (first reconcile) and UpgradeSuccessful (subsequent reconciles), as observed on bulk-konk."
+    },
+    {
+      "topic": "Helm-operator status semantics (caveat)",
+      "resolution": "The konk-operator is operator-sdk Helm-based. It writes status.conditions[type=Deployed,status=True,reason=Install/UpgradeSuccessful] as soon as 'helm install/upgrade' returns 0; it does NOT gate that condition on downstream pod readiness (image pull, runtime health, dependency availability). The smoke suite therefore validates the operator's externally observable contract (CRD acceptance + reconciliation-success condition), which is the correct boundary for a smoke test. Pod-level health is downstream and out of scope; observed CrashLoopBackOff in pods (e.g. due to environment-specific image/registry issues) does not invalidate the operator-level success signal."
+    },
+    {
+      "topic": "kubectl proxy auth mode",
+      "resolution": "Added KUBE_USE_PROXY=true mode so the suite can be run through 'kubectl proxy --port=8001' using the caller's kubeconfig identity (default in dev / Teleport contexts). When set, the suite (a) suppresses Authorization headers (proxy forwards them verbatim and they would 401), (b) skips SC-N-03 with a structured warning (proxy injects identity, so unauth cannot be exercised through it)."
+    }
+  ],
+  "implementation": {
+    "language": "K6 JavaScript (k6 v1.7.x)",
+    "file_layout": {
+      "smoke-tests/main.js": "Entry point: options, setup() (cluster allowlist + auth + namespace), default() (orchestrates SC-01..SC-04, SC-N-01..SC-N-07 with per-scenario try/catch + inline cleanup), teardown() (namespace delete + bounded poll for 404).",
+      "smoke-tests/config/config.js": "Env-driven config: ALLOWED_CLUSTERS, TARGET_CLUSTER, KUBE_API_URL, KUBE_BEARER_TOKEN, KUBE_USE_PROXY, KUBE_INSECURE_SKIP_TLS_VERIFY, AUTH_MODE, BASE_URL, USER_EMAIL/PASSWORD, METRICS_URL/METRICS_TOKEN, RECONCILE_TIMEOUT_S=300, POLL_INTERVAL_S=5, DEPLOYED_REASON_REGEX, API_GROUP, API_VERSION, URL builders (u.konks/konk/konkStatus/konkservices/konkservice/konkserviceStatus/etcds/etcd/namespace/namespaces).",
+      "smoke-tests/helpers/utils.js": "parseBody, logRequest (Authorization redacted; '<omitted: kubectl proxy>' label when KUBE_USE_PROXY), logSkip, safeBody, rand6, uniqueSuffix, autoTestName, autoTestNamespace, kget/kpost/kput/kpatch/kdelete (always-log HTTP wrappers; suppress Authorization in proxy mode), pollDeployed, pollDeleted.",
+      "smoke-tests/helpers/validators.js": "Status validators (isOk/isCreated/isAccepted/isNotFound/isUnauthorized/isForbidden/isClientError/isInvalid), body validators (hasId, hasResultsArray, hasNoError, bodyFieldEquals, metadataFieldEquals, hasAllowedBoolean, isPromExposition).",
+      "smoke-tests/helpers/resourceHelpers.js": "AUTO_TEST_PREFIX guard (isAutoTestResource, ensureAutoTest, safeDelete), resourceExists, resourceDeleted.",
+      "smoke-tests/helpers/auth.js": "authToken() returns kube bearer (default) or '' (proxy mode) or jwtSignIn() (AUTH_MODE=jwt).",
+      "smoke-tests/tests/sc01_konk_lifecycle.test.js": "SC-01",
+      "smoke-tests/tests/sc02_konkservice_lifecycle.test.js": "SC-02 (creates its own parent Konk)",
+      "smoke-tests/tests/sc03_etcd_lifecycle.test.js": "SC-03",
+      "smoke-tests/tests/sc04_metrics_reachable.test.js": "SC-04 (conditional on METRICS_URL/METRICS_TOKEN)",
+      "smoke-tests/tests/scN01_reject_invalid_scope.test.js": "SC-N-01",
+      "smoke-tests/tests/scN02_reject_konkservice_invalid.test.js": "SC-N-02",
+      "smoke-tests/tests/scN03_reject_unauth_create.test.js": "SC-N-03 (conditional skip when KUBE_USE_PROXY=true)",
+      "smoke-tests/tests/scN04_get_missing_404.test.js": "SC-N-04",
+      "smoke-tests/tests/scN05_delete_missing_404.test.js": "SC-N-05",
+      "smoke-tests/tests/scN06_reject_missing_namespace.test.js": "SC-N-06",
+      "smoke-tests/tests/scN07_metrics_unauth.test.js": "SC-N-07 (conditional on METRICS_URL)",
+      "smoke-tests/run.sh": "Self-contained runner. Picks a free local port (or honors PORT), starts 'kubectl proxy --address=127.0.0.1 --accept-hosts=^127\\.0\\.0\\.1$', waits for /readyz, runs k6 with KUBE_USE_PROXY=true, and ALWAYS kills the proxy on exit (trap EXIT INT TERM). Forwards METRICS_URL/METRICS_TOKEN/RECONCILE_TIMEOUT_S/POLL_INTERVAL_S/KUBE_INSECURE_SKIP_TLS_VERIFY/ALLOWED_CLUSTERS to k6."
+    },
+    "required_env_vars": {
+      "required": ["KUBE_API_URL", "TARGET_CLUSTER (must be in ALLOWED_CLUSTERS, default 'us-dev-5')"],
+      "required_one_of": ["KUBE_BEARER_TOKEN (default mode) OR KUBE_USE_PROXY=true (proxy mode)"],
+      "optional": ["ALLOWED_CLUSTERS (comma-separated; default 'us-dev-5')", "KUBE_INSECURE_SKIP_TLS_VERIFY (default false)", "AUTH_MODE (kube|jwt; default kube)", "BASE_URL, USER_EMAIL, USER_PASSWORD (jwt mode only)", "METRICS_URL, METRICS_TOKEN (enable SC-04 / SC-N-07)", "RECONCILE_TIMEOUT_S (default 300)", "POLL_INTERVAL_S (default 5)"]
+    },
+    "run_commands": {
+      "recommended_wrapper": [
+        "./smoke-tests/run.sh",
+        "# us-dev-5 by default; manages kubectl proxy lifecycle automatically",
+        "TARGET_CLUSTER=us-dev-5 PORT=9000 ./smoke-tests/run.sh",
+        "# pin a specific port",
+        "METRICS_URL=https://… METRICS_TOKEN=… ./smoke-tests/run.sh",
+        "# also runs SC-04 / SC-N-07"
+      ],
+      "via_kubectl_proxy": [
+        "kubectl proxy --port=8001 &",
+        "k6 run smoke-tests/main.js -e KUBE_API_URL=http://127.0.0.1:8001 -e KUBE_USE_PROXY=true -e TARGET_CLUSTER=us-dev-5"
+      ],
+      "via_bearer_token": [
+        "k6 run smoke-tests/main.js -e KUBE_API_URL=$(kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}') -e KUBE_BEARER_TOKEN=$(kubectl -n konk create token konk-smoke-tester --duration=2h) -e TARGET_CLUSTER=us-dev-5"
+      ]
+    }
+  },
+  "last_verified_run": {
+    "date": "2026-05-04",
+    "cluster": "us-dev-5 (teleport.services.sdp.infoblox.com-us-dev-5)",
+    "identity": "rsatal (teleport-group:k8s-admin -> cluster-admin equivalent), via kubectl proxy",
+    "k6_version": "v1.7.1 (darwin/arm64)",
+    "command": "k6 run smoke-tests/main.js -e KUBE_API_URL=http://127.0.0.1:8001 -e KUBE_USE_PROXY=true -e TARGET_CLUSTER=us-dev-5",
+    "duration": "~19s",
+    "checks_total": 42,
+    "checks_succeeded": 42,
+    "checks_failed": 0,
+    "threshold": "checks rate>=0.95 -> 100.00%",
+    "executed_scenarios": ["SC-01", "SC-02", "SC-03", "SC-N-01", "SC-N-02", "SC-N-04", "SC-N-05", "SC-N-06"],
+    "skipped_scenarios": [
+      { "id": "SC-04", "reason": "METRICS_URL or METRICS_TOKEN not provided (conditional)" },
+      { "id": "SC-N-03", "reason": "KUBE_USE_PROXY=true (proxy injects kubeconfig identity)" },
+      { "id": "SC-N-07", "reason": "METRICS_URL not provided (conditional)" }
+    ],
+    "cleanup_outcome": "All AUTO_TEST_ CRs and the dedicated namespace deleted; bulk-konk in the 'aggregate' namespace untouched."
+  }
+}
