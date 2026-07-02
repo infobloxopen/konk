@@ -85,8 +85,8 @@ pipeline {
                 TAG='${env.GIT_VERSION}'
                 echo 'Harbor promotion dry-run enabled; no copy/sign will be performed.'
                 for name in ${images.join(' ')}; do
-                  src='${ghcrPrefix}/'"\${name}"':"\${TAG}"'
-                  dst='${harborPrefix}/'"\${name}"':"\${TAG}"'
+                  src="${ghcrPrefix}/\${name}:\${TAG}"
+                  dst="${harborPrefix}/\${name}:\${TAG}"
                   digest=$(/tmp/crane digest "\${src}" 2>/dev/null || true)
                   if [[ -n "\${digest}" ]]; then
                     echo "DRY-RUN: would promote \${src} -> \${dst} (digest=\${digest})"
@@ -114,8 +114,8 @@ pipeline {
 
                 TAG='${env.GIT_VERSION}'
                 for name in ${images.join(' ')}; do
-                  src='${ghcrPrefix}/'"\${name}"':"\${TAG}"'
-                  dst='${harborPrefix}/'"\${name}"':"\${TAG}"'
+                  src="${ghcrPrefix}/\${name}:\${TAG}"
+                  dst="${harborPrefix}/\${name}:\${TAG}"
 
                   digest=$(/tmp/crane digest "\${src}")
                   echo "Verifying SLSA provenance for \${src}@\${digest}"
@@ -132,7 +132,7 @@ pipeline {
                   /tmp/cosign sign \
                     --key 'hashivault://harbor-cosign' \
                     --yes \
-                    '${harborPrefix}/'"\${name}"'@'"\${digest}"
+                    "${harborPrefix}/\${name}@\${digest}"
                 done
               """
             }
