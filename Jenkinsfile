@@ -83,7 +83,7 @@ pipeline {
                 for name in konk konk-app konk-provision konk-service; do
                   src="ghcr.io/infobloxopen/\$name:\$TAG"
                   dst="harbor.services.sdp.infoblox.com/infobloxcto/\$name:\$TAG"
-                  digest=$(/tmp/crane digest "\${src}" 2>/dev/null || true)
+                  digest=\$(/tmp/crane digest "\${src}" 2>/dev/null || true)
                   if [[ -n "\${digest}" ]]; then
                     echo "DRY-RUN: would promote \${src} -> \${dst} (digest=\${digest})"
                   else
@@ -113,7 +113,7 @@ pipeline {
                   src="ghcr.io/infobloxopen/\$name:\$TAG"
                   dst="harbor.services.sdp.infoblox.com/infobloxcto/\$name:\$TAG"
 
-                  digest=$(/tmp/crane digest "\${src}")
+                  digest=\$(/tmp/crane digest "\${src}")
                   echo "Verifying SLSA provenance for \${src}@\${digest}"
                   GH_TOKEN="\${GITHUB_PAT}" /tmp/gh attestation verify \
                     "oci://ghcr.io/infobloxopen/\$name@\${digest}" \
