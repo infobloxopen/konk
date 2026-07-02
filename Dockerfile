@@ -8,12 +8,16 @@ RUN apk add --no-cache git make bash
 WORKDIR /workspace
 RUN git clone --depth 1 --branch v1.42.0 https://github.com/operator-framework/operator-sdk.git && \
     cd operator-sdk && \
-    go get -u golang.org/x/crypto \
+    go get golang.org/x/crypto@v0.52.0 \
+           golang.org/x/net@v0.55.0 \
            google.golang.org/grpc@v1.79.3 \
-           go.opentelemetry.io/otel/sdk@v1.40.0 \
-           go.opentelemetry.io/otel@v1.40.0 \
-           go.opentelemetry.io/otel/trace@v1.40.0 \
-           go.opentelemetry.io/otel/metric@v1.40.0 && \
+           go.opentelemetry.io/otel@v1.43.0 \
+           go.opentelemetry.io/otel/sdk@v1.43.0 \
+           go.opentelemetry.io/otel/trace@v1.43.0 \
+           go.opentelemetry.io/otel/metric@v1.43.0 \
+           github.com/moby/spdystream@v0.5.1 \
+           github.com/containerd/containerd@v1.7.33 \
+           helm.sh/helm/v3@v3.20.2 && \
     go mod tidy && \
     make build/helm-operator
 

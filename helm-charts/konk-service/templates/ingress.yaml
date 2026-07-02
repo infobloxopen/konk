@@ -21,6 +21,7 @@ metadata:
   labels:
     {{- include "konk-service.labels" . | nindent 4 }}
   annotations:
+    {{- include "konk-service.helmAnnotations" . | nindent 4 }}
   {{- with .Values.authURL }}
     nginx.ingress.kubernetes.io/auth-url: {{ . }}
     nginx.ingress.kubernetes.io/auth-response-headers: Authorization,Request-Id

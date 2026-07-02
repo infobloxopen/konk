@@ -6,6 +6,8 @@ kind: Space
 metadata:
   name: {{ template "konk-service.fullname" $ }}-{{ lower $key }}
   namespace: {{ $.Release.Namespace }}
+  annotations:
+    {{- include "konk-service.helmAnnotations" $ | nindent 4 }}
   labels:
     {{- include "konk-service.labels" $ | nindent 4 }}
 spec:

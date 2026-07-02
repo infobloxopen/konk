@@ -5,6 +5,7 @@ metadata:
   labels:
     {{- include "konk.labels" . | nindent 4 }}
   annotations:
+    {{- include "konk.helmAnnotations" . | nindent 4 }}
     "helm.sh/hook": test-success
     "helm.sh/hook": test
 spec:
