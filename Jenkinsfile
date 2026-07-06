@@ -78,6 +78,37 @@ pipeline {
               sh """#!/bin/bash
                 set -euo pipefail
 
+                # Wait for the GHA push-images.yml workflow to complete for this commit.
+                # Jenkins and GHA both trigger on the same push; GHA builds the images
+                # (~20-30 min), so we must wait before attempting crane copy + verify.
+                COMMIT_SHA=\$(git rev-parse HEAD)
+                echo "Waiting for push-images GHA workflow to complete for \${COMMIT_SHA}..."
+                TIMEOUT=3600
+                START=\$(date +%s)
+                while true; do
+                  RUN_DATA=\$(GH_TOKEN="\${GITHUB_PAT}" /tmp/gh api \
+                    "/repos/infobloxopen/konk/actions/workflows/push-images.yml/runs?head_sha=\${COMMIT_SHA}&per_page=5" \
+                    --jq '.workflow_runs[0] | {status: .status, conclusion: .conclusion}' 2>/dev/null || echo '{}')
+                  STATUS=\$(echo "\${RUN_DATA}" | jq -r '.status // "absent"')
+                  CONCLUSION=\$(echo "\${RUN_DATA}" | jq -r '.conclusion // "pending"')
+                  echo "push-images workflow: status=\${STATUS} conclusion=\${CONCLUSION}"
+                  if [ "\${STATUS}" = "completed" ]; then
+                    if [ "\${CONCLUSION}" = "success" ]; then
+                      echo "GHA push-images workflow succeeded"
+                      break
+                    else
+                      echo "GHA push-images workflow did not succeed: conclusion=\${CONCLUSION}"
+                      exit 1
+                    fi
+                  fi
+                  NOW=\$(date +%s)
+                  if (( NOW - START > TIMEOUT )); then
+                    echo "Timeout waiting for GHA push-images workflow (1h)"
+                    exit 1
+                  fi
+                  sleep 30
+                done
+
                 echo "\${GITHUB_PAT}" | /tmp/crane auth login ghcr.io -u ibciteam --password-stdin
                 echo "\${HARBOR_PASSWORD}" | /tmp/crane auth login harbor.services.sdp.infoblox.com -u "\${HARBOR_USERNAME}" --password-stdin
 
