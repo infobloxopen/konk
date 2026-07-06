@@ -22,7 +22,7 @@ pipeline {
         prepareBuild()
       }
     }
-    stage("Push Images") {
+    stage("Push Images to GHCR") {
       when {
         anyOf {
           branch 'main'
