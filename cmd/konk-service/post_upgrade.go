@@ -20,14 +20,14 @@ import (
 // Kubernetes strategic merge patch adds the new container without removing the old one.
 // The only fix is to delete the deployment so the operator recreates it cleanly.
 //
-// Stale orphans: When deployment names are truncated in a chart update, the old longer-named
-// deployments remain unmanaged. They use old name patterns that don't match current chart output.
+// Stale orphans: When deployment names change across chart versions (truncation, renames),
+// old deployments remain live but aren't managed by the current Helm release.
 //
 // Environment variables:
-//   NAMESPACE        - namespace to scan
-//   RELEASE_NAME     - Helm release name (used for label selector)
-//   FULLNAME_PREFIX  - expected deployment name prefix from current chart (e.g., "release-konk-service")
-//   GHOST_CONTAINERS - comma-separated list of old container names to detect (default: "kind")
+//   NAMESPACE         - namespace to scan
+//   RELEASE_NAME      - Helm release name (used for label selector)
+//   VALID_DEPLOYMENTS - comma-separated list of exact deployment names the current chart creates
+//   GHOST_CONTAINERS  - comma-separated list of old container names to detect (default: "kind")
 func runPostUpgrade() error {
 	namespace := os.Getenv("NAMESPACE")
 	if namespace == "" {
@@ -37,9 +37,17 @@ func runPostUpgrade() error {
 	if releaseName == "" {
 		return fmt.Errorf("RELEASE_NAME environment variable is required")
 	}
-	fullnamePrefix := os.Getenv("FULLNAME_PREFIX")
-	if fullnamePrefix == "" {
-		return fmt.Errorf("FULLNAME_PREFIX environment variable is required")
+	validDeploymentsEnv := os.Getenv("VALID_DEPLOYMENTS")
+	if validDeploymentsEnv == "" {
+		return fmt.Errorf("VALID_DEPLOYMENTS environment variable is required")
+	}
+
+	validSet := make(map[string]bool)
+	for _, name := range strings.Split(validDeploymentsEnv, ",") {
+		name = strings.TrimSpace(name)
+		if name != "" {
+			validSet[name] = true
+		}
 	}
 
 	ghostNames := []string{"kind"}
@@ -56,17 +64,17 @@ func runPostUpgrade() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
-	deleted, err := cleanupGhostDeployments(ctx, cs, namespace, releaseName, ghostNames)
+	ghostDeleted, err := cleanupGhostDeployments(ctx, cs, namespace, releaseName, ghostNames)
 	if err != nil {
 		return err
 	}
 
-	stale, err := cleanupStaleDeployments(ctx, cs, namespace, releaseName, fullnamePrefix)
+	staleDeleted, err := cleanupStaleDeployments(ctx, cs, namespace, releaseName, validSet)
 	if err != nil {
 		return err
 	}
 
-	log.Printf("Post-upgrade cleanup complete: %d ghost deployments deleted, %d stale deployments deleted", deleted, stale)
+	log.Printf("Post-upgrade cleanup complete: %d ghost deployments deleted, %d stale deployments deleted", ghostDeleted, staleDeleted)
 	return nil
 }
 
@@ -102,13 +110,9 @@ func cleanupGhostDeployments(ctx context.Context, cs *kubernetes.Clientset, name
 }
 
 // cleanupStaleDeployments finds deployments that match konk-service labels but
-// have names that don't match the current chart's naming pattern. These are
-// orphans from previous chart versions that used different name truncation.
-//
-// The current chart generates names like: <fullnamePrefix>-kubeconfig,
-// <fullnamePrefix>-kubectl-apiservice, etc. Any deployment with the right
-// instance label but a name NOT starting with fullnamePrefix is stale.
-func cleanupStaleDeployments(ctx context.Context, cs *kubernetes.Clientset, namespace, releaseName, fullnamePrefix string) (int, error) {
+// whose names are NOT in the set of valid deployment names the current chart creates.
+// These are orphans from previous chart versions that used different naming/truncation.
+func cleanupStaleDeployments(ctx context.Context, cs *kubernetes.Clientset, namespace, releaseName string, validNames map[string]bool) (int, error) {
 	// List all konk-service deployments for this release
 	selector := fmt.Sprintf("app.kubernetes.io/name=konk-service,app.kubernetes.io/instance=%s", releaseName)
 	deployments, err := cs.AppsV1().Deployments(namespace).List(ctx, metav1.ListOptions{
@@ -118,17 +122,11 @@ func cleanupStaleDeployments(ctx context.Context, cs *kubernetes.Clientset, name
 		return 0, fmt.Errorf("listing deployments for stale check: %w", err)
 	}
 
-	// The expected prefix for all current deployment names
-	expectedPrefix := fullnamePrefix + "-"
-
 	deleted := 0
 	for i := range deployments.Items {
 		deploy := &deployments.Items[i]
-		// A stale deployment is one whose name doesn't start with the current
-		// chart's fullname prefix. This catches deployments from all previous
-		// naming schemes (different truncation lengths, missing suffixes, etc.)
-		if !strings.HasPrefix(deploy.Name, expectedPrefix) {
-			log.Printf("Deleting stale deployment %s/%s (name doesn't match current prefix %q)", namespace, deploy.Name, expectedPrefix)
+		if !validNames[deploy.Name] {
+			log.Printf("Deleting stale deployment %s/%s (not in valid set: %v)", namespace, deploy.Name, validNames)
 			if err := deleteDeployment(ctx, cs, namespace, deploy.Name); err != nil {
 				log.Printf("WARNING: failed to delete %s/%s: %v", namespace, deploy.Name, err)
 				continue
