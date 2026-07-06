@@ -83,7 +83,6 @@ pipeline {
       when {
         anyOf {
           branch 'main'
-          branch 'ci'
           branch 'release/*'
         }
       }
