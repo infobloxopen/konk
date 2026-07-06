@@ -4,13 +4,6 @@ pipeline {
   agent {
     label 'ubuntu_docker_label'
   }
-  parameters {
-    booleanParam(
-      name: 'HARBOR_PROMOTION_DRY_RUN',
-      defaultValue: true,
-      description: 'If true, only print planned GHCR->Harbor promotions; no copy/sign is performed.'
-    )
-  }
   environment {
     HELM_IMAGE = "infoblox/helm:3.2.4-5b243a2"
     HELM="""docker run --rm \
@@ -73,27 +66,7 @@ pipeline {
         '''
 
         script {
-          if (params.HARBOR_PROMOTION_DRY_RUN) {
-            // Dry-run is non-blocking for first rollout.
-            catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
-              sh """#!/bin/bash
-                set -euo pipefail
-                TAG='${env.GIT_VERSION}'
-                echo 'Harbor promotion dry-run enabled; no copy/sign will be performed.'
-                for name in konk konk-app konk-provision konk-service; do
-                  src="ghcr.io/infobloxopen/\$name:\$TAG"
-                  dst="harbor.services.sdp.infoblox.com/infobloxcto/\$name:\$TAG"
-                  digest=\$(/tmp/crane digest "\${src}" 2>/dev/null || true)
-                  if [[ -n "\${digest}" ]]; then
-                    echo "DRY-RUN: would promote \${src} -> \${dst} (digest=\${digest})"
-                  else
-                    echo "DRY-RUN: would promote \${src} -> \${dst} (digest lookup failed)"
-                  fi
-                done
-              """
-            }
-          } else {
-            withCredentials([
+          withCredentials([
               string(credentialsId: 'GITHUB_TOKEN', variable: 'GITHUB_PAT'),
               usernamePassword(credentialsId: 'harbor-services-prod',
                                usernameVariable: 'HARBOR_USERNAME',
@@ -132,7 +105,6 @@ pipeline {
                 done
               """
             }
-          }
         }
       }
     }
