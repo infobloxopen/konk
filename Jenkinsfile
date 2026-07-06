@@ -83,6 +83,7 @@ pipeline {
       when {
         anyOf {
           branch 'main'
+          branch 'ci'
           branch 'release/*'
         }
       }
@@ -164,7 +165,7 @@ pipeline {
                     --repo 'infobloxopen/konk' \
                     --predicate-type https://slsa.dev/provenance/v1 \
                     --bundle-from-oci \
-                    --cert-identity-regex '^https://github\\.com/infobloxopen/konk/\\.github/workflows/push-images\\.yml@refs/heads/(main|release/.+)\$'
+                    --cert-identity-regex '^https://github\\.com/infobloxopen/konk/\\.github/workflows/push-images\\.yml@refs/heads/(main|ci|release/.+)\$'
 
                   echo "Promoting \${src} -> \${dst}"
                   /tmp/crane copy "\${src}" "\${dst}"
