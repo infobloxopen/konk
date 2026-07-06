@@ -38,6 +38,47 @@ pipeline {
         }
       }
     }
+    stage("Package Charts") {
+      steps {
+        withAWS(credentials: "CICD_HELM", region: "us-east-1") {
+          sh 'make CHART_PKG_VERSION=$CHART_VERSION package'
+        }
+      }
+    }
+    stage("Push Chart") {
+      when {
+        anyOf {
+          branch 'main'
+          branch 'ci'
+          branch 'release/*'
+        }
+      }
+      steps {
+        dir("helm-charts") {
+          withAWS(credentials: "CICD_HELM", region: "us-east-1") {
+            sh '''\
+              for chart in konk*
+              do
+
+              chart_file=$chart-$CHART_VERSION.tgz
+
+              $HELM s3 push /pkg/$chart_file infobloxcto
+
+              cat << EOF > $WORKSPACE/$chart.properties
+              repo=infoblox-helm-dev
+              chart=$chart_file
+              messageFormat=s3-artifact
+              customFormat=true
+              EOF
+
+              done
+            '''.stripIndent()
+          }
+        }
+        archiveArtifacts artifacts: '*.properties'
+        archiveArtifacts artifacts: '*.tgz'
+      }
+    }
     stage("Promote Images To Harbor") {
       when {
         anyOf {
@@ -137,47 +178,6 @@ pipeline {
               """
             }
         }
-      }
-    }
-    stage("Package Charts") {
-      steps {
-        withAWS(credentials: "CICD_HELM", region: "us-east-1") {
-          sh 'make CHART_PKG_VERSION=$CHART_VERSION package'
-        }
-      }
-    }
-    stage("Push Chart") {
-      when {
-        anyOf {
-          branch 'main'
-          branch 'ci'
-          branch 'release/*'
-        }
-      }
-      steps {
-        dir("helm-charts") {
-          withAWS(credentials: "CICD_HELM", region: "us-east-1") {
-            sh '''\
-              for chart in konk*
-              do
-
-              chart_file=$chart-$CHART_VERSION.tgz
-
-              $HELM s3 push /pkg/$chart_file infobloxcto
-
-              cat << EOF > $WORKSPACE/$chart.properties
-              repo=infoblox-helm-dev
-              chart=$chart_file
-              messageFormat=s3-artifact
-              customFormat=true
-              EOF
-
-              done
-            '''.stripIndent()
-          }
-        }
-        archiveArtifacts artifacts: '*.properties'
-        archiveArtifacts artifacts: '*.tgz'
       }
     }
   }
