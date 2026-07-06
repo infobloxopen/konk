@@ -21,11 +21,12 @@ import (
 // The only fix is to delete the deployment so the operator recreates it cleanly.
 //
 // Stale orphans: When deployment names are truncated in a chart update, the old longer-named
-// deployments remain unmanaged. They have no meta.helm.sh/release-name annotation.
+// deployments remain unmanaged. They use old name patterns that don't match current chart output.
 //
 // Environment variables:
-//   NAMESPACE       - namespace to scan
-//   RELEASE_NAME    - Helm release name (used for label selector)
+//   NAMESPACE        - namespace to scan
+//   RELEASE_NAME     - Helm release name (used for label selector)
+//   FULLNAME_PREFIX  - expected deployment name prefix from current chart (e.g., "release-konk-service")
 //   GHOST_CONTAINERS - comma-separated list of old container names to detect (default: "kind")
 func runPostUpgrade() error {
 	namespace := os.Getenv("NAMESPACE")
@@ -35,6 +36,10 @@ func runPostUpgrade() error {
 	releaseName := os.Getenv("RELEASE_NAME")
 	if releaseName == "" {
 		return fmt.Errorf("RELEASE_NAME environment variable is required")
+	}
+	fullnamePrefix := os.Getenv("FULLNAME_PREFIX")
+	if fullnamePrefix == "" {
+		return fmt.Errorf("FULLNAME_PREFIX environment variable is required")
 	}
 
 	ghostNames := []string{"kind"}
@@ -56,7 +61,7 @@ func runPostUpgrade() error {
 		return err
 	}
 
-	stale, err := cleanupStaleDeployments(ctx, cs, namespace, releaseName)
+	stale, err := cleanupStaleDeployments(ctx, cs, namespace, releaseName, fullnamePrefix)
 	if err != nil {
 		return err
 	}
@@ -97,10 +102,15 @@ func cleanupGhostDeployments(ctx context.Context, cs *kubernetes.Clientset, name
 }
 
 // cleanupStaleDeployments finds deployments that match konk-service labels but
-// are missing Helm ownership annotations (orphaned from a deployment name change).
-func cleanupStaleDeployments(ctx context.Context, cs *kubernetes.Clientset, namespace, releaseName string) (int, error) {
-	// List all konk-service deployments in the namespace (broader selector)
-	selector := "app.kubernetes.io/name=konk-service"
+// have names that don't match the current chart's naming pattern. These are
+// orphans from previous chart versions that used different name truncation.
+//
+// The current chart generates names like: <fullnamePrefix>-kubeconfig,
+// <fullnamePrefix>-kubectl-apiservice, etc. Any deployment with the right
+// instance label but a name NOT starting with fullnamePrefix is stale.
+func cleanupStaleDeployments(ctx context.Context, cs *kubernetes.Clientset, namespace, releaseName, fullnamePrefix string) (int, error) {
+	// List all konk-service deployments for this release
+	selector := fmt.Sprintf("app.kubernetes.io/name=konk-service,app.kubernetes.io/instance=%s", releaseName)
 	deployments, err := cs.AppsV1().Deployments(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: selector,
 	})
@@ -108,20 +118,17 @@ func cleanupStaleDeployments(ctx context.Context, cs *kubernetes.Clientset, name
 		return 0, fmt.Errorf("listing deployments for stale check: %w", err)
 	}
 
+	// The expected prefix for all current deployment names
+	expectedPrefix := fullnamePrefix + "-"
+
 	deleted := 0
 	for i := range deployments.Items {
 		deploy := &deployments.Items[i]
-		// A stale deployment is one that:
-		// 1. Has the konk-service app label (matched by selector)
-		// 2. Is missing the meta.helm.sh/release-name annotation (not managed by current release)
-		// 3. Has the same instance label as our release (belongs to this KonkService)
-		instanceLabel := deploy.Labels["app.kubernetes.io/instance"]
-		if instanceLabel != releaseName {
-			continue
-		}
-		annotations := deploy.Annotations
-		if annotations == nil || annotations["meta.helm.sh/release-name"] == "" {
-			log.Printf("Deleting stale orphaned deployment %s/%s (missing Helm release annotation)", namespace, deploy.Name)
+		// A stale deployment is one whose name doesn't start with the current
+		// chart's fullname prefix. This catches deployments from all previous
+		// naming schemes (different truncation lengths, missing suffixes, etc.)
+		if !strings.HasPrefix(deploy.Name, expectedPrefix) {
+			log.Printf("Deleting stale deployment %s/%s (name doesn't match current prefix %q)", namespace, deploy.Name, expectedPrefix)
 			if err := deleteDeployment(ctx, cs, namespace, deploy.Name); err != nil {
 				log.Printf("WARNING: failed to delete %s/%s: %v", namespace, deploy.Name, err)
 				continue

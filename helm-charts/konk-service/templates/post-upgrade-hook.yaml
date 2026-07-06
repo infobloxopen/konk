@@ -83,6 +83,8 @@ spec:
           value: {{ .Release.Namespace }}
         - name: RELEASE_NAME
           value: {{ .Release.Name }}
+        - name: FULLNAME_PREFIX
+          value: {{ include "konk-service.fullname" . | trunc 52 | trimSuffix "-" }}
         - name: GHOST_CONTAINERS
           value: "kind"
         securityContext:
