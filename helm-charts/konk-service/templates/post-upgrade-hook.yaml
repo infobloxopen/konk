@@ -83,7 +83,7 @@ spec:
         - name: RELEASE_NAME
           value: {{ .Release.Name }}
         - name: VALID_DEPLOYMENTS
-          value: "{{ include "konk-service.fullname" . | trunc 52 | trimSuffix "-" }}-kubeconfig,{{ include "konk-service.fullname" . | trunc 52 | trimSuffix "-" }}-kubectl-apiservice,{{ include "konk-service.fullname" . | trunc 52 | trimSuffix "-" }}-kubectl-apiservice-test,{{ include "konk-service.fullname" . | trunc 52 | trimSuffix "-" }}-delete-apiservice"
+          value: "{{ include "konk-service.fullname" . | trunc 52 | trimSuffix "-" }}-kubeconfig,{{ include "konk-service.fullname" . | trunc 51 | trimSuffix "-" }}-apiservice,{{ include "konk-service.fullname" . | trunc 46 | trimSuffix "-" }}-apiservice-test"
         - name: GHOST_CONTAINERS
           value: "kind"
         securityContext:
