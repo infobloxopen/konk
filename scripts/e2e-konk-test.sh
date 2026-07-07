@@ -23,6 +23,9 @@
 #   14. External API integration — test tagging + bulk export/import via CSP endpoint
 #   15. Konk APIService backend health — all pods in konk namespaces (aggregate, ddi, hostapp, ngp-cp, ntp, tagging-v2, redirect, endpoints)
 #   16. Stale node containers (Helm merge ghost detection)
+#   17. Stale konk-service container image (ghost detection)
+#   18. Stale KonkService deployments (old chart names)
+#   19. Excluded bulk-konk resources (not Helm-managed)
 #
 # Usage:
 #   ./e2e-konk-test.sh                        # full run (sample ns = tagging-v2)
@@ -60,7 +63,7 @@ TRIGGER_REGISTRATION=true
 VERBOSE=false
 DEBUG=false
 RUN_SECTIONS=()          # empty = run all
-LAST_SECTION=17          # update when adding new sections
+LAST_SECTION=19          # update when adding new sections
 CSP_URL="${KONK_E2E_CSP_URL:-}"
 CSP_TOKEN="${KONK_E2E_TOKEN:-}"
 TOKEN_FILE="$(cd "$(dirname "$0")" && pwd)/token-file.txt"
@@ -223,6 +226,30 @@ kc() {
   else
     kubectl "$@" 2>/dev/null || echo ""
   fi
+}
+
+# Return namespaced Kubernetes resource refs from a live Helm release manifest.
+# This avoids flagging runtime-generated resources (for example cert-manager,
+# provision, kubeconfig, or Space-created Secrets) as Helm ownership issues.
+helm_manifest_resource_refs() {
+  local release="$1" namespace="$2"
+  helm get manifest "$release" -n "$namespace" 2>/dev/null | awk '
+    function emit() {
+      if (kind == "" || name == "") return
+      if (kind == "Service") print "service/" name
+      else if (kind == "Deployment") print "deployment.apps/" name
+      else if (kind == "StatefulSet") print "statefulset.apps/" name
+      else if (kind == "Secret") print "secret/" name
+      else if (kind == "ServiceAccount") print "serviceaccount/" name
+      kind=""; name=""; inmeta=0
+    }
+    /^---[[:space:]]*$/ { emit(); next }
+    /^kind:[[:space:]]*/ { kind=$2; next }
+    /^metadata:[[:space:]]*$/ { inmeta=1; next }
+    inmeta && /^  name:[[:space:]]*/ { name=$2; emit(); next }
+    /^[^[:space:]]/ && $0 !~ /^metadata:/ { inmeta=0 }
+    END { emit() }
+  ' | sort -u
 }
 
 # Debug print for curl commands (call after curl, pass description + response file)
@@ -528,15 +555,15 @@ KONK_CR_SCOPE=$(kc get konk "$KONK_CR_NAME" -n "$AGGREGATE_NAMESPACE" \
   -o jsonpath='{.spec.scope}')
 vinfo "Konk scope: ${KONK_CR_SCOPE:-default}"
 
-# Proactive ownership check: resources in aggregate that belong to bulk-konk
-# should carry Helm ownership annotations. Missing keys can cause
-# "cannot be imported into the current release" on future reconcile.
+# Proactive ownership check: resources in the bulk-konk Helm release manifest
+# should carry Helm ownership annotations. This intentionally follows Helm's
+# manifest instead of loose name matching so runtime-generated resources (for
+# example provision, cert-manager, kubeconfig, or Space-created Secrets) do not
+# show as false Helm adoption risks.
 KONK_OWNERSHIP_MISSING=0
 KONK_OWNERSHIP_CHECKED=0
 KONK_OWNERSHIP_MISSING_LIST=""
-KONK_CANDIDATE_RES=$(kc get svc,deploy,sts,secret,sa -n "$AGGREGATE_NAMESPACE" -o name 2>/dev/null \
-  | grep "$KONK_CR_NAME" \
-  | grep -v '^secret/sh\.helm\.release\.' || true)
+KONK_CANDIDATE_RES=$(helm_manifest_resource_refs "$KONK_CR_NAME" "$AGGREGATE_NAMESPACE" || true)
 if [[ -n "$KONK_CANDIDATE_RES" ]]; then
   while IFS= read -r _res; do
     [[ -z "$_res" ]] && continue
@@ -550,11 +577,11 @@ if [[ -n "$KONK_CANDIDATE_RES" ]]; then
   done <<< "$KONK_CANDIDATE_RES"
 fi
 if [[ "$KONK_OWNERSHIP_CHECKED" -eq 0 ]]; then
-  warn "Konk ownership check: no ${KONK_CR_NAME} resources found in ${AGGREGATE_NAMESPACE}"
+  warn "Konk ownership check: no Helm-managed ${KONK_CR_NAME} resources found in ${AGGREGATE_NAMESPACE}"
 elif [[ "$KONK_OWNERSHIP_MISSING" -eq 0 ]]; then
-  pass "Konk ownership check: all ${KONK_OWNERSHIP_CHECKED} ${KONK_CR_NAME} resources have Helm annotations"
+  pass "Konk ownership check: all ${KONK_OWNERSHIP_CHECKED} Helm-managed ${KONK_CR_NAME} resources have Helm annotations"
 else
-  fail "Konk ownership check: ${KONK_OWNERSHIP_MISSING}/${KONK_OWNERSHIP_CHECKED} ${KONK_CR_NAME} resources missing meta.helm.sh ownership annotations"
+  fail "Konk ownership check: ${KONK_OWNERSHIP_MISSING}/${KONK_OWNERSHIP_CHECKED} Helm-managed ${KONK_CR_NAME} resources missing meta.helm.sh ownership annotations"
   echo -e "$KONK_OWNERSHIP_MISSING_LIST" | head -10 | sed 's/^/       [WARN]   /'
 fi
 
@@ -703,19 +730,46 @@ else
   fi
 
   # ── Proactive Helm ownership annotation check ──
-  # Detect deployments missing meta.helm.sh/release-name BEFORE the operator fails.
-  # These will cause "cannot be imported" errors on the next reconcile attempt.
-  MISSING_ANN=$(echo "$ALL_DEPLOY_JSON" | jq -r '
-    .items[]
-    | select(.metadata.labels["app.kubernetes.io/name"] == "konk-service")
-    | select((.metadata.annotations["meta.helm.sh/release-name"] // "") == "")
-    | "\(.metadata.namespace)/\(.metadata.name)"' 2>/dev/null || true)
+  # Check only Deployments that are in each current KonkService Helm release
+  # manifest. Old chart-name leftovers (for example *-kubectl-apiservice*) are
+  # reported separately in the stale deployment inventory section.
+  HELM_KSVC_DEPLOYMENTS=""
+  while IFS=$'\t' read -r ns name _reason _rf_status _rf_reason _rf_time _rf_msg_b64; do
+    [[ -z "$ns" || -z "$name" ]] && continue
+    _release_deploys=$(helm_manifest_resource_refs "$name" "$ns" \
+      | grep '^deployment\.apps/' \
+      | sed "s#^deployment\.apps/#${ns}/#" || true)
+    if [[ -n "$_release_deploys" ]]; then
+      HELM_KSVC_DEPLOYMENTS+="$_release_deploys"$'\n'
+    else
+      vinfo "KonkService ${ns}/${name}: no Helm manifest Deployments found for ownership check"
+    fi
+  done <<< "$KSVC_ROWS"
+  HELM_KSVC_DEPLOYMENTS=$(echo "$HELM_KSVC_DEPLOYMENTS" | grep -v '^$' | sort -u || true)
+
+  MISSING_ANN=""
+  if [[ -n "$HELM_KSVC_DEPLOYMENTS" ]]; then
+    while IFS= read -r deploy_ref; do
+      [[ -z "$deploy_ref" ]] && continue
+      deploy_ns="${deploy_ref%%/*}"
+      deploy_name="${deploy_ref#*/}"
+      ann_state=$(echo "$ALL_DEPLOY_JSON" | jq -r --arg ns "$deploy_ns" --arg name "$deploy_name" '
+        ([.items[]
+          | select(.metadata.namespace == $ns and .metadata.name == $name)
+          | ((.metadata.annotations["meta.helm.sh/release-name"] // "") + ":" + (.metadata.annotations["meta.helm.sh/release-namespace"] // ""))][0]) // "MISSING_RESOURCE"' 2>/dev/null || true)
+      if [[ "$ann_state" == "MISSING_RESOURCE" ]]; then
+        MISSING_ANN+="${deploy_ref} (missing live Deployment)"$'\n'
+      elif [[ "$ann_state" == ":" || "$ann_state" == :* || "$ann_state" == *: ]]; then
+        MISSING_ANN+="${deploy_ref}"$'\n'
+      fi
+    done <<< "$HELM_KSVC_DEPLOYMENTS"
+  fi
 
   if [[ -z "$MISSING_ANN" ]]; then
-    pass "all konk-service Deployments have Helm ownership annotations"
+    pass "Konk ownership check: all current Helm-managed konk-service Deployments have Helm ownership annotations"
   else
     MISSING_COUNT=$(echo "$MISSING_ANN" | wc -l | tr -d ' ')
-    fail "${MISSING_COUNT} konk-service Deployment(s) missing meta.helm.sh/release-name annotation (will cause 'cannot be imported' on next reconcile)"
+    fail "Konk ownership check: ${MISSING_COUNT} current Helm-managed konk-service Deployment(s) missing meta.helm.sh ownership annotations"
     echo "$MISSING_ANN" | head -5 | while IFS= read -r line; do
       warn "  ${line}"
     done
@@ -2416,7 +2470,7 @@ if should_run 16; then
   OPERATOR_IMG_16=${OPERATOR_IMG:-$(kc get deploy konk-operator -n "$KONK_NAMESPACE" \
     -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null || true)}
   # Extract Jenkins build number (e.g. v0.2.1-155-gd4614c2-j191 → 191)
-  OPERATOR_JOB_NUM=$(echo "$OPERATOR_IMG_16" | grep -oE 'j[0-9]+' | tail -1 | tr -d 'j')
+  OPERATOR_JOB_NUM=$(echo "$OPERATOR_IMG_16" | grep -oE 'j[0-9]+' | tail -1 | tr -d 'j' || true)
 
   if [[ -n "$OPERATOR_JOB_NUM" && "$OPERATOR_JOB_NUM" -lt 191 ]] 2>/dev/null; then
     skip "operator < j191 — still uses kindest/node legitimately; ghost containers not possible"
@@ -2459,10 +2513,16 @@ if should_run 17; then
   # Get operator image to check if this section is relevant
   OPERATOR_IMG_17=${OPERATOR_IMG:-$(kc get deploy konk-operator -n "$KONK_NAMESPACE" \
     -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null || true)}
-  OPERATOR_JOB_NUM_17=$(echo "$OPERATOR_IMG_17" | grep -oE 'j[0-9]+' | tail -1 | tr -d 'j')
+  OPERATOR_JOB_NUM_17=$(echo "$OPERATOR_IMG_17" | grep -oE 'j[0-9]+' | tail -1 | tr -d 'j' || true)
+
+  # Also detect post-migration via git-describe tags (v0.2.1-NNN-gXXX format)
+  # These are GHCR-built images that don't use Jenkins j-numbers
+  OPERATOR_GIT_DESC_17=$(echo "$OPERATOR_IMG_17" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+-[0-9]+' || true)
 
   if [[ -n "$OPERATOR_JOB_NUM_17" && "$OPERATOR_JOB_NUM_17" -ge 191 ]] 2>/dev/null; then
     skip "operator >= j191 — uses konk-service image legitimately; check not applicable"
+  elif [[ -n "$OPERATOR_GIT_DESC_17" ]]; then
+    skip "operator uses git-describe tag ($OPERATOR_GIT_DESC_17) — post-migration; check not applicable"
   else
     # On pre-j191 operators, pods should only have /node: image, NOT /konk-service: image
     # The /konk-service: container is a ghost from Helm strategic merge after chart change
@@ -2533,6 +2593,134 @@ if should_run 17; then
     fi
   fi
 fi  # section 17
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SECTION 18: Stale KonkService deployments (old chart names)
+# ══════════════════════════════════════════════════════════════════════════════
+# These are live konk-service Deployments that are not present in the current
+# Helm release manifests for their KonkService CRs. They commonly appear after
+# chart resource names change (for example old *-kubectl-apiservice names). They
+# should not be reported as current Helm ownership failures, but they are useful
+# to list for cleanup because they can keep duplicate apiservice pods running.
+section "Stale KonkService deployments (old chart names)"
+if should_run 18; then
+  ALL_KSVC_18=$(kc get konkservice -A -o json 2>/dev/null)
+  ALL_DEPLOY_18=$(kc get deploy -A -l app.kubernetes.io/name=konk-service -o json 2>/dev/null)
+
+  if [[ -z "$ALL_KSVC_18" ]] || [[ "$(echo "$ALL_KSVC_18" | jq '.items | length' 2>/dev/null)" == "0" ]]; then
+    warn "no KonkService CRs found — cannot compare live deployments to Helm manifests"
+  elif [[ -z "$ALL_DEPLOY_18" ]] || [[ "$(echo "$ALL_DEPLOY_18" | jq '.items | length' 2>/dev/null)" == "0" ]]; then
+    pass "no konk-service Deployments found"
+  else
+    CURRENT_KSVC_DEPLOYMENTS=""
+    while IFS=$'\t' read -r ns name; do
+      [[ -z "$ns" || -z "$name" ]] && continue
+      _release_deploys=$(helm_manifest_resource_refs "$name" "$ns" \
+        | grep '^deployment\.apps/' \
+        | sed "s#^deployment\.apps/#${ns}/#" || true)
+      if [[ -n "$_release_deploys" ]]; then
+        CURRENT_KSVC_DEPLOYMENTS+="$_release_deploys"$'\n'
+      fi
+    done < <(echo "$ALL_KSVC_18" | jq -r '.items[] | [.metadata.namespace, .metadata.name] | @tsv' 2>/dev/null)
+    CURRENT_KSVC_DEPLOYMENTS=$(echo "$CURRENT_KSVC_DEPLOYMENTS" | grep -v '^$' | sort -u || true)
+
+    STALE_DEPLOYS=$(echo "$ALL_DEPLOY_18" | jq -r '
+      .items[] |
+      [
+        .metadata.namespace,
+        .metadata.name,
+        (.metadata.labels["app.kubernetes.io/instance"] // "unknown"),
+        (.metadata.labels["app.kubernetes.io/component"] // "unknown"),
+        ((.spec.replicas // 0) | tostring),
+        ((.status.availableReplicas // 0) | tostring),
+        (.metadata.creationTimestamp // "unknown")
+      ] | @tsv' 2>/dev/null | while IFS=$'\t' read -r ns name inst component replicas available created; do
+        [[ -z "$ns" || -z "$name" ]] && continue
+        ref="${ns}/${name}"
+        if [[ -z "$CURRENT_KSVC_DEPLOYMENTS" ]] || ! echo "$CURRENT_KSVC_DEPLOYMENTS" | grep -Fxq "$ref"; then
+          printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$ref" "$inst" "$component" "$replicas" "$available" "$created"
+        fi
+      done)
+
+    if [[ -z "$STALE_DEPLOYS" ]]; then
+      pass "no stale KonkService Deployments found outside current Helm manifests"
+    else
+      STALE_COUNT=$(echo "$STALE_DEPLOYS" | wc -l | tr -d ' ')
+      warn "${STALE_COUNT} stale KonkService Deployment(s) found outside current Helm manifests"
+      echo "$STALE_DEPLOYS" | while IFS=$'\t' read -r ref inst component replicas available created; do
+        warn "  ${ref}  instance=${inst:-unknown} component=${component:-unknown} replicas=${replicas:-0} available=${available:-0} created=${created:-unknown}"
+      done
+      echo ""
+      info "Cleanup after confirming the replacement *-konk-service-* Deployments are healthy:"
+      info "  kubectl delete deploy -n <namespace> <stale-deployment-name>"
+      echo ""
+      _current_ctx=$(kubectl config current-context 2>/dev/null || echo '<your-context>')
+      info "Or use the automated cleanup script (dry-run first, then --apply to delete):"
+      info "  /Users/rsatal/Documents/Issues/konk/scripts/cleanup-stale-konkservice-deployments.sh --context ${_current_ctx}"
+      info "  /Users/rsatal/Documents/Issues/konk/scripts/cleanup-stale-konkservice-deployments.sh --context ${_current_ctx} --apply"
+    fi
+  fi
+fi  # section 18
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SECTION 19: Excluded bulk-konk resources (not Helm-managed)
+# ══════════════════════════════════════════════════════════════════════════════
+# Section 4 checks Helm ownership only for resources present in the live
+# bulk-konk Helm manifest. This section lists same-name resources that were
+# excluded from that ownership check because Helm does not currently manage them.
+section "Excluded bulk-konk resources (not Helm-managed)"
+if should_run 19; then
+  BULK_HELM_RES=$(helm_manifest_resource_refs "$KONK_CR_NAME" "$AGGREGATE_NAMESPACE" || true)
+  BULK_LIVE_RES_JSON=$(kc get svc,deploy,sts,secret,sa -n "$AGGREGATE_NAMESPACE" -o json 2>/dev/null)
+
+  if [[ -z "$BULK_LIVE_RES_JSON" ]]; then
+    warn "could not fetch bulk-konk candidate resources from ${AGGREGATE_NAMESPACE}"
+  else
+    EXCLUDED_BULK_RES=$(echo "$BULK_LIVE_RES_JSON" | jq -r --arg prefix "$KONK_CR_NAME" '
+      .items[]
+      | select(.metadata.name | contains($prefix))
+      | select(.kind != "Secret" or (.metadata.name | startswith("sh.helm.release.v1.") | not))
+      | [
+          .kind,
+          .metadata.name,
+          (.metadata.annotations["meta.helm.sh/release-name"] // "MISSING"),
+          (.metadata.annotations["meta.helm.sh/release-namespace"] // "MISSING"),
+          (((.metadata.ownerReferences // []) | map(.kind + ":" + .name) | join(",")) as $owners | if $owners == "" then "none" else $owners end),
+          (.metadata.creationTimestamp // "unknown")
+        ] | @tsv' 2>/dev/null | while IFS=$'\t' read -r kind name ann_rel ann_ns owners created; do
+        [[ -z "$kind" || -z "$name" ]] && continue
+        if [[ "$kind" == "Service" ]]; then
+          ref="service/${name}"
+        elif [[ "$kind" == "Deployment" ]]; then
+          ref="deployment.apps/${name}"
+        elif [[ "$kind" == "StatefulSet" ]]; then
+          ref="statefulset.apps/${name}"
+        elif [[ "$kind" == "Secret" ]]; then
+          ref="secret/${name}"
+        elif [[ "$kind" == "ServiceAccount" ]]; then
+          ref="serviceaccount/${name}"
+        else
+          ref="${kind}/${name}"
+        fi
+        if [[ -z "$BULK_HELM_RES" ]] || ! echo "$BULK_HELM_RES" | grep -Fxq "$ref"; then
+          printf '%s\t%s\t%s\t%s\t%s\n' "$ref" "$ann_rel" "$ann_ns" "${owners:-none}" "$created"
+        fi
+      done)
+
+    if [[ -z "$EXCLUDED_BULK_RES" ]]; then
+      pass "no bulk-konk candidate resources were excluded from the Helm ownership check"
+    else
+      EXCLUDED_COUNT=$(echo "$EXCLUDED_BULK_RES" | wc -l | tr -d ' ')
+      warn "${EXCLUDED_COUNT} bulk-konk resource(s) excluded from Helm ownership check because they are not in helm get manifest"
+      echo "$EXCLUDED_BULK_RES" | while IFS=$'\t' read -r ref ann_rel ann_ns owners created; do
+        warn "  ${ref}  annotations=${ann_rel}/${ann_ns} ownerRefs=${owners:-none} created=${created:-unknown}"
+      done
+      echo ""
+      info "Reason: Helm import/adoption only checks resources rendered in the release manifest."
+      info "These resources are generated by controllers or runtime jobs, so missing meta.helm.sh annotations here is informational, not a Helm ownership failure."
+    fi
+  fi
+fi  # section 19
 
 # ══════════════════════════════════════════════════════════════════════════════
 # SUMMARY
