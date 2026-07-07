@@ -48,13 +48,16 @@ func runFixHelmOrphans() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
-	// Resource types created by the konk-service chart that could become orphans.
-	// Covers: ServiceAccount, ConfigMap, Deployment, Job, Role, RoleBinding,
-	// Certificate, Issuer (cert-manager), Ingress, Space (spacecontroller).
+	// Resource types created by the konk/konk-service charts that could become orphans.
+	// Covers: ServiceAccount, ConfigMap, Service, Deployment, StatefulSet, Job,
+	// Role, RoleBinding, Certificate, Issuer (cert-manager), Ingress, Space, Etcd, HPA.
 	resources := []schema.GroupVersionResource{
 		{Group: "", Version: "v1", Resource: "serviceaccounts"},
 		{Group: "", Version: "v1", Resource: "configmaps"},
+		{Group: "", Version: "v1", Resource: "services"},
+		{Group: "", Version: "v1", Resource: "secrets"},
 		{Group: "apps", Version: "v1", Resource: "deployments"},
+		{Group: "apps", Version: "v1", Resource: "statefulsets"},
 		{Group: "batch", Version: "v1", Resource: "jobs"},
 		{Group: "rbac.authorization.k8s.io", Version: "v1", Resource: "roles"},
 		{Group: "rbac.authorization.k8s.io", Version: "v1", Resource: "rolebindings"},
@@ -62,6 +65,8 @@ func runFixHelmOrphans() error {
 		{Group: "cert-manager.io", Version: "v1", Resource: "issuers"},
 		{Group: "networking.k8s.io", Version: "v1", Resource: "ingresses"},
 		{Group: "spacecontroller.infoblox-cto.github.com", Version: "v1alpha1", Resource: "spaces"},
+		{Group: "konk.infoblox.com", Version: "v1alpha1", Resource: "etcds"},
+		{Group: "autoscaling", Version: "v2", Resource: "horizontalpodautoscalers"},
 	}
 
 	totalPatched := 0
@@ -73,6 +78,23 @@ func runFixHelmOrphans() error {
 			continue
 		}
 		totalPatched += patched
+	}
+
+	// Scan cluster-scoped resources if requested (konk chart with scope=cluster)
+	if os.Getenv("SCAN_CLUSTER_SCOPED") == "true" {
+		clusterResources := []schema.GroupVersionResource{
+			{Group: "rbac.authorization.k8s.io", Version: "v1", Resource: "clusterroles"},
+			{Group: "rbac.authorization.k8s.io", Version: "v1", Resource: "clusterrolebindings"},
+			{Group: "cert-manager.io", Version: "v1", Resource: "clusterissuers"},
+		}
+		for _, gvr := range clusterResources {
+			patched, err := fixOrphansClusterScoped(ctx, dynClient, gvr, namespace, releaseName)
+			if err != nil {
+				log.Printf("Warning: error checking cluster-scoped %s: %v", gvr.Resource, err)
+				continue
+			}
+			totalPatched += patched
+		}
 	}
 
 	if totalPatched == 0 {
@@ -136,6 +158,65 @@ func fixOrphansForResource(
 		)
 		if err != nil {
 			log.Printf("Error patching %s/%s: %v", gvr.Resource, item.GetName(), err)
+			continue
+		}
+		patched++
+	}
+
+	return patched, nil
+}
+
+// fixOrphansClusterScoped patches cluster-scoped resources (ClusterRoles,
+// ClusterRoleBindings, ClusterIssuers) that have Helm labels but are missing
+// ownership annotations.
+func fixOrphansClusterScoped(
+	ctx context.Context,
+	dynClient dynamic.Interface,
+	gvr schema.GroupVersionResource,
+	namespace, releaseName string,
+) (int, error) {
+	labelSelector := fmt.Sprintf("app.kubernetes.io/managed-by=Helm,app.kubernetes.io/instance=%s", releaseName)
+
+	list, err := dynClient.Resource(gvr).List(ctx, metav1.ListOptions{
+		LabelSelector: labelSelector,
+	})
+	if err != nil {
+		return 0, err
+	}
+
+	patched := 0
+	for _, item := range list.Items {
+		annotations := item.GetAnnotations()
+		if annotations == nil {
+			annotations = map[string]string{}
+		}
+
+		if annotations["meta.helm.sh/release-name"] == releaseName &&
+			annotations["meta.helm.sh/release-namespace"] == namespace {
+			continue
+		}
+
+		log.Printf("Patching orphaned cluster-scoped %s %q — adding meta.helm.sh annotations (release=%s, namespace=%s)",
+			gvr.Resource, item.GetName(), releaseName, namespace)
+
+		patch, err := json.Marshal(map[string]interface{}{
+			"metadata": map[string]interface{}{
+				"annotations": map[string]string{
+					"meta.helm.sh/release-name":      releaseName,
+					"meta.helm.sh/release-namespace": namespace,
+				},
+			},
+		})
+		if err != nil {
+			log.Printf("Error marshaling patch for %s/%s: %v", gvr.Resource, item.GetName(), err)
+			continue
+		}
+
+		_, err = dynClient.Resource(gvr).Patch(
+			ctx, item.GetName(), types.MergePatchType, patch, metav1.PatchOptions{},
+		)
+		if err != nil {
+			log.Printf("Error patching cluster-scoped %s/%s: %v", gvr.Resource, item.GetName(), err)
 			continue
 		}
 		patched++
