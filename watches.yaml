@@ -30,4 +30,7 @@
   version: v1alpha1
   kind: Etcd
   chart: helm-charts/etcd
+  overrideValues:
+    hookImage.repository: $RELATED_IMAGE_KIND_REPO
+    hookImage.tag: $RELATED_IMAGE_KIND
 # +kubebuilder:scaffold:watch
