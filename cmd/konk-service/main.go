@@ -21,6 +21,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  wait-for-resource      Wait until a resource type is listable\n")
 		fmt.Fprintf(os.Stderr, "  example-test           Create, get, and delete a sample custom resource\n")
 		fmt.Fprintf(os.Stderr, "  post-upgrade           Clean up ghost containers and stale deployments after upgrade\n")
+		fmt.Fprintf(os.Stderr, "  fix-helm-orphans       Annotate orphaned resources so Helm can adopt them on install\n")
 		fmt.Fprintf(os.Stderr, "  healthz <file>         Exit 0 if file exists (readiness probe)\n")
 		os.Exit(1)
 	}
@@ -45,6 +46,8 @@ func main() {
 		err = runExampleTest()
 	case "post-upgrade":
 		err = runPostUpgrade()
+	case "fix-helm-orphans":
+		err = runFixHelmOrphans()
 	case "healthz":
 		// Readiness probe: exit 0 if the given file exists, 1 otherwise.
 		// Replaces "cat <file>" which requires a shell — unavailable in distroless.
