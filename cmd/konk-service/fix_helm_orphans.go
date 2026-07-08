@@ -48,6 +48,23 @@ func runFixHelmOrphans() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
+	// Wait for RBAC to propagate — the ClusterRole/Binding are created at hook
+	// weight -10 and this Job at -5, but the API server's authorizer cache may
+	// not have the new bindings yet.
+	saGVR := schema.GroupVersionResource{Group: "", Version: "v1", Resource: "serviceaccounts"}
+	log.Printf("Waiting for RBAC propagation (listing serviceaccounts in %s)...", namespace)
+	for attempts := 0; attempts < 15; attempts++ {
+		_, err = dynClient.Resource(saGVR).Namespace(namespace).List(ctx, metav1.ListOptions{Limit: 1})
+		if err == nil {
+			log.Printf("RBAC ready after %d attempts", attempts+1)
+			break
+		}
+		if attempts == 14 {
+			return fmt.Errorf("RBAC not ready after 15 attempts (last error: %w)", err)
+		}
+		time.Sleep(2 * time.Second)
+	}
+
 	// Resource types created by the konk/konk-service charts that could become orphans.
 	// Covers: ServiceAccount, ConfigMap, Service, Deployment, StatefulSet, Job,
 	// Role, RoleBinding, Certificate, Issuer (cert-manager), Ingress, Space, Etcd, HPA.
