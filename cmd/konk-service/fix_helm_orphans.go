@@ -141,6 +141,8 @@ func fixOrphansForResource(
 	}
 
 	patched := 0
+	skipped := 0
+	errored := 0
 	for _, item := range list.Items {
 		annotations := item.GetAnnotations()
 		if annotations == nil {
@@ -150,11 +152,12 @@ func fixOrphansForResource(
 		// Check if annotations are already correct
 		if annotations["meta.helm.sh/release-name"] == releaseName &&
 			annotations["meta.helm.sh/release-namespace"] == namespace {
+			skipped++
 			continue
 		}
 
 		// Patch the missing annotations
-		log.Printf("Patching orphaned %s/%s %q — adding meta.helm.sh annotations (release=%s, namespace=%s)",
+		log.Printf("  PATCH %s/%s %q — adding meta.helm.sh/release-name=%s, release-namespace=%s",
 			gvr.Resource, namespace, item.GetName(), releaseName, namespace)
 
 		patch, err := json.Marshal(map[string]interface{}{
@@ -166,7 +169,8 @@ func fixOrphansForResource(
 			},
 		})
 		if err != nil {
-			log.Printf("Error marshaling patch for %s/%s: %v", gvr.Resource, item.GetName(), err)
+			log.Printf("  ERROR marshaling patch for %s/%s: %v", gvr.Resource, item.GetName(), err)
+			errored++
 			continue
 		}
 
@@ -174,10 +178,17 @@ func fixOrphansForResource(
 			ctx, item.GetName(), types.MergePatchType, patch, metav1.PatchOptions{},
 		)
 		if err != nil {
-			log.Printf("Error patching %s/%s: %v", gvr.Resource, item.GetName(), err)
+			log.Printf("  ERROR patching %s/%s %q: %v", gvr.Resource, namespace, item.GetName(), err)
+			errored++
 			continue
 		}
 		patched++
+	}
+
+	total := len(list.Items)
+	if total > 0 {
+		log.Printf("  %s in %s: %d found, %d patched, %d already-ok, %d errors",
+			gvr.Resource, namespace, total, patched, skipped, errored)
 	}
 
 	return patched, nil
@@ -202,6 +213,8 @@ func fixOrphansClusterScoped(
 	}
 
 	patched := 0
+	skipped := 0
+	errored := 0
 	for _, item := range list.Items {
 		annotations := item.GetAnnotations()
 		if annotations == nil {
@@ -210,10 +223,11 @@ func fixOrphansClusterScoped(
 
 		if annotations["meta.helm.sh/release-name"] == releaseName &&
 			annotations["meta.helm.sh/release-namespace"] == namespace {
+			skipped++
 			continue
 		}
 
-		log.Printf("Patching orphaned cluster-scoped %s %q — adding meta.helm.sh annotations (release=%s, namespace=%s)",
+		log.Printf("  PATCH cluster-scoped %s %q — adding meta.helm.sh/release-name=%s, release-namespace=%s",
 			gvr.Resource, item.GetName(), releaseName, namespace)
 
 		patch, err := json.Marshal(map[string]interface{}{
@@ -225,7 +239,8 @@ func fixOrphansClusterScoped(
 			},
 		})
 		if err != nil {
-			log.Printf("Error marshaling patch for %s/%s: %v", gvr.Resource, item.GetName(), err)
+			log.Printf("  ERROR marshaling patch for cluster-scoped %s %q: %v", gvr.Resource, item.GetName(), err)
+			errored++
 			continue
 		}
 
@@ -233,10 +248,17 @@ func fixOrphansClusterScoped(
 			ctx, item.GetName(), types.MergePatchType, patch, metav1.PatchOptions{},
 		)
 		if err != nil {
-			log.Printf("Error patching cluster-scoped %s/%s: %v", gvr.Resource, item.GetName(), err)
+			log.Printf("  ERROR patching cluster-scoped %s %q: %v", gvr.Resource, item.GetName(), err)
+			errored++
 			continue
 		}
 		patched++
+	}
+
+	total := len(list.Items)
+	if total > 0 {
+		log.Printf("  cluster-scoped %s: %d found, %d patched, %d already-ok, %d errors",
+			gvr.Resource, total, patched, skipped, errored)
 	}
 
 	return patched, nil
