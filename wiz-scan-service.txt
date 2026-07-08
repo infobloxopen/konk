@@ -1,0 +1,23 @@
+██╗    ██╗ ████╗ ███████╗ ██████╗ ██╗      ████╗
+██║    ██║  ██╔╝ ╚══███╔╝██╔════╝ ██║       ██╔╝
+██║ █╗ ██║  ██║    ███╔╝ ██║      ██║       ██║
+██║███╗██║  ██║   ███╔╝  ██║      ██║       ██║
+╚███╔███╔╝ ████╗ ███████╗╚██████╗ ███████╗ ████╗
+ ╚══╝╚══╝  ╚═══╝ ╚══════╝ ╚═════╝ ╚══════╝ ╚═══╝
+Connecting to Wiz
+SUCCESS: Connected to Wiz
+Initializing scan
+SUCCESS: Scan initialized
+Scanning /tmp/konk-service.tar
+SUCCESS: Local scanning complete
+Finalizing scan
+SUCCESS: Scan finalized
+No results found:
+	IaC, SAST, OS packages, Libraries, Applications, CPEs, End of life technologies, Malware, Sensitive data, Secrets, Host misconfigurations, License Findings (Software Management), Patch Management Findings (Software Management), AI Models
+
+Scan summary:
+	Verdict: PASSED_BY_POLICY
+	Failed Policies: 
+	Evaluated Policies: PSE: Vulnerability - High - Audit/Warn - All Projects, PSE: Vulnerability - Critical - Audit/Warn - All Projects
+	Wiz Cloud Event: https://app.wiz.io/findings/cicd-scans#~%2528cicd_scan~%2527006a4558-6d0b-8d9c-ad74-5c1c592b8001%252A2c2026-07-01T18%2525%25252A3a12%2525%25252A3a04.140401221Z%2527%2529
+

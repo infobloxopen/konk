@@ -1,0 +1,41 @@
+██╗    ██╗ ████╗ ███████╗ ██████╗ ██╗      ████╗
+██║    ██║  ██╔╝ ╚══███╔╝██╔════╝ ██║       ██╔╝
+██║ █╗ ██║  ██║    ███╔╝ ██║      ██║       ██║
+██║███╗██║  ██║   ███╔╝  ██║      ██║       ██║
+╚███╔███╔╝ ████╗ ███████╗╚██████╗ ███████╗ ████╗
+ ╚══╝╚══╝  ╚═══╝ ╚══════╝ ╚═════╝ ╚══════╝ ╚═══╝
+Connecting to Wiz
+SUCCESS: Connected to Wiz
+Initializing scan
+SUCCESS: Scan initialized
+Scanning /tmp/konk-app.tar
+SUCCESS: Local scanning complete
+Finalizing scan
+SUCCESS: Scan finalized
+Libraries:
+╭───┬────────────────────────┬────────────────┬──────────┬───────────────────────┬────────────────────┬───────────────┬────────────────────────┬────────────────────────┬────────────────────────╮
+│   │ Name                   │ CVE            │ Severity │ Public Exploit        │ Version            │ Fixed Version │ Path                   │ Source                 │ Failed Policies        │
+├───┼────────────────────────┼────────────────┼──────────┼───────────────────────┼────────────────────┼───────────────┼────────────────────────┼────────────────────────┼────────────────────────┤
+│ 1 │ github.com/docker/dist │ CVE-2023-2253  │ HIGH     │                       │ 2.8.1+incompatible │ 2.8.2-beta.1  │ /usr/local/bin/kube-ap │ https://github.com/adv │ PSE: Vulnerability - H │
+│   │ ribution               │                │          │                       │                    │               │ iserver                │ isories/GHSA-hqxw-f8mx │ igh - Audit/Warn - All │
+│   │                        │                │          │                       │                    │               │                        │ -cpmw                  │ Projects               │
+├───┼────────────────────────┼────────────────┼──────────┼───────────────────────┼────────────────────┼───────────────┼────────────────────────┼────────────────────────┼────────────────────────┤
+│ 2 │ github.com/opencontain │ CVE-2025-52881 │ HIGH     │ 💥 Has public exploit │ 1.10.0             │ 1.13.0        │ /usr/local/bin/kube-ap │ https://github.com/adv │ PSE: Vulnerability - H │
+│   │ ers/selinux            │                │          │                       │                    │               │ iserver                │ isories/GHSA-cgrx-mc8f │ igh - Audit/Warn - All │
+│   │                        │                │          │                       │                    │               │                        │ -2prm                  │ Projects               │
+╰───┴────────────────────────┴────────────────┴──────────┴───────────────────────┴────────────────────┴───────────────┴────────────────────────┴────────────────────────┴────────────────────────╯
+
+No results found:
+	IaC, SAST, OS packages, Applications, CPEs, End of life technologies, Malware, Sensitive data, Secrets, Host misconfigurations, License Findings (Software Management), Patch Management Findings (Software Management), AI Models
+
+Results summary:
+	Libraries: 2 results
+		Severity: 2 HIGH
+		Failed Policies: 2 PSE: Vulnerability - High - Audit/Warn - All Projects
+
+Scan summary:
+	Verdict: WARN_BY_POLICY
+	Failed Policies: PSE: Vulnerability - High - Audit/Warn - All Projects
+	Evaluated Policies: PSE: Vulnerability - High - Audit/Warn - All Projects, PSE: Vulnerability - Critical - Audit/Warn - All Projects
+	Wiz Cloud Event: https://app.wiz.io/findings/cicd-scans#~%2528cicd_scan~%2527006a4558-5b0b-86ee-946c-0e3042eb8001%252A2c2026-07-01T18%2525%25252A3a11%2525%25252A3a46.01339226Z%2527%2529
+

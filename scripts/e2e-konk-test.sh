@@ -794,8 +794,9 @@ APISERVICE_BAD=0
 
 if [[ -z "$APISERVICE_PODS" ]]; then
   # Fallback: search by name pattern (some clusters may not have labels)
-  APISERVICE_PODS=$(kc get pods -A --no-headers | grep "konk-service-kubectl-apiservice" \
-    | grep -v "Completed" || true)
+  # v2 chart names pods as *-konk-service-apiservice-*; v1 used *-kubectl-apiservice-*
+  APISERVICE_PODS=$(kc get pods -A --no-headers | grep -E "konk-service-apiservice|kubectl-apiservice" \
+    | grep -v "\-test" | grep -v "Completed" || true)
 fi
 
 if [[ -z "$APISERVICE_PODS" ]]; then
@@ -900,13 +901,15 @@ fi
 #   component=apiservice  (registers/maintains the APIService inside konk; aka "kubectl-apiservice")
 # component=apiservice-test is optional and not enforced.
 # Primary lookup: `app.kubernetes.io/instance=<ks>,app.kubernetes.io/component=<comp>`.
-# Fallback: if the component label is absent, match by Deployment name suffix (-kubeconfig, -kubectl-apiservice).
+# Fallback: if the component label is absent, match by Deployment name suffix.
+# v1 chart used -kubectl-apiservice; v2 chart uses -konk-service-apiservice.
 # The chart truncates names to fit K8s' 63-char DNS-1123 limit but always preserves the suffix.
 ALL_KSVC_FOR_DEPLOY_CHECK=$(kc get konkservice -A --no-headers | awk '{print $1, $2}')
 KSVC_INCOMPLETE=0
 KSVC_CHECKED=0
-# Map of required components: label-component-name → friendly-display-name
-REQUIRED_COMPONENTS=("kubeconfig:kubeconfig" "apiservice:kubectl-apiservice")
+# Map of required components: label-component-name → name-suffix-pattern(s)
+# Format: component-label:display-name:suffix1|suffix2
+REQUIRED_COMPONENTS=("kubeconfig:kubeconfig:kubeconfig" "apiservice:kubectl-apiservice:konk-service-apiservice|kubectl-apiservice")
 
 if [[ -n "$ALL_KSVC_FOR_DEPLOY_CHECK" ]]; then
   # Fetch all Deployments once and filter in jq (avoids ~3 kubectl calls per KonkService)
@@ -920,16 +923,19 @@ if [[ -n "$ALL_KSVC_FOR_DEPLOY_CHECK" ]]; then
 
     for entry in "${REQUIRED_COMPONENTS[@]}"; do
       comp="${entry%%:*}"
-      display="${entry##*:}"
+      rest="${entry#*:}"
+      display="${rest%%:*}"
+      suffixes="${rest##*:}"
       # Look up by labels first (resilient to chart name truncation), then fall back
       # to name-based matching since the chart may not set app.kubernetes.io/component.
-      dep_info=$(echo "$ALL_DEPLOY_FOR_CHECK" | jq -r --arg ns "$ns" --arg inst "$name" --arg comp "$comp" --arg display "$display" '
+      # Supports multiple suffix patterns separated by | (v1: -kubectl-apiservice, v2: -konk-service-apiservice).
+      dep_info=$(echo "$ALL_DEPLOY_FOR_CHECK" | jq -r --arg ns "$ns" --arg inst "$name" --arg comp "$comp" --arg suffixes "$suffixes" '
         .items[]
         | select(.metadata.namespace==$ns
                  and .metadata.labels["app.kubernetes.io/instance"]==$inst
                  and (.metadata.labels["app.kubernetes.io/component"]==$comp
                       or (.metadata.labels["app.kubernetes.io/component"] == null
-                          and (.metadata.name | endswith("-" + $display)))))
+                          and (.metadata.name as $n | [ $suffixes | split("|")[] | . as $s | $n | endswith("-" + $s) ] | any))))
         | "\(.metadata.name)\t\(.spec.replicas // 0)\t\(.status.availableReplicas // 0)"' \
         | head -1)
       if [[ -z "$dep_info" ]]; then
@@ -1261,9 +1267,9 @@ EOF
     if [[ "$TRIGGER_REGISTRATION" == true ]]; then
       info "trigger-registration enabled: forcing reconcile for an existing APIService"
 
-      # Find a kubectl-apiservice pod to restart
+      # Find a kubectl-apiservice (or konk-service-apiservice) pod to restart
       TARGET_LINE=$(kc get pods -A --no-headers 2>/dev/null \
-        | grep "\-kubectl-ap" | grep -v "test" \
+        | grep -E "konk-service-apiservice|kubectl-ap" | grep -v "test" \
         | awk '$4=="Running"{split($3,a,"/"); if(a[1]==a[2]) print}' | head -1 || true)
       TARGET_NS=$(echo "$TARGET_LINE" | awk '{print $1}')
       TARGET_POD=$(echo "$TARGET_LINE" | awk '{print $2}')
@@ -1381,8 +1387,9 @@ fi
 SAMPLE_APIPOD=$(kc get pods -n "$SAMPLE_NS" --no-headers \
   -l app.kubernetes.io/component=apiservice | grep "Running" | head -1 || true)
 if [[ -z "$SAMPLE_APIPOD" ]]; then
+  # Fallback: v2 chart uses *-konk-service-apiservice-*, v1 used *-kubectl-apiservice-*
   SAMPLE_APIPOD=$(kc get pods -n "$SAMPLE_NS" --no-headers \
-    | grep "konk-service-kubectl-apiservice" | grep "Running" | head -1 || true)
+    | grep -E "konk-service-apiservice|kubectl-apiservice" | grep -v "\-test" | grep "Running" | head -1 || true)
 fi
 
 SAMPLE_APIPOD_NAME=$(echo "$SAMPLE_APIPOD" | awk '{print $1}')
@@ -2620,6 +2627,17 @@ if should_run 18; then
         | sed "s#^deployment\.apps/#${ns}/#" || true)
       if [[ -n "$_release_deploys" ]]; then
         CURRENT_KSVC_DEPLOYMENTS+="$_release_deploys"$'\n'
+      else
+        # Helm manifest empty (release secret lost). Compute valid names from
+        # the chart template naming convention to avoid false positives.
+        _fullname="${name}-konk-service"
+        _fullname="${_fullname:0:63}"; _fullname="${_fullname%-}"
+        _fn52="${_fullname:0:52}"; _fn52="${_fn52%-}"
+        _fn51="${_fullname:0:51}"; _fn51="${_fn51%-}"
+        _fn46="${_fullname:0:46}"; _fn46="${_fn46%-}"
+        CURRENT_KSVC_DEPLOYMENTS+="${ns}/${_fn52}-kubeconfig"$'\n'
+        CURRENT_KSVC_DEPLOYMENTS+="${ns}/${_fn51}-apiservice"$'\n'
+        CURRENT_KSVC_DEPLOYMENTS+="${ns}/${_fn46}-apiservice-test"$'\n'
       fi
     done < <(echo "$ALL_KSVC_18" | jq -r '.items[] | [.metadata.namespace, .metadata.name] | @tsv' 2>/dev/null)
     CURRENT_KSVC_DEPLOYMENTS=$(echo "$CURRENT_KSVC_DEPLOYMENTS" | grep -v '^$' | sort -u || true)
