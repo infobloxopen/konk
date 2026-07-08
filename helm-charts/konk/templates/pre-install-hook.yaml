@@ -91,7 +91,11 @@ spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- range . }}
+        {{- if kindIs "string" . }}
         - name: {{ . }}
+        {{- else }}
+        - name: {{ .name }}
+        {{- end }}
         {{- end }}
       {{- end }}
       containers:

@@ -60,6 +60,7 @@ SKIP_BULK=false
 SKIP_EXEC=false
 SKIP_CA=false
 TRIGGER_REGISTRATION=true
+CHECK_HOOKS=false
 VERBOSE=false
 DEBUG=false
 RUN_SECTIONS=()          # empty = run all
@@ -97,6 +98,7 @@ while [[ $# -gt 0 ]]; do
     --skip-exec)   SKIP_EXEC=true; shift ;;
     --skip-ca)     SKIP_CA=true;   shift ;;
     --skip-trigger-registration) TRIGGER_REGISTRATION=false; shift ;;
+    --hook|--hooks) CHECK_HOOKS=true; shift ;;
     --token)       CSP_TOKEN="$2"; shift 2 ;;
     --csp-url)     CSP_URL="$2"; shift 2 ;;
     -v|--verbose)  VERBOSE=true;   shift ;;
@@ -287,6 +289,90 @@ if ! kubectl cluster-info &>/dev/null; then
   echo -e "${RED}ERROR: Cannot connect to Kubernetes cluster. Check kubeconfig.${RESET}"
   exit 1
 fi
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SECTION 0: Helm hook status (only when --hook is passed)
+# ══════════════════════════════════════════════════════════════════════════════
+if [[ "$CHECK_HOOKS" == true ]]; then
+echo ""
+echo -e "${BOLD}── 0. Helm hook status (all charts) ──${RESET}"
+
+# Check hook Jobs across all namespaces for each chart type
+for _chart_label in "konk-service" "konk" "etcd"; do
+  info "checking $_chart_label hooks..."
+
+  # Pre-install/pre-upgrade hook Jobs
+  _pre_jobs=$(dbg kubectl get jobs -A -l "app.kubernetes.io/component=fix-helm-orphans,helm.sh/chart=${_chart_label}-0.1.0" -o custom-columns='NS:.metadata.namespace,NAME:.metadata.name,STATUS:.status.conditions[0].type,COMPLETIONS:.status.succeeded' --no-headers 2>/dev/null || true)
+  if [[ -z "$_pre_jobs" ]]; then
+    # Try broader label
+    _pre_jobs=$(dbg kubectl get jobs -A -l "app.kubernetes.io/component=fix-helm-orphans" -o custom-columns='NS:.metadata.namespace,NAME:.metadata.name,STATUS:.status.conditions[0].type,COMPLETIONS:.status.succeeded' --no-headers 2>/dev/null || true)
+  fi
+
+  if [[ -z "$_pre_jobs" ]]; then
+    info "no pre-install/pre-upgrade hook Jobs found for $_chart_label (cleaned up or not yet triggered)"
+  else
+    _failed=0; _succeeded=0
+    while IFS= read -r _line; do
+      if echo "$_line" | grep -q "Complete"; then
+        ((_succeeded++)) || true
+      else
+        ((_failed++)) || true
+        fail "hook Job: $_line"
+      fi
+    done <<< "$_pre_jobs"
+    if [[ $_failed -eq 0 ]]; then
+      pass "$_chart_label pre-install hooks: $_succeeded completed successfully"
+    fi
+  fi
+done
+
+# Post-upgrade hook Jobs (konk-service only)
+info "checking post-upgrade hooks (konk-service)..."
+_post_jobs=$(dbg kubectl get jobs -A -l "app.kubernetes.io/component=post-upgrade" -o custom-columns='NS:.metadata.namespace,NAME:.metadata.name,STATUS:.status.conditions[0].type,COMPLETIONS:.status.succeeded' --no-headers 2>/dev/null || true)
+if [[ -z "$_post_jobs" ]]; then
+  # Try by job name pattern
+  _post_jobs=$(dbg kubectl get jobs -A --no-headers 2>/dev/null | grep "post-upgrade" || true)
+fi
+
+if [[ -z "$_post_jobs" ]]; then
+  info "no post-upgrade hook Jobs found (cleaned up by hook-delete-policy or not yet triggered)"
+else
+  _failed=0; _succeeded=0
+  while IFS= read -r _line; do
+    if echo "$_line" | grep -qi "complete\|1/1"; then
+      ((_succeeded++)) || true
+    else
+      ((_failed++)) || true
+      fail "post-upgrade hook Job: $_line"
+    fi
+  done <<< "$_post_jobs"
+  if [[ $_failed -eq 0 ]]; then
+    pass "konk-service post-upgrade hooks: $_succeeded completed successfully"
+  fi
+fi
+
+# Check for hook-related errors in operator logs
+info "checking operator logs for hook failures (last 5min)..."
+_hook_errors=$(dbg kubectl -n "${KONK_NAMESPACE}" logs deploy/konk-operator --since=5m 2>/dev/null | grep -i "hook.*failed\|pre-upgrade hooks failed\|post-upgrade hooks failed\|pre-install hooks failed\|post-install hooks failed" | head -5 || true)
+if [[ -z "$_hook_errors" ]]; then
+  pass "no hook failures in operator logs (last 5min)"
+else
+  fail "hook failures detected in operator logs (last 5min):"
+  while IFS= read -r _line; do
+    _msg=$(echo "$_line" | grep -o '"error":"[^"]*"' | head -1 || echo "$_line" | cut -c1-120)
+    info "  $_msg"
+  done <<< "$_hook_errors"
+fi
+
+# Check hook-delete-policy compliance (Jobs should be cleaned up)
+_lingering=$(dbg kubectl get jobs -A -l "app.kubernetes.io/component=fix-helm-orphans" --no-headers 2>/dev/null | wc -l | tr -d ' ')
+if [[ "$_lingering" -gt 0 ]]; then
+  warn "$_lingering pre-install hook Job(s) still present (expected: cleaned up by hook-delete-policy)"
+else
+  pass "all pre-install hook Jobs cleaned up (hook-delete-policy working)"
+fi
+
+fi  # CHECK_HOOKS
 
 # ══════════════════════════════════════════════════════════════════════════════
 # SECTION 1: konk-operator
