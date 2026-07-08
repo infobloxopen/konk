@@ -1,5 +1,5 @@
 # Stage 1: Build the Go konk-service binary
-FROM golang:1.25.5-alpine AS builder
+FROM golang:1.26.0-alpine AS builder
 
 WORKDIR /workspace
 COPY cmd/konk-service/go.mod cmd/konk-service/go.sum* ./
