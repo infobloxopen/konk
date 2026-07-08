@@ -77,6 +77,12 @@ func runFixHelmOrphansInit() error {
 	} else {
 		log.Printf("Fixed %d total orphaned resource(s) across all CRs", totalPatched)
 	}
+
+	// Fix stale CA in kubeconfig-cert secrets (after CA rotation / fresh install)
+	if err := fixStaleCA(ctx, dynClient); err != nil {
+		log.Printf("Warning: fix-stale-ca: %v", err)
+	}
+
 	return nil
 }
 

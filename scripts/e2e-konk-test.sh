@@ -301,11 +301,24 @@ echo -e "${BOLD}── 0. Helm hook status (all charts) ──${RESET}"
 for _chart_label in "konk-service" "konk" "etcd"; do
   info "checking $_chart_label hooks..."
 
-  # Pre-install/pre-upgrade hook Jobs
+  # Pre-install/pre-upgrade hook Jobs — only match actual Helm hooks (have helm.sh/hook annotation)
   _pre_jobs=$(dbg kubectl get jobs -A -l "app.kubernetes.io/component=fix-helm-orphans,helm.sh/chart=${_chart_label}-0.1.0" -o custom-columns='NS:.metadata.namespace,NAME:.metadata.name,STATUS:.status.conditions[0].type,COMPLETIONS:.status.succeeded' --no-headers 2>/dev/null || true)
   if [[ -z "$_pre_jobs" ]]; then
-    # Try broader label
-    _pre_jobs=$(dbg kubectl get jobs -A -l "app.kubernetes.io/component=fix-helm-orphans" -o custom-columns='NS:.metadata.namespace,NAME:.metadata.name,STATUS:.status.conditions[0].type,COMPLETIONS:.status.succeeded' --no-headers 2>/dev/null || true)
+    # Try broader label but only with helm.sh/hook annotation (actual hooks, not manual Jobs)
+    _pre_jobs=$(dbg kubectl get jobs -A -o json -l "app.kubernetes.io/component=fix-helm-orphans" 2>/dev/null | \
+      python3 -c "
+import json,sys
+data=json.load(sys.stdin)
+for item in data.get('items',[]):
+    ann=item.get('metadata',{}).get('annotations',{}) or {}
+    if 'helm.sh/hook' in ann:
+        ns=item['metadata']['namespace']
+        name=item['metadata']['name']
+        conds=item.get('status',{}).get('conditions',[])
+        status=conds[0]['type'] if conds else 'Unknown'
+        succ=item.get('status',{}).get('succeeded',0)
+        print(f'{ns}   {name}   {status}   {succ}')
+" 2>/dev/null || true)
   fi
 
   if [[ -z "$_pre_jobs" ]]; then
@@ -313,7 +326,7 @@ for _chart_label in "konk-service" "konk" "etcd"; do
   else
     _failed=0; _succeeded=0
     while IFS= read -r _line; do
-      if echo "$_line" | grep -q "Complete"; then
+      if echo "$_line" | grep -qiE "Complete|SuccessCriteriaMet"; then
         ((_succeeded++)) || true
       else
         ((_failed++)) || true
@@ -364,8 +377,18 @@ else
   done <<< "$_hook_errors"
 fi
 
-# Check hook-delete-policy compliance (Jobs should be cleaned up)
-_lingering=$(dbg kubectl get jobs -A -l "app.kubernetes.io/component=fix-helm-orphans" --no-headers 2>/dev/null | wc -l | tr -d ' ')
+# Check hook-delete-policy compliance (only actual Helm hook Jobs should be cleaned up)
+_lingering=$(dbg kubectl get jobs -A -l "app.kubernetes.io/component=fix-helm-orphans" -o json 2>/dev/null | \
+  python3 -c "
+import json,sys
+data=json.load(sys.stdin)
+count=0
+for item in data.get('items',[]):
+    ann=item.get('metadata',{}).get('annotations',{}) or {}
+    if 'helm.sh/hook' in ann:
+        count+=1
+print(count)
+" 2>/dev/null || echo "0")
 if [[ "$_lingering" -gt 0 ]]; then
   warn "$_lingering pre-install hook Job(s) still present (expected: cleaned up by hook-delete-policy)"
 else
