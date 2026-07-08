@@ -26,6 +26,32 @@ spec:
       serviceAccountName: {{ include "konk-operator.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      initContainers:
+        - name: fix-helm-orphans
+          image: "{{ .Values.relatedImages.kindRepository }}:{{ .Values.relatedImages.kind }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["/usr/local/bin/konk-service", "fix-helm-orphans-init"]
+          {{- if .Values.initOrphanFix }}
+          {{- if .Values.initOrphanFix.skip }}
+          env:
+            - name: SKIP_ORPHAN_FIX
+              value: "true"
+          {{- end }}
+          {{- end }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65534
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            limits:
+              cpu: 100m
+              memory: 64Mi
+            requests:
+              cpu: 50m
+              memory: 32Mi
       containers:
         - name: {{ .Chart.Name }}
           securityContext:
