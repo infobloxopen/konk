@@ -193,3 +193,8 @@ nodeSelector: {}
 tolerations: []
 
 affinity: {}
+
+# Helm lifecycle hooks
+hooks:
+  preInstall:
+    enabled: true

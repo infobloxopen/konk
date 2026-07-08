@@ -1286,6 +1286,11 @@ EOF
         if [[ -z "$DEPLOY_NAME" ]]; then
           warn "unable to determine deployment owner for ${TARGET_NS}/${TARGET_POD}; skipping trigger test"
       else
+        # Pre-check: verify deployment is already ready before triggering a restart
+        DEPLOY_READY=$(kubectl get deploy "$DEPLOY_NAME" -n "$TARGET_NS" -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")
+        if [[ "${DEPLOY_READY:-0}" -lt 1 ]]; then
+          skip "deployment/${DEPLOY_NAME} in ${TARGET_NS} is not ready (readyReplicas=${DEPLOY_READY:-0}); skipping trigger test"
+        else
         if [[ "$DEBUG" == true ]]; then
           info "command: kubectl delete pod -n ${TARGET_NS} ${TARGET_POD}"
         fi
@@ -1354,6 +1359,7 @@ EOF
         else
           fail "failed to delete pod ${TARGET_NS}/${TARGET_POD} for trigger test"
         fi
+        fi  # deploy ready check
       fi
       fi  # if TARGET_POD not empty
     fi
