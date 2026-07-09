@@ -291,21 +291,35 @@ if ! kubectl cluster-info &>/dev/null; then
 fi
 
 # ══════════════════════════════════════════════════════════════════════════════
-# SECTION 0: Helm hook status (only when --hook is passed)
+# SECTION 0: Helm hook + init container status (only when --hook is passed)
 # ══════════════════════════════════════════════════════════════════════════════
 if [[ "$CHECK_HOOKS" == true ]]; then
 echo ""
-echo -e "${BOLD}── 0. Helm hook status (all charts) ──${RESET}"
+echo -e "${BOLD}── 0.1 Helm hook status (all charts) ──${RESET}"
 
 # Check hook Jobs across all namespaces for each chart type
 for _chart_label in "konk-service" "konk" "etcd"; do
   info "checking $_chart_label hooks..."
 
-  # Pre-install/pre-upgrade hook Jobs — only match actual Helm hooks (have helm.sh/hook annotation)
-  _pre_jobs=$(dbg kubectl get jobs -A -l "app.kubernetes.io/component=fix-helm-orphans,helm.sh/chart=${_chart_label}-0.1.0" -o custom-columns='NS:.metadata.namespace,NAME:.metadata.name,STATUS:.status.conditions[0].type,COMPLETIONS:.status.succeeded' --no-headers 2>/dev/null || true)
+  # Pre-install/pre-upgrade hook Jobs — query by helm.sh/chart label (on Job metadata)
+  # Note: app.kubernetes.io/component=fix-helm-orphans is on the pod template, not the Job itself
+  _pre_jobs=$(dbg kubectl get jobs -A -o json -l "helm.sh/chart=${_chart_label}-0.1.0" 2>/dev/null | \
+    python3 -c "
+import json,sys
+data=json.load(sys.stdin)
+for item in data.get('items',[]):
+    ann=item.get('metadata',{}).get('annotations',{}) or {}
+    if 'helm.sh/hook' in ann and 'pre-' in ann.get('helm.sh/hook',''):
+        ns=item['metadata']['namespace']
+        name=item['metadata']['name']
+        conds=item.get('status',{}).get('conditions',[])
+        status=conds[0]['type'] if conds else 'Unknown'
+        succ=item.get('status',{}).get('succeeded',0)
+        print(f'{ns}   {name}   {status}   {succ}')
+" 2>/dev/null || true)
   if [[ -z "$_pre_jobs" ]]; then
-    # Try broader label but only with helm.sh/hook annotation (actual hooks, not manual Jobs)
-    _pre_jobs=$(dbg kubectl get jobs -A -o json -l "app.kubernetes.io/component=fix-helm-orphans" 2>/dev/null | \
+    # Try broader search: all Jobs with helm.sh/hook annotation containing pre-
+    _pre_jobs=$(dbg kubectl get jobs -A -o json -l "app.kubernetes.io/name=${_chart_label}" 2>/dev/null | \
       python3 -c "
 import json,sys
 data=json.load(sys.stdin)
@@ -324,17 +338,22 @@ for item in data.get('items',[]):
   if [[ -z "$_pre_jobs" ]]; then
     info "no pre-install/pre-upgrade hook Jobs found for $_chart_label (cleaned up or not yet triggered)"
   else
-    _failed=0; _succeeded=0
+    _failed=0; _succeeded=0; _running=0
     while IFS= read -r _line; do
       if echo "$_line" | grep -qiE "Complete|SuccessCriteriaMet"; then
         ((_succeeded++)) || true
+      elif echo "$_line" | grep -qi "Running"; then
+        ((_running++)) || true
+        warn "hook Job still running: $_line"
       else
         ((_failed++)) || true
         fail "hook Job: $_line"
       fi
     done <<< "$_pre_jobs"
-    if [[ $_failed -eq 0 ]]; then
+    if [[ $_failed -eq 0 && $_running -eq 0 ]]; then
       pass "$_chart_label pre-install hooks: $_succeeded completed successfully"
+    elif [[ $_failed -eq 0 && $_running -gt 0 ]]; then
+      info "$_chart_label pre-install hooks: $_succeeded completed, $_running still running"
     fi
   fi
 done
@@ -350,17 +369,22 @@ fi
 if [[ -z "$_post_jobs" ]]; then
   info "no post-upgrade hook Jobs found (cleaned up by hook-delete-policy or not yet triggered)"
 else
-  _failed=0; _succeeded=0
+  _failed=0; _succeeded=0; _running=0
   while IFS= read -r _line; do
     if echo "$_line" | grep -qi "complete\|1/1"; then
       ((_succeeded++)) || true
+    elif echo "$_line" | grep -qi "Running"; then
+      ((_running++)) || true
+      warn "post-upgrade hook Job still running: $_line"
     else
       ((_failed++)) || true
       fail "post-upgrade hook Job: $_line"
     fi
   done <<< "$_post_jobs"
-  if [[ $_failed -eq 0 ]]; then
+  if [[ $_failed -eq 0 && $_running -eq 0 ]]; then
     pass "konk-service post-upgrade hooks: $_succeeded completed successfully"
+  elif [[ $_failed -eq 0 && $_running -gt 0 ]]; then
+    info "konk-service post-upgrade hooks: $_succeeded completed, $_running still running"
   fi
 fi
 
@@ -378,14 +402,15 @@ else
 fi
 
 # Check hook-delete-policy compliance (only actual Helm hook Jobs should be cleaned up)
-_lingering=$(dbg kubectl get jobs -A -l "app.kubernetes.io/component=fix-helm-orphans" -o json 2>/dev/null | \
+# Note: query by helm.sh/chart label (on Job metadata), then filter by helm.sh/hook annotation
+_lingering=$(dbg kubectl get jobs -A -l "helm.sh/chart=konk-service-0.1.0" -o json 2>/dev/null | \
   python3 -c "
 import json,sys
 data=json.load(sys.stdin)
 count=0
 for item in data.get('items',[]):
     ann=item.get('metadata',{}).get('annotations',{}) or {}
-    if 'helm.sh/hook' in ann:
+    if 'helm.sh/hook' in ann and 'pre-' in ann.get('helm.sh/hook',''):
         count+=1
 print(count)
 " 2>/dev/null || echo "0")
@@ -393,6 +418,103 @@ if [[ "$_lingering" -gt 0 ]]; then
   warn "$_lingering pre-install hook Job(s) still present (expected: cleaned up by hook-delete-policy)"
 else
   pass "all pre-install hook Jobs cleaned up (hook-delete-policy working)"
+fi
+
+fi  # CHECK_HOOKS — 0.1
+
+# ── 0.2 Init container status (fix-helm-orphans + fix-stale-ca) ──
+if [[ "$CHECK_HOOKS" == true ]]; then
+echo ""
+echo -e "${BOLD}── 0.2 Init container status (operator pod) ──${RESET}"
+
+# Check if operator pod has the fix-helm-orphans init container
+_op_pod=$(kc get pods -n "${KONK_NAMESPACE}" -l app.kubernetes.io/name=konk-operator -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+if [[ -z "$_op_pod" ]]; then
+  fail "konk-operator pod not found"
+else
+  # Check init container exists
+  _init_state=$(kc get pod "$_op_pod" -n "${KONK_NAMESPACE}" -o jsonpath='{.status.initContainerStatuses[?(@.name=="fix-helm-orphans")].state}' 2>/dev/null)
+  if [[ -z "$_init_state" ]]; then
+    warn "operator pod '$_op_pod' has no 'fix-helm-orphans' init container (old image?)"
+  else
+    # Check if terminated successfully
+    _exit_code=$(kc get pod "$_op_pod" -n "${KONK_NAMESPACE}" -o jsonpath='{.status.initContainerStatuses[?(@.name=="fix-helm-orphans")].state.terminated.exitCode}' 2>/dev/null)
+    _reason=$(kc get pod "$_op_pod" -n "${KONK_NAMESPACE}" -o jsonpath='{.status.initContainerStatuses[?(@.name=="fix-helm-orphans")].state.terminated.reason}' 2>/dev/null)
+    if [[ "$_exit_code" == "0" ]]; then
+      pass "init container 'fix-helm-orphans' completed successfully (exit 0)"
+    elif [[ -n "$_exit_code" ]]; then
+      fail "init container 'fix-helm-orphans' exited with code $_exit_code (reason: $_reason)"
+    else
+      info "init container 'fix-helm-orphans' state: $_init_state"
+    fi
+  fi
+
+  # Check init container logs for orphan fix results
+  info "checking init container logs..."
+  _init_logs=$(kc logs "$_op_pod" -n "${KONK_NAMESPACE}" -c fix-helm-orphans 2>/dev/null || true)
+  if [[ -z "$_init_logs" ]]; then
+    warn "no init container logs available"
+  else
+    # Orphan fix summary
+    _orphan_patched=$(echo "$_init_logs" | grep -c "PATCH" || true)
+    _orphan_errors=$(echo "$_init_logs" | grep -c "ERROR" || true)
+    _no_orphans=$(echo "$_init_logs" | grep -c "No orphaned resources found" || true)
+    if [[ "$_no_orphans" -gt 0 ]]; then
+      pass "orphan fix: no orphaned resources found"
+    elif [[ "$_orphan_patched" -gt 0 && "$_orphan_errors" -eq 0 ]]; then
+      pass "orphan fix: $_orphan_patched resource(s) patched, 0 errors"
+    elif [[ "$_orphan_errors" -gt 0 ]]; then
+      fail "orphan fix: $_orphan_patched patched, $_orphan_errors errors"
+      echo "$_init_logs" | grep "ERROR" | head -5 | while IFS= read -r _line; do
+        info "  $_line"
+      done
+    fi
+
+    # Stale CA fix summary
+    _ca_stale=$(echo "$_init_logs" | grep "fix-stale-ca:" || true)
+    if [[ -z "$_ca_stale" ]]; then
+      info "stale CA fix: not present in logs (older image without fix-stale-ca)"
+    else
+      _ca_nothing=$(echo "$_ca_stale" | grep -c "nothing to fix" || true)
+      _ca_deleted=$(echo "$_ca_stale" | grep -c "DELETED" || true)
+      _ca_reissued=$(echo "$_ca_stale" | grep -c "re-issued with correct CA" || true)
+      _ca_warning=$(echo "$_ca_stale" | grep -c "WARNING" || true)
+
+      if [[ "$_ca_nothing" -gt 0 ]]; then
+        pass "stale CA fix: all kubeconfig-cert secrets have correct CA"
+      elif [[ "$_ca_reissued" -gt 0 && "$_ca_warning" -eq 0 ]]; then
+        pass "stale CA fix: $_ca_deleted secret(s) deleted, all re-issued with correct CA"
+      elif [[ "$_ca_deleted" -gt 0 && "$_ca_warning" -gt 0 ]]; then
+        warn "stale CA fix: $_ca_deleted secret(s) deleted, but some may not have been re-issued yet"
+      elif [[ "$_ca_deleted" -gt 0 ]]; then
+        info "stale CA fix: $_ca_deleted secret(s) deleted, waiting for cert-manager re-issue"
+      else
+        info "stale CA fix: $(echo "$_ca_stale" | tail -1)"
+      fi
+
+      # List individual stale/deleted/skipped secrets
+      if [[ "$VERBOSE" == true || "$_ca_deleted" -gt 0 ]]; then
+        _ca_stale_list=$(echo "$_ca_stale" | grep "STALE\|DELETED" || true)
+        if [[ -n "$_ca_stale_list" ]]; then
+          echo "$_ca_stale_list" | while IFS= read -r _line; do
+            if echo "$_line" | grep -q "DELETED"; then
+              _secret=$(echo "$_line" | sed 's/.*DELETED //' | tr -d ' ')
+              info "  DELETED: $_secret (cert-manager will re-issue)"
+            elif echo "$_line" | grep -q "STALE"; then
+              _secret=$(echo "$_line" | sed 's/.*STALE //' | sed 's/ (ca:.*//')
+              info "  STALE:   $_secret"
+            fi
+          done
+        fi
+      fi
+
+      # Show current CA used
+      _ca_current=$(echo "$_ca_stale" | grep "current bulk-konk CA:" | sed 's/.*current bulk-konk CA: //' || true)
+      if [[ -n "$_ca_current" ]]; then
+        vinfo "current CA fingerprint: $_ca_current"
+      fi
+    fi
+  fi
 fi
 
 fi  # CHECK_HOOKS
