@@ -158,11 +158,10 @@ func rolloutRestartStaleDeployments(ctx context.Context, dynClient dynamic.Inter
 	deployGVR := schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"}
 
 	// For each stale secret (e.g. "foo-konk-service-kubeconfig-cert"),
-	// the affected deployments are:
-	//   <ks-name>-konk-service-apiservice         (reconcile-apiservice)
-	//   <ks-name>-konk-service-kubectl-apiservice (kubectl-apiservice)
+	// the affected deployment is:
+	//   <ks-name>-konk-service-apiservice (reconcile-apiservice — caches kubeconfig TLS in memory)
 	// The base is the secret name minus "-kubeconfig-cert" suffix.
-	suffixes := []string{"-apiservice", "-kubectl-apiservice"}
+	suffixes := []string{"-apiservice"}
 	restarted := 0
 
 	for _, s := range staleSecrets {
