@@ -139,13 +139,75 @@ func fixStaleCA(ctx context.Context, dynClient dynamic.Interface) error {
 
 		if remaining == 0 {
 			log.Printf("fix-stale-ca: all %d kubeconfig-cert secrets re-issued with correct CA (attempt %d/5)", len(staleSecrets), attempt)
+			rolloutRestartStaleDeployments(ctx, dynClient, staleSecrets)
 			return nil
 		}
 		log.Printf("fix-stale-ca: attempt %d/5: %d/%d still pending...", attempt, remaining, len(staleSecrets))
 	}
 
 	log.Printf("fix-stale-ca: WARNING: some secrets may not have been re-issued yet (cert-manager may need more time)")
+	// Still proceed with rollout restart for pods that had stale CA
+	rolloutRestartStaleDeployments(ctx, dynClient, staleSecrets)
 	return nil
+}
+
+// rolloutRestartStaleDeployments restarts konk-service deployments that mount
+// kubeconfig secrets which had a stale CA. These pods cache TLS config in memory
+// and won't pick up the updated secret without a restart.
+func rolloutRestartStaleDeployments(ctx context.Context, dynClient dynamic.Interface, staleSecrets []struct{ ns, name string }) {
+	deployGVR := schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"}
+
+	// For each stale secret (e.g. "foo-konk-service-kubeconfig-cert"),
+	// the affected deployments are:
+	//   <ks-name>-konk-service-apiservice         (reconcile-apiservice)
+	//   <ks-name>-konk-service-kubectl-apiservice (kubectl-apiservice)
+	// The base is the secret name minus "-kubeconfig-cert" suffix.
+	suffixes := []string{"-apiservice", "-kubectl-apiservice"}
+	restarted := 0
+
+	for _, s := range staleSecrets {
+		// secret name: <ks-name>-konk-service-kubeconfig-cert
+		base := strings.TrimSuffix(s.name, "-kubeconfig-cert")
+		if base == s.name {
+			continue // unexpected naming — skip
+		}
+
+		for _, suffix := range suffixes {
+			deployName := base + suffix
+			deploy, err := dynClient.Resource(deployGVR).Namespace(s.ns).Get(ctx, deployName, metav1.GetOptions{})
+			if err != nil {
+				// Deployment doesn't exist (e.g. some KonkServices don't have kubectl-apiservice)
+				continue
+			}
+
+			// Trigger rollout restart by patching pod template annotation
+			spec := deploy.Object["spec"].(map[string]interface{})
+			template := spec["template"].(map[string]interface{})
+			metadata, ok := template["metadata"].(map[string]interface{})
+			if !ok {
+				metadata = map[string]interface{}{}
+				template["metadata"] = metadata
+			}
+			annotations, ok := metadata["annotations"].(map[string]interface{})
+			if !ok {
+				annotations = map[string]interface{}{}
+				metadata["annotations"] = annotations
+			}
+			annotations["konk.infoblox.com/restartedAt"] = time.Now().Format(time.RFC3339)
+
+			_, err = dynClient.Resource(deployGVR).Namespace(s.ns).Update(ctx, deploy, metav1.UpdateOptions{})
+			if err != nil {
+				log.Printf("fix-stale-ca: ERROR restarting %s/%s: %v", s.ns, deployName, err)
+			} else {
+				log.Printf("fix-stale-ca: RESTARTED %s/%s", s.ns, deployName)
+				restarted++
+			}
+		}
+	}
+
+	if restarted > 0 {
+		log.Printf("fix-stale-ca: triggered rollout restart for %d deployment(s)", restarted)
+	}
 }
 
 // getCAFingerprint reads the tls.crt from a kubernetes.io/tls secret and returns its SHA-256 fingerprint.
