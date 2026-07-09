@@ -154,28 +154,45 @@ func fixStaleCA(ctx context.Context, dynClient dynamic.Interface) error {
 // rolloutRestartStaleDeployments restarts konk-service deployments that mount
 // kubeconfig secrets which had a stale CA. These pods cache TLS config in memory
 // and won't pick up the updated secret without a restart.
+// It lists all deployments in each affected namespace and restarts any that
+// reference the corresponding kubeconfig secret (derived from the kubeconfig-cert).
 func rolloutRestartStaleDeployments(ctx context.Context, dynClient dynamic.Interface, staleSecrets []struct{ ns, name string }) {
 	deployGVR := schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"}
-
-	// For each stale secret (e.g. "foo-konk-service-kubeconfig-cert"),
-	// the affected deployment is:
-	//   <ks-name>-konk-service-apiservice (reconcile-apiservice — caches kubeconfig TLS in memory)
-	// The base is the secret name minus "-kubeconfig-cert" suffix.
-	suffixes := []string{"-apiservice"}
 	restarted := 0
 
+	// Group stale secrets by namespace and derive kubeconfig secret names
+	// kubeconfig-cert secret: <name>-konk-service-kubeconfig-cert
+	// kubeconfig secret:      <name>-konk-service-kubeconfig
+	nsByKubeconfigSecret := map[string]map[string]bool{} // ns -> set of kubeconfig secret names
 	for _, s := range staleSecrets {
-		// secret name: <ks-name>-konk-service-kubeconfig-cert
-		base := strings.TrimSuffix(s.name, "-kubeconfig-cert")
-		if base == s.name {
-			continue // unexpected naming — skip
+		kubeconfigSecret := strings.TrimSuffix(s.name, "-cert") // "-kubeconfig-cert" → "-kubeconfig"
+		if kubeconfigSecret == s.name {
+			continue
+		}
+		if nsByKubeconfigSecret[s.ns] == nil {
+			nsByKubeconfigSecret[s.ns] = map[string]bool{}
+		}
+		nsByKubeconfigSecret[s.ns][kubeconfigSecret] = true
+	}
+
+	for ns, kubeconfigSecrets := range nsByKubeconfigSecret {
+		deploys, err := dynClient.Resource(deployGVR).Namespace(ns).List(ctx, metav1.ListOptions{})
+		if err != nil {
+			log.Printf("fix-stale-ca: ERROR listing deployments in %s: %v", ns, err)
+			continue
 		}
 
-		for _, suffix := range suffixes {
-			deployName := base + suffix
-			deploy, err := dynClient.Resource(deployGVR).Namespace(s.ns).Get(ctx, deployName, metav1.GetOptions{})
-			if err != nil {
-				// Deployment doesn't exist (e.g. some KonkServices don't have kubectl-apiservice)
+		for i := range deploys.Items {
+			deploy := &deploys.Items[i]
+			deployName := deploy.GetName()
+
+			// Check if this deployment mounts any of the stale kubeconfig secrets
+			if !deployMountsAnySecret(deploy.Object, kubeconfigSecrets) {
+				continue
+			}
+
+			// Skip kubeconfig reconciler deployments — they watch the cert and rebuild
+			if strings.HasSuffix(deployName, "-kubeconfig") {
 				continue
 			}
 
@@ -194,11 +211,11 @@ func rolloutRestartStaleDeployments(ctx context.Context, dynClient dynamic.Inter
 			}
 			annotations["konk.infoblox.com/restartedAt"] = time.Now().Format(time.RFC3339)
 
-			_, err = dynClient.Resource(deployGVR).Namespace(s.ns).Update(ctx, deploy, metav1.UpdateOptions{})
+			_, err = dynClient.Resource(deployGVR).Namespace(ns).Update(ctx, deploy, metav1.UpdateOptions{})
 			if err != nil {
-				log.Printf("fix-stale-ca: ERROR restarting %s/%s: %v", s.ns, deployName, err)
+				log.Printf("fix-stale-ca: ERROR restarting %s/%s: %v", ns, deployName, err)
 			} else {
-				log.Printf("fix-stale-ca: RESTARTED %s/%s", s.ns, deployName)
+				log.Printf("fix-stale-ca: RESTARTED %s/%s", ns, deployName)
 				restarted++
 			}
 		}
@@ -207,6 +224,45 @@ func rolloutRestartStaleDeployments(ctx context.Context, dynClient dynamic.Inter
 	if restarted > 0 {
 		log.Printf("fix-stale-ca: triggered rollout restart for %d deployment(s)", restarted)
 	}
+}
+
+// deployMountsAnySecret checks if a deployment's pod template references any of
+// the given secret names in its volumes.
+func deployMountsAnySecret(obj map[string]interface{}, secretNames map[string]bool) bool {
+	spec, ok := obj["spec"].(map[string]interface{})
+	if !ok {
+		return false
+	}
+	template, ok := spec["template"].(map[string]interface{})
+	if !ok {
+		return false
+	}
+	podSpec, ok := template["spec"].(map[string]interface{})
+	if !ok {
+		return false
+	}
+	volumes, ok := podSpec["volumes"].([]interface{})
+	if !ok {
+		return false
+	}
+	for _, v := range volumes {
+		vol, ok := v.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		secretVol, ok := vol["secret"].(map[string]interface{})
+		if !ok {
+			continue
+		}
+		secretName, ok := secretVol["secretName"].(string)
+		if !ok {
+			continue
+		}
+		if secretNames[secretName] {
+			return true
+		}
+	}
+	return false
 }
 
 // getCAFingerprint reads the tls.crt from a kubernetes.io/tls secret and returns its SHA-256 fingerprint.
