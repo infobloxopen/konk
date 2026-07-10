@@ -78,6 +78,10 @@ vaultCommon:
 # When set, these override the chart's default appVersion fallback.
 # In CI/kind, these are set to K8S_RELEASE-GIT_SHORT (e.g. v1.25.8-gabcdef).
 # Repository fields default to GHCR; override per-cluster to use Harbor or another registry.
+# Init container that fixes Helm orphaned resources before the operator starts
+initOrphanFix:
+  enabled: true
+
 relatedImages:
   apiserver: ""
   provision: ""
