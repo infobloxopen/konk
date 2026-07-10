@@ -1,0 +1,15 @@
+diff --git a/internal/helm/release/manager.go b/internal/helm/release/manager.go
+index cc893df..b72ce40 100644
+--- a/internal/helm/release/manager.go
++++ b/internal/helm/release/manager.go
+@@ -229,9 +229,8 @@ func (m manager) UpgradeRelease(opts ...UpgradeOption) (*rpb.Release, *rpb.Relea
+ 			// Therefore, we should perform the rollback when we have a non-nil
+ 			// release. Any rollback error here would be unexpected, so always
+ 			// log both the upgrade and rollback errors.
+-			fmt.Printf("release upgrade failed; %v", err)
+
+-			return nil, nil, ErrUpgradeFailed
++			return nil, nil, fmt.Errorf("%w: %v", ErrUpgradeFailed, err)
+ 		}
+ 		return nil, nil, fmt.Errorf("failed to upgrade release: %w", err)
+ 	}

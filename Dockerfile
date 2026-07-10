@@ -6,8 +6,10 @@ RUN apk add --no-cache git make bash
 
 # Clone and build operator-sdk/helm-operator
 WORKDIR /workspace
+COPY patches/ /workspace/patches/
 RUN git clone --depth 1 --branch v1.42.0 https://github.com/operator-framework/operator-sdk.git && \
     cd operator-sdk && \
+    git apply /workspace/patches/operator-sdk-upgrade-error-logging.patch && \
     go get golang.org/x/crypto@v0.52.0 \
            golang.org/x/net@v0.55.0 \
            google.golang.org/grpc@v1.79.3 \
