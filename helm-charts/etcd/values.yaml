@@ -139,16 +139,3 @@ metrics:
   podAnnotations:
     prometheus.io/scrape: "true"
     prometheus.io/port: "2379"
-
-
-## @section Hook parameters
-## Image used for pre-install/pre-upgrade hook Jobs (konk-service binary)
-hookImage:
-  repository: ghcr.io/infobloxopen/konk-service
-  tag: ""
-  pullPolicy: IfNotPresent
-
-# Helm lifecycle hooks
-hooks:
-  preInstallUpgrade:
-    enabled: true
