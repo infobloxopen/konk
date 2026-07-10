@@ -90,7 +90,7 @@ insecureSkipTLSVerify: false
 
 # Helm lifecycle hooks
 hooks:
-  preInstall:
+  preInstallUpgrade:
     enabled: true
-  postUpgrade:
+  postInstallUpgrade:
     enabled: true

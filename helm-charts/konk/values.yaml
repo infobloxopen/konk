@@ -196,5 +196,5 @@ affinity: {}
 
 # Helm lifecycle hooks
 hooks:
-  preInstall:
+  preInstallUpgrade:
     enabled: true

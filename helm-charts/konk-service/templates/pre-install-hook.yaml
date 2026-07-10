@@ -1,4 +1,4 @@
-{{- if .Values.hooks.preInstall.enabled }}
+{{- if .Values.hooks.preInstallUpgrade.enabled }}
 apiVersion: v1
 kind: ServiceAccount
 metadata:
