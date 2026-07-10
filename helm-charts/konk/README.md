@@ -52,6 +52,7 @@ When deploying with `helm install`, these configurations are values and can be o
 | etcd.securityContext.runAsNonRoot | bool | `true` |  |
 | etcd.securityContext.runAsUser | int | `1001` |  |
 | fullnameOverride | string | `""` |  |
+| hooks.preInstall.enabled | bool | `true` |  |
 | imagePullSecrets | list | `[]` |  |
 | ingress.annotations."nginx.ingress.kubernetes.io/backend-protocol" | string | `"HTTPS"` |  |
 | ingress.className | string | `""` |  |
