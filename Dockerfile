@@ -19,7 +19,8 @@ RUN git clone --depth 1 --branch v1.42.0 https://github.com/operator-framework/o
            go.opentelemetry.io/otel/metric@v1.43.0 \
            github.com/moby/spdystream@v0.5.1 \
            github.com/containerd/containerd@v1.7.33 \
-           helm.sh/helm/v3@v3.20.2 && \
+           helm.sh/helm/v3@v3.20.2 \
+           oras.land/oras-go/v2@v2.6.1 && \
     go mod tidy && \
     make build/helm-operator
 
