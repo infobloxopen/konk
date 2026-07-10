@@ -336,7 +336,14 @@ for item in data.get('items',[]):
   fi
 
   if [[ -z "$_pre_jobs" ]]; then
-    info "no pre-install/pre-upgrade hook Jobs found for $_chart_label (cleaned up or not yet triggered)"
+    # Jobs not found by label — check events for completed hook pods (pod may have been deleted)
+    _event_hits=$(kubectl get events -A --field-selector reason=Completed --sort-by='.lastTimestamp' 2>/dev/null | grep -i "fix-helm-orphans\|post-upgrade" | grep -i "$_chart_label" || true)
+    if [[ -n "$_event_hits" ]]; then
+      _ev_count=$(echo "$_event_hits" | wc -l | tr -d ' ')
+      pass "$_chart_label hook pod(s) completed (confirmed via events: $_ev_count)"
+    else
+      info "no pre-install/pre-upgrade hook Jobs found for $_chart_label (cleaned up or not yet triggered)"
+    fi
   else
     _failed=0; _succeeded=0; _running=0
     while IFS= read -r _line; do
@@ -346,8 +353,17 @@ for item in data.get('items',[]):
         ((_running++)) || true
         warn "hook Job still running: $_line"
       else
-        ((_failed++)) || true
-        fail "hook Job: $_line"
+        # Status Unknown / 0 completions — check events for pod completion
+        _job_name=$(echo "$_line" | awk '{print $2}')
+        _job_ns=$(echo "$_line" | awk '{print $1}')
+        _pod_completed=$(kubectl get events -n "$_job_ns" --field-selector reason=Completed --sort-by='.lastTimestamp' 2>/dev/null | grep -i "$_job_name" || true)
+        if [[ -n "$_pod_completed" ]]; then
+          ((_succeeded++)) || true
+          info "hook Job '$_job_name' pod completed (confirmed via events)"
+        else
+          ((_failed++)) || true
+          fail "hook Job: $_line"
+        fi
       fi
     done <<< "$_pre_jobs"
     if [[ $_failed -eq 0 && $_running -eq 0 ]]; then
@@ -1838,7 +1854,9 @@ if not_ready:
 fi
 
 # 8g. Pod events on failure — show describe + logs when pod is unhealthy
-if [[ -z "$SAMPLE_APIPOD_NAME" || "$SAMPLE_APIPOD_READY" != "1/1" ]]; then
+_unhealthy_num=$(echo "$SAMPLE_APIPOD_READY" | cut -d/ -f1)
+_unhealthy_tot=$(echo "$SAMPLE_APIPOD_READY" | cut -d/ -f2)
+if [[ -z "$SAMPLE_APIPOD_NAME" ]] || ! [[ "$_unhealthy_num" == "$_unhealthy_tot" && "$_unhealthy_num" -gt 0 ]] 2>/dev/null; then
   TARGET_POD=${SAMPLE_APIPOD_NAME:-}
   if [[ -z "$TARGET_POD" ]]; then
     TARGET_POD=$(kc get pods -n "$SAMPLE_NS" --no-headers \
@@ -2009,6 +2027,8 @@ except: pass
       pass "bulk-konk apiserver logs: no 'certificate has expired' rejections in last 2 min"
     else
       fail "bulk-konk apiserver: ${CERT_EXPIRED_COUNT} 'certificate has expired' rejection(s) in last 2 min — clients holding stale certs"
+      info "  Run: ./konk/scripts/fix-missing-certificates.sh --apply"
+      info "  This restores any missing Certificate CRs and restarts konk-service and app deployments holding stale certs"
       if [[ "$VERBOSE" == true ]]; then
         kubectl logs "$KONK_POD_NAME" -n "$AGGREGATE_NAMESPACE" \
           $KONK_CONTAINER_FLAG --since=2m 2>/dev/null \
