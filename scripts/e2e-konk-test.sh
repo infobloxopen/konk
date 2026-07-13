@@ -24,7 +24,7 @@
 #   15. Konk APIService backend health — all pods in konk namespaces (aggregate, ddi, hostapp, ngp-cp, ntp, tagging-v2, redirect, endpoints)
 #   16. Stale node containers (Helm merge ghost detection)
 #   17. Stale konk-service container image (ghost detection)
-#   18. Stale KonkService deployments (old chart names)
+#   18. Stale KonkService deployments (old chart names with kubectl)
 #   19. Excluded bulk-konk resources (not Helm-managed)
 #
 # Usage:
@@ -353,7 +353,7 @@ for item in data.get('items',[]):
         ((_running++)) || true
         warn "hook Job still running: $_line"
       else
-        # Status Unknown / 0 completions — check events for pod completion
+        # Status Unknown / 0 completions — check events for pod completion or active pods
         _job_name=$(echo "$_line" | awk '{print $2}')
         _job_ns=$(echo "$_line" | awk '{print $1}')
         _pod_completed=$(kubectl get events -n "$_job_ns" --field-selector reason=Completed --sort-by='.lastTimestamp' 2>/dev/null | grep -i "$_job_name" || true)
@@ -361,8 +361,16 @@ for item in data.get('items',[]):
           ((_succeeded++)) || true
           info "hook Job '$_job_name' pod completed (confirmed via events)"
         else
-          ((_failed++)) || true
-          fail "hook Job: $_line"
+          # Check if Job still has active pods (still in progress, not yet failed)
+          _active=$(kubectl get job "$_job_name" -n "$_job_ns" -o jsonpath='{.status.active}' 2>/dev/null || true)
+          _start=$(kubectl get job "$_job_name" -n "$_job_ns" -o jsonpath='{.status.startTime}' 2>/dev/null || true)
+          if [[ "${_active:-0}" -gt 0 || (-z "$_active" && -n "$_start") ]]; then
+            ((_running++)) || true
+            warn "hook Job still running: $_line"
+          else
+            ((_failed++)) || true
+            fail "hook Job: $_line"
+          fi
         fi
       fi
     done <<< "$_pre_jobs"
@@ -2859,81 +2867,43 @@ if should_run 17; then
 fi  # section 17
 
 # ══════════════════════════════════════════════════════════════════════════════
-# SECTION 18: Stale KonkService deployments (old chart names)
+# SECTION 18: Stale KonkService deployments (old chart names with kubectl)
 # ══════════════════════════════════════════════════════════════════════════════
 # These are live konk-service Deployments that are not present in the current
 # Helm release manifests for their KonkService CRs. They commonly appear after
 # chart resource names change (for example old *-kubectl-apiservice names). They
 # should not be reported as current Helm ownership failures, but they are useful
 # to list for cleanup because they can keep duplicate apiservice pods running.
-section "Stale KonkService deployments (old chart names)"
+section "Stale KonkService deployments (old chart names with kubectl)"
 if should_run 18; then
-  ALL_KSVC_18=$(kc get konkservice -A -o json 2>/dev/null)
-  ALL_DEPLOY_18=$(kc get deploy -A -l app.kubernetes.io/name=konk-service -o json 2>/dev/null)
+  # --- 18a. Find all old v1 kubectl-apiservice deployments directly ---
+  # These are leftover deployments from the old chart naming convention.
+  # Simple grep-based approach — no jq, no label dependency.
+  KUBECTL_DEPLOYS=$(kubectl get deploy -A --no-headers 2>/dev/null | grep "kubectl-apiservice" || true)
 
-  if [[ -z "$ALL_KSVC_18" ]] || [[ "$(echo "$ALL_KSVC_18" | jq '.items | length' 2>/dev/null)" == "0" ]]; then
-    warn "no KonkService CRs found — cannot compare live deployments to Helm manifests"
-  elif [[ -z "$ALL_DEPLOY_18" ]] || [[ "$(echo "$ALL_DEPLOY_18" | jq '.items | length' 2>/dev/null)" == "0" ]]; then
-    pass "no konk-service Deployments found"
+  if [[ -z "$KUBECTL_DEPLOYS" ]]; then
+    pass "no stale *-kubectl-apiservice deployments found"
   else
-    CURRENT_KSVC_DEPLOYMENTS=""
-    while IFS=$'\t' read -r ns name; do
-      [[ -z "$ns" || -z "$name" ]] && continue
-      _release_deploys=$(helm_manifest_resource_refs "$name" "$ns" \
-        | grep '^deployment\.apps/' \
-        | sed "s#^deployment\.apps/#${ns}/#" || true)
-      if [[ -n "$_release_deploys" ]]; then
-        CURRENT_KSVC_DEPLOYMENTS+="$_release_deploys"$'\n'
-      else
-        # Helm manifest empty (release secret lost). Compute valid names from
-        # the chart template naming convention to avoid false positives.
-        _fullname="${name}-konk-service"
-        _fullname="${_fullname:0:63}"; _fullname="${_fullname%-}"
-        _fn52="${_fullname:0:52}"; _fn52="${_fn52%-}"
-        _fn51="${_fullname:0:51}"; _fn51="${_fn51%-}"
-        _fn46="${_fullname:0:46}"; _fn46="${_fn46%-}"
-        CURRENT_KSVC_DEPLOYMENTS+="${ns}/${_fn52}-kubeconfig"$'\n'
-        CURRENT_KSVC_DEPLOYMENTS+="${ns}/${_fn51}-apiservice"$'\n'
-        CURRENT_KSVC_DEPLOYMENTS+="${ns}/${_fn46}-apiservice-test"$'\n'
-      fi
-    done < <(echo "$ALL_KSVC_18" | jq -r '.items[] | [.metadata.namespace, .metadata.name] | @tsv' 2>/dev/null)
-    CURRENT_KSVC_DEPLOYMENTS=$(echo "$CURRENT_KSVC_DEPLOYMENTS" | grep -v '^$' | sort -u || true)
-
-    STALE_DEPLOYS=$(echo "$ALL_DEPLOY_18" | jq -r '
-      .items[] |
-      [
-        .metadata.namespace,
-        .metadata.name,
-        (.metadata.labels["app.kubernetes.io/instance"] // "unknown"),
-        (.metadata.labels["app.kubernetes.io/component"] // "unknown"),
-        ((.spec.replicas // 0) | tostring),
-        ((.status.availableReplicas // 0) | tostring),
-        (.metadata.creationTimestamp // "unknown")
-      ] | @tsv' 2>/dev/null | while IFS=$'\t' read -r ns name inst component replicas available created; do
-        [[ -z "$ns" || -z "$name" ]] && continue
-        ref="${ns}/${name}"
-        if [[ -z "$CURRENT_KSVC_DEPLOYMENTS" ]] || ! echo "$CURRENT_KSVC_DEPLOYMENTS" | grep -Fxq "$ref"; then
-          printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$ref" "$inst" "$component" "$replicas" "$available" "$created"
-        fi
-      done)
-
-    if [[ -z "$STALE_DEPLOYS" ]]; then
-      pass "no stale KonkService Deployments found outside current Helm manifests"
-    else
-      STALE_COUNT=$(echo "$STALE_DEPLOYS" | wc -l | tr -d ' ')
-      warn "${STALE_COUNT} stale KonkService Deployment(s) found outside current Helm manifests"
-      echo "$STALE_DEPLOYS" | while IFS=$'\t' read -r ref inst component replicas available created; do
-        warn "  ${ref}  instance=${inst:-unknown} component=${component:-unknown} replicas=${replicas:-0} available=${available:-0} created=${created:-unknown}"
-      done
-      echo ""
-      info "Cleanup after confirming the replacement *-konk-service-* Deployments are healthy:"
-      info "  kubectl delete deploy -n <namespace> <stale-deployment-name>"
-      echo ""
-      _current_ctx=$(kubectl config current-context 2>/dev/null || echo '<your-context>')
-      info "Or use the automated cleanup script (dry-run first, then --apply to delete):"
-      info "  /Users/rsatal/Documents/Issues/konk/scripts/cleanup-stale-konkservice-deployments.sh --context ${_current_ctx}"
-      info "  /Users/rsatal/Documents/Issues/konk/scripts/cleanup-stale-konkservice-deployments.sh --context ${_current_ctx} --apply"
-    fi
+    KUBECTL_DEPLOY_COUNT=$(echo "$KUBECTL_DEPLOYS" | wc -l | tr -d ' ')
+    warn "${KUBECTL_DEPLOY_COUNT} stale *-kubectl-apiservice Deployment(s) found (old v1 chart names)"
+    while IFS= read -r line; do
+      [[ -z "$line" ]] && continue
+      _ns=$(echo "$line" | awk '{print $1}')
+      _name=$(echo "$line" | awk '{print $2}')
+      _ready=$(echo "$line" | awk '{print $3}')
+      _avail=$(echo "$line" | awk '{print $5}')
+      _age=$(echo "$line" | awk '{print $NF}')
+      warn "  ${_ns}/${_name}  ready=${_ready} available=${_avail} age=${_age}"
+    done <<< "$KUBECTL_DEPLOYS"
+    echo ""
+    info "These are old v1 chart deployments that should be replaced by *-konk-service-apiservice-* (v2)."
+    info "Cleanup after confirming the v2 replacements are healthy:"
+    info "  kubectl delete deploy -n <namespace> <stale-deployment-name>"
+    echo ""
+    _current_ctx=$(kubectl config current-context 2>/dev/null || echo '<your-context>')
+    info "Or use the automated cleanup script (dry-run first, then --apply to delete):"
+    info "  /Users/rsatal/Library/CloudStorage/OneDrive-InfobloxInc/Documents/rahul-ib-files/konk-scripts/cleanup-stale-kubectl-konkservice-deployments.sh --context ${_current_ctx}"
+    info "  /Users/rsatal/Library/CloudStorage/OneDrive-InfobloxInc/Documents/rahul-ib-files/konk-scripts/cleanup-stale-kubectl-konkservice-deployments.sh --context ${_current_ctx} --apply"
   fi
 fi  # section 18
 
