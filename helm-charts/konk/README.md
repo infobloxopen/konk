@@ -37,9 +37,9 @@ When deploying with `helm install`, these configurations are values and can be o
 | etcd.containerSecurityContext.runAsNonRoot | bool | `true` |  |
 | etcd.containerSecurityContext.runAsUser | int | `1001` |  |
 | etcd.image.pullPolicy | string | `"IfNotPresent"` |  |
-| etcd.image.registry | string | `"gcr.io"` |  |
-| etcd.image.repository | string | `"etcd-development/etcd"` |  |
-| etcd.image.tag | string | `"v3.6.13"` |  |
+| etcd.image.registry | string | `"cgr.dev"` |  |
+| etcd.image.repository | string | `"infoblox.com/etcd"` |  |
+| etcd.image.tag | string | `"3.7.0"` |  |
 | etcd.operator | bool | `true` | defines how Konk's internal etcd is deployed. `true`: etcd is deployed by konk-operator `false`: etcd is deployed as a sidecar of konk's kube-apiserver |
 | etcd.persistence.enabled | bool | `true` |  |
 | etcd.persistence.size | string | `"8Gi"` |  |
