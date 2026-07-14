@@ -43,6 +43,7 @@
 #   ./e2e-konk-test.sh -d                     # debug (show commands + full output)
 #   ./e2e-konk-test.sh --csp-url URL --token TOKEN  # for section 14 (external API)
 #
+
 # Environment variables:
 #   KONK_E2E_TOKEN   — Bearer token for CSP API calls (section 14). Avoids --token flag.
 #   KONK_E2E_CSP_URL — CSP base URL (default: auto-detected from cluster name).
