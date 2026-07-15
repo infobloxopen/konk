@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - ci
       - 'release/**'
 
 jobs:
@@ -12,6 +13,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write       # required by actions/attest-build-provenance
+      attestations: write   # required by actions/attest-build-provenance
     steps:
     - uses: actions/checkout@v4
       with:
@@ -61,3 +64,40 @@ jobs:
             sleep 10
           done
         done
+
+    - name: Collect image digests
+      id: digests
+      run: |
+        GIT_VERSION=$(git describe --always --long --tags)
+        for img in konk konk-app konk-provision konk-service; do
+          digest=$(docker inspect --format='{{index .RepoDigests 0}}' ghcr.io/infobloxopen/${img}:${GIT_VERSION} | cut -d'@' -f2)
+          echo "${img}=${digest}" >> "$GITHUB_OUTPUT"
+        done
+
+    - name: Attest provenance — konk
+      uses: actions/attest-build-provenance@v2
+      with:
+        subject-name: ghcr.io/infobloxopen/konk
+        subject-digest: ${{ steps.digests.outputs.konk }}
+        push-to-registry: true
+
+    - name: Attest provenance — konk-app
+      uses: actions/attest-build-provenance@v2
+      with:
+        subject-name: ghcr.io/infobloxopen/konk-app
+        subject-digest: ${{ steps.digests.outputs.konk-app }}
+        push-to-registry: true
+
+    - name: Attest provenance — konk-provision
+      uses: actions/attest-build-provenance@v2
+      with:
+        subject-name: ghcr.io/infobloxopen/konk-provision
+        subject-digest: ${{ steps.digests.outputs.konk-provision }}
+        push-to-registry: true
+
+    - name: Attest provenance — konk-service
+      uses: actions/attest-build-provenance@v2
+      with:
+        subject-name: ghcr.io/infobloxopen/konk-service
+        subject-digest: ${{ steps.digests.outputs.konk-service }}
+        push-to-registry: true

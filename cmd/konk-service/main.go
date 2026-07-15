@@ -20,6 +20,9 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  test-setup             Verify RBAC and wait for CRD resources\n")
 		fmt.Fprintf(os.Stderr, "  wait-for-resource      Wait until a resource type is listable\n")
 		fmt.Fprintf(os.Stderr, "  example-test           Create, get, and delete a sample custom resource\n")
+		fmt.Fprintf(os.Stderr, "  post-upgrade           Clean up ghost containers and stale deployments after upgrade\n")
+		fmt.Fprintf(os.Stderr, "  fix-helm-orphans       Annotate orphaned resources so Helm can adopt them on install\n")
+		fmt.Fprintf(os.Stderr, "  fix-helm-orphans-init  Discover Konk/Etcd CRs and fix orphans (operator init container)\n")
 		fmt.Fprintf(os.Stderr, "  healthz <file>         Exit 0 if file exists (readiness probe)\n")
 		os.Exit(1)
 	}
@@ -42,6 +45,16 @@ func main() {
 		err = runWaitForResource()
 	case "example-test":
 		err = runExampleTest()
+	case "post-upgrade":
+		err = runPostUpgrade()
+	case "fix-helm-orphans":
+		err = runFixHelmOrphans()
+	case "fix-helm-orphans-init":
+		if skipInitOrphanFix() {
+			log.Printf("SKIP_ORPHAN_FIX=true — skipping")
+		} else {
+			err = runFixHelmOrphansInit()
+		}
 	case "healthz":
 		// Readiness probe: exit 0 if the given file exists, 1 otherwise.
 		// Replaces "cat <file>" which requires a shell — unavailable in distroless.

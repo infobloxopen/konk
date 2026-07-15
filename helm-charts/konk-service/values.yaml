@@ -87,3 +87,10 @@ group:
 version: v1alpha1
 
 insecureSkipTLSVerify: false
+
+# Helm lifecycle hooks
+hooks:
+  preInstallUpgrade:
+    enabled: true
+  postInstallUpgrade:
+    enabled: true

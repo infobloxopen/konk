@@ -16,12 +16,7 @@ WORKDIR /workspace/kubernetes
 # Regenerate with: make update-kubernetes-deps
 COPY go.mod go.mod
 
-# Patch source compatibility for golang-jwt/jwt/v4 v4.5.x:
-# NumericDate changed from value to pointer type in v4.5.x
-# 1. Change struct field WarnAfter from value to pointer type
-# 2. Fix the comparison of the *NumericDate variable (not the int64 parameter)
-RUN sed -i 's/WarnAfter jwt\.NumericDate/WarnAfter *jwt.NumericDate/' pkg/serviceaccount/claims.go && \
-    sed -i '/private\.Kubernetes\.WarnAfter/{n;s/if warnafter != 0/if warnafter != nil/;}' pkg/serviceaccount/claims.go
+# Keep upstream serviceaccount claims source as-is for k8s v1.25.x compatibility.
 
 # Patch CVE-2023-45142: Remove otelhttp dependency from kube-apiserver.
 # Replace otelhttp usages with no-op passthroughs in both files that import it,

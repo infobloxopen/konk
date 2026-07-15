@@ -1,0 +1,127 @@
+{{- if .Values.hooks.preInstallUpgrade.enabled }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "konk.fullname" . | trunc 47 | trimSuffix "-" }}-fix-helm-orphans
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "konk.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-10"
+    "helm.sh/hook-delete-policy": before-hook-creation
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "konk.fullname" . | trunc 47 | trimSuffix "-" }}-fix-helm-orphans
+  labels:
+    {{- include "konk.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-10"
+    "helm.sh/hook-delete-policy": before-hook-creation
+rules:
+  - apiGroups: [""]
+    resources: ["serviceaccounts", "services", "secrets"]
+    verbs: ["list", "patch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets"]
+    verbs: ["list", "patch"]
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources: ["roles", "rolebindings", "clusterroles", "clusterrolebindings"]
+    verbs: ["list", "patch"]
+  - apiGroups: ["cert-manager.io"]
+    resources: ["certificates", "issuers", "clusterissuers"]
+    verbs: ["list", "patch"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses"]
+    verbs: ["list", "patch"]
+  - apiGroups: ["spacecontroller.infoblox-cto.github.com"]
+    resources: ["spaces"]
+    verbs: ["list", "patch"]
+  - apiGroups: ["konk.infoblox.com"]
+    resources: ["etcds"]
+    verbs: ["list", "patch"]
+  - apiGroups: ["autoscaling"]
+    resources: ["horizontalpodautoscalers"]
+    verbs: ["list", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "konk.fullname" . | trunc 47 | trimSuffix "-" }}-fix-helm-orphans
+  labels:
+    {{- include "konk.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-10"
+    "helm.sh/hook-delete-policy": before-hook-creation
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "konk.fullname" . | trunc 47 | trimSuffix "-" }}-fix-helm-orphans
+subjects:
+- kind: ServiceAccount
+  name: {{ include "konk.fullname" . | trunc 47 | trimSuffix "-" }}-fix-helm-orphans
+  namespace: {{ .Release.Namespace }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "konk.fullname" . | trunc 47 | trimSuffix "-" }}-fix-helm-orphans
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "konk.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 300
+  template:
+    metadata:
+      labels:
+        {{- include "konk.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: fix-helm-orphans
+    spec:
+      serviceAccountName: {{ include "konk.fullname" . | trunc 47 | trimSuffix "-" }}-fix-helm-orphans
+      restartPolicy: OnFailure
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- range . }}
+        {{- if kindIs "string" . }}
+        - name: {{ . }}
+        {{- else }}
+        - name: {{ .name }}
+        {{- end }}
+        {{- end }}
+      {{- end }}
+      containers:
+      - name: fix-helm-orphans
+        image: "{{ .Values.kind.image.repository }}:{{ .Values.kind.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.kind.image.pullPolicy }}
+        command: ["/usr/local/bin/konk-service", "fix-helm-orphans"]
+        env:
+        - name: NAMESPACE
+          value: {{ .Release.Namespace }}
+        - name: RELEASE_NAME
+          value: {{ .Release.Name }}
+        - name: SCAN_CLUSTER_SCOPED
+          value: "true"
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 65534
+          capabilities:
+            drop: ["ALL"]
+        resources:
+          limits:
+            cpu: 100m
+            memory: 64Mi
+          requests:
+            cpu: 50m
+            memory: 32Mi
+{{- end }}

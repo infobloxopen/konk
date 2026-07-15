@@ -1,0 +1,120 @@
+{{- if .Values.hooks.postInstallUpgrade.enabled }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "konk-service.fullname" . | trunc 47 | trimSuffix "-" }}-post-upgrade
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "konk-service.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": before-hook-creation
+{{- with .Values.imagePullSecrets }}
+imagePullSecrets:
+  {{- range . }}
+  {{- if kindIs "string" . }}
+  - name: {{ . }}
+  {{- else }}
+  - name: {{ .name }}
+  {{- end }}
+  {{- end }}
+{{- end }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "konk-service.fullname" . | trunc 47 | trimSuffix "-" }}-post-upgrade
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "konk-service.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": before-hook-creation
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["list", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "konk-service.fullname" . | trunc 47 | trimSuffix "-" }}-post-upgrade
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "konk-service.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": before-hook-creation
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "konk-service.fullname" . | trunc 47 | trimSuffix "-" }}-post-upgrade
+subjects:
+- kind: ServiceAccount
+  name: {{ include "konk-service.fullname" . | trunc 47 | trimSuffix "-" }}-post-upgrade
+  namespace: {{ .Release.Namespace }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "konk-service.fullname" . | trunc 47 | trimSuffix "-" }}-post-upgrade
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "konk-service.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 300
+  template:
+    metadata:
+      labels:
+        {{- include "konk-service.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: post-upgrade
+    spec:
+      serviceAccountName: {{ include "konk-service.fullname" . | trunc 47 | trimSuffix "-" }}-post-upgrade
+      restartPolicy: OnFailure
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- range . }}
+        {{- if kindIs "string" . }}
+        - name: {{ . }}
+        {{- else }}
+        - name: {{ .name }}
+        {{- end }}
+        {{- end }}
+      {{- end }}
+      containers:
+      - name: post-upgrade
+        image: "{{ .Values.kind.image.repository }}:{{ .Values.kind.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.kind.image.pullPolicy }}
+        command: ["/usr/local/bin/konk-service", "post-upgrade"]
+        env:
+        - name: NAMESPACE
+          value: {{ .Release.Namespace }}
+        - name: RELEASE_NAME
+          value: {{ .Release.Name }}
+        - name: VALID_DEPLOYMENTS
+          value: "{{ include "konk-service.fullname" . | trunc 52 | trimSuffix "-" }}-kubeconfig,{{ include "konk-service.fullname" . | trunc 51 | trimSuffix "-" }}-apiservice,{{ include "konk-service.fullname" . | trunc 46 | trimSuffix "-" }}-apiservice-test"
+        - name: GHOST_CONTAINERS
+          value: "kind"
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 65534
+          capabilities:
+            drop: ["ALL"]
+        resources:
+          limits:
+            cpu: 100m
+            memory: 64Mi
+          requests:
+            cpu: 50m
+            memory: 32Mi
+{{- end }}

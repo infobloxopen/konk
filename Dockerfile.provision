@@ -1,5 +1,5 @@
 # Global ARG must be declared before any FROM to use in FROM lines
-ARG KUBERNETES_IMG=infoblox/konk-app:latest
+ARG KUBERNETES_IMG=ghcr.io/infobloxopen/konk-app:latest
 
 # Stage 1: Build the Go provisioner
 FROM golang:1.25.5-alpine AS builder
