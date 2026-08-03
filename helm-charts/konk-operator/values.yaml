@@ -82,7 +82,7 @@ cert-manager:
   namespace: cert-manager
 
 crds:
-  create: true
+  create: false
 
 dashboards:
   create: false
