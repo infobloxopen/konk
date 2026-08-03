@@ -15,7 +15,8 @@ image:
   pullSecrets: []
 
 ## @section etcd cluster parameters
-replicaCount: 1
+statefulset:
+  replicaCount: 1
 
 ## @section etcd configuration
 etcd:

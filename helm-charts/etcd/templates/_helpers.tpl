@@ -107,7 +107,7 @@ Create the initial cluster string
 {{- $clusterDomain := .Values.clusterDomain -}}
 {{- $peerPort := int .Values.service.peerPort -}}
 {{- $peerProtocol := include "etcd.peerProtocol" . -}}
-{{- $replicaCount := int .Values.replicaCount -}}
+{{- $replicaCount := int .Values.statefulset.replicaCount -}}
 {{- $members := list -}}
 {{- range $i := until $replicaCount -}}
 {{- $members = append $members (printf "%s-%d=%s://%s-%d.%s.%s.svc.%s:%d" $fullname $i $peerProtocol $fullname $i $headlessService $releaseNamespace $clusterDomain $peerPort) -}}
@@ -125,7 +125,7 @@ Create the endpoints list for etcdctl
 {{- $clusterDomain := .Values.clusterDomain -}}
 {{- $clientPort := int .Values.service.port -}}
 {{- $clientProtocol := include "etcd.clientProtocol" . -}}
-{{- $replicaCount := int .Values.replicaCount -}}
+{{- $replicaCount := int .Values.statefulset.replicaCount -}}
 {{- $endpoints := list -}}
 {{- range $i := until $replicaCount -}}
 {{- $endpoints = append $endpoints (printf "%s://%s-%d.%s.%s.svc.%s:%d" $clientProtocol $fullname $i $headlessService $releaseNamespace $clusterDomain $clientPort) -}}

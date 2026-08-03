@@ -8,7 +8,7 @@ metadata:
   labels:
     {{- include "etcd.labels" . | nindent 4 }}
 spec:
-  replicas: {{ .Values.replicaCount }}
+  replicas: {{ .Values.statefulset.replicaCount }}
   serviceName: {{ include "etcd.headlessServiceName" . }}
   podManagementPolicy: Parallel
   updateStrategy:
@@ -88,7 +88,7 @@ spec:
               value: "{{ include "etcd.peerProtocol" . }}://0.0.0.0:{{ .Values.service.peerPort }}"
             - name: ETCD_INITIAL_ADVERTISE_PEER_URLS
               value: "{{ include "etcd.peerProtocol" . }}://$(ETCD_NAME).{{ include "etcd.headlessServiceName" . }}.{{ .Release.Namespace }}.svc.{{ .Values.clusterDomain }}:{{ .Values.service.peerPort }}"
-            {{- if gt (int .Values.replicaCount) 1 }}
+            {{- if gt (int .Values.statefulset.replicaCount) 1 }}
             - name: ETCD_INITIAL_CLUSTER
               value: {{ include "etcd.initialCluster" . | quote }}
             - name: ETCD_INITIAL_CLUSTER_TOKEN
