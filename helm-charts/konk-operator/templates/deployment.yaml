@@ -29,7 +29,7 @@ spec:
       {{- if .Values.initOrphanFix.enabled }}
       initContainers:
         - name: fix-helm-orphans
-          image: "{{ include "konk-operator.imageRepo" (dict "ctx" . "repo" .Values.relatedImages.kindRepository) }}:{{ .Values.relatedImages.kind }}"
+          image: "{{ include "konk-operator.imageRepo" (dict "ctx" . "repo" .Values.relatedImages.kindRepository) }}:{{ .Values.relatedImages.kind | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           command: ["/usr/local/bin/konk-service", "fix-helm-orphans-init"]
           {{- if .Values.initOrphanFix.skip }}
@@ -68,11 +68,11 @@ spec:
             - name: VAULT_PATH
               value: {{ .Values.vaultCommon.imagepullsecret.path | default "" }}
             - name: RELATED_IMAGE_APISERVER
-              value: {{ .Values.relatedImages.apiserver | default "" | quote }}
+              value: {{ .Values.relatedImages.apiserver | default .Chart.AppVersion | quote }}
             - name: RELATED_IMAGE_PROVISION
-              value: {{ .Values.relatedImages.provision | default "" | quote }}
+              value: {{ .Values.relatedImages.provision | default .Chart.AppVersion | quote }}
             - name: RELATED_IMAGE_KIND
-              value: {{ .Values.relatedImages.kind | default "" | quote }}
+              value: {{ .Values.relatedImages.kind | default .Chart.AppVersion | quote }}
             - name: RELATED_IMAGE_APISERVER_REPO
               value: {{ include "konk-operator.imageRepo" (dict "ctx" . "repo" .Values.relatedImages.apiserverRepository) | quote }}
             - name: RELATED_IMAGE_PROVISION_REPO
