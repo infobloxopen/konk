@@ -220,9 +220,9 @@ kind: $(KIND)
 kind-destroy: $(KIND)
 	$(KIND) delete cluster --name ${KIND_NAME}
 
-ETCD_IMG ?= gcr.io/etcd-development/etcd:v3.7.0
+ETCD_IMG ?= gcr.io/etcd-development/etcd:v3.7.1
 # Chart-expected etcd image (cgr.dev is private; CI pulls the public image and retags)
-ETCD_CHART_IMG ?= cgr.dev/infoblox.com/etcd:3.7.0
+ETCD_CHART_IMG ?= cgr.dev/infoblox.com/etcd:3.7.1
 
 kind-load-konk: $(KIND) docker-build
 	docker pull $(ETCD_IMG)
