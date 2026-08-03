@@ -61,3 +61,24 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+
+{{/*
+Resolve the repository for one image.
+
+The mirror host is registry.host, or the ib0 platform registry when that is
+empty. Given one, returns {host}/{org}/{name} — {name} being the last path
+segment of the image's own repository, and the {org} segment dropped when
+registry.org is empty. Given neither, returns the repository unchanged.
+
+Usage: include "konk-operator.imageRepo" (dict "ctx" . "repo" .Values.image.repository)
+*/}}
+{{- define "konk-operator.imageRepo" -}}
+{{- $registry := .ctx.Values.registry -}}
+{{- $host := $registry.host | default .ctx.Values.global.ib0.services.registry.host -}}
+{{- if $host -}}
+{{- compact (list $host $registry.org (.repo | splitList "/" | last)) | join "/" -}}
+{{- else -}}
+{{- .repo -}}
+{{- end -}}
+{{- end -}}

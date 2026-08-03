@@ -4,6 +4,21 @@
 
 replicaCount: 1
 
+# Registry mirror applied to every image this chart references.
+#
+# While a mirror host is in effect, an image is pulled from {host}/{org}/{name}
+# — {name} being the last path segment of that image's `repository` — instead
+# of the repository itself. `host` falls back to the ib0 platform registry
+# (global.ib0.services.registry.host), so ib0 clusters mirror automatically
+# with no configuration. With no mirror host at all, images are pulled from
+# their public `repository` defaults below.
+#
+# Mirroring elsewhere: set `host`, and set `org` to your own project — or to ""
+# for a flat {host}/{name} layout.
+registry:
+  host: ""
+  org: infobloxcto
+
 image:
   repository: ghcr.io/infobloxopen/konk
   pullPolicy: Always
@@ -26,7 +41,11 @@ serviceAccount:
 space:
   enabled: false
 
-podAnnotations: {}
+# Scrape annotations for the operator's metrics endpoint, which helm-operator
+# serves on :8080. Set to {} to opt out.
+podAnnotations:
+  prometheus.io/port: '8080'
+  prometheus.io/scrape: 'true'
 
 podSecurityContext:
   runAsUser: 10001
@@ -63,7 +82,7 @@ cert-manager:
   namespace: cert-manager
 
 crds:
-  create: false
+  create: true
 
 dashboards:
   create: false
@@ -74,18 +93,27 @@ vaultCommon:
     keys: []
     type: kubernetes.io/dockerconfigjson
 
-# Image tags and repositories for konk sub-charts, passed as env vars to the operator.
-# When set, these override the chart's default appVersion fallback.
-# In CI/kind, these are set to K8S_RELEASE-GIT_SHORT (e.g. v1.25.8-gabcdef).
-# Repository fields default to GHCR; override per-cluster to use Harbor or another registry.
 # Init container that fixes Helm orphaned resources before the operator starts
 initOrphanFix:
   enabled: true
 
+# Images for the konk components the operator deploys, passed to it as
+# RELATED_IMAGE_* env vars. Each component has a tag and a default repository.
+# Tags are set per release to the git-describe version the images are built
+# with; the repository is superseded by `registry` above when a mirror host is
+# set.
 relatedImages:
   apiserver: ""
+  apiserverRepository: ghcr.io/infobloxopen/konk-app
   provision: ""
+  provisionRepository: ghcr.io/infobloxopen/konk-provision
   kind: ""
-  apiserverRepository: "ghcr.io/infobloxopen/konk-app"
-  provisionRepository: "ghcr.io/infobloxopen/konk-provision"
-  kindRepository: "ghcr.io/infobloxopen/konk-service"
+  kindRepository: ghcr.io/infobloxopen/konk-service
+
+global:
+  ib0:
+    cluster:
+      name: '{{ .Values.env }}'
+    services:
+      registry:
+        host: ''
