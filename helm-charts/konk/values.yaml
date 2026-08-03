@@ -56,11 +56,11 @@ certManager:
   namespace:
 
 etcd:
-  # etcd image configuration - uses upstream etcd from gcr.io
+  # etcd image configuration - uses Chainguard etcd from cgr.dev/infoblox.com
   image:
-    registry: gcr.io
-    repository: etcd-development/etcd
-    tag: "v3.6.8"
+    registry: cgr.dev
+    repository: infoblox.com/etcd
+    tag: "3.7.0"
     pullPolicy: IfNotPresent
   resources:
     limits:

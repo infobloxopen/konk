@@ -220,8 +220,15 @@ kind: $(KIND)
 kind-destroy: $(KIND)
 	$(KIND) delete cluster --name ${KIND_NAME}
 
+ETCD_IMG ?= gcr.io/etcd-development/etcd:v3.7.0
+# Chart-expected etcd image (cgr.dev is private; CI pulls the public image and retags)
+ETCD_CHART_IMG ?= cgr.dev/infoblox.com/etcd:3.7.0
+
 kind-load-konk: $(KIND) docker-build
-	$(KIND) load docker-image ${IMG} --name ${KIND_NAME}
+	docker pull $(ETCD_IMG)
+	@# Retag public etcd image to match the chart's private registry reference
+	docker tag $(ETCD_IMG) $(ETCD_CHART_IMG)
+	$(KIND) load docker-image ${IMG} $(ETCD_CHART_IMG) --name ${KIND_NAME}
 
 kind-load-apiserver: QUAY_IMG=$(shell $(HELM) template helm-charts/example-apiserver | awk '/image: quay/ {print $$2}')
 kind-load-apiserver: $(KIND) .image-apiserver-${GIT_VERSION}
