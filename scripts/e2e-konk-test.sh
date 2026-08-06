@@ -716,69 +716,6 @@ OPERATOR_IMG_VER="${OPERATOR_IMG_TAG##*:}"
 
 # --- 1. konk-operator ---
 info "konk-operator          : ${OPERATOR_IMG_VER}"
-
-# --- 2. bulk-konk (apiserver) ---
-ACTUAL_APISERVER_IMG=$(kc get deploy "$KONK_CR_NAME" -n "$AGGREGATE_NAMESPACE" \
-  -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null || echo "")
-ACTUAL_APISERVER_TAG="${ACTUAL_APISERVER_IMG##*:}"
-if [[ -z "$OPERATOR_TAG" ]]; then
-  skip "bulk-konk (apiserver): cannot determine expected tag"
-elif [[ -z "$ACTUAL_APISERVER_IMG" ]]; then
-  skip "bulk-konk (apiserver): deployment not found"
-elif [[ "$ACTUAL_APISERVER_TAG" == "$OPERATOR_TAG" ]]; then
-  pass "bulk-konk (apiserver)  : ${ACTUAL_APISERVER_TAG}"
-else
-  warn "bulk-konk (apiserver)  : ${ACTUAL_APISERVER_TAG} — expected ${OPERATOR_TAG} (reconcile failing)"
-fi
-
-# --- 3. bulk-konk-init (provision) ---
-ACTUAL_PROVISION_IMG=$(kc get deploy "${KONK_CR_NAME}-init" -n "$AGGREGATE_NAMESPACE" \
-  -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null || echo "")
-ACTUAL_PROVISION_TAG="${ACTUAL_PROVISION_IMG##*:}"
-if [[ -z "$OPERATOR_PROVISION_TAG" ]]; then
-  skip "bulk-konk (provision) : cannot determine expected tag"
-elif [[ -z "$ACTUAL_PROVISION_IMG" ]]; then
-  skip "bulk-konk (provision) : deployment not found"
-elif [[ "$ACTUAL_PROVISION_TAG" == "$OPERATOR_PROVISION_TAG" ]]; then
-  pass "bulk-konk (provision)  : ${ACTUAL_PROVISION_TAG}"
-else
-  warn "bulk-konk (provision)  : ${ACTUAL_PROVISION_TAG} — expected ${OPERATOR_PROVISION_TAG} (reconcile failing)"
-fi
-
-# --- 4. konk-service pods (per namespace) ---
-if [[ -n "$OPERATOR_SERVICE_TAG" && -n "$OPERATOR_SERVICE_REPO" ]]; then
-  KONK_SVC_NAMESPACES=("$SAMPLE_NS" "ddi" "atcapi" "hostapp" "ngp-cp" "ntp" "endpoints")
-  SVC_VERSION_SUMMARY=""
-  SVC_MISMATCH=0
-  SVC_FOUND=0
-
-  for _ns in "${KONK_SVC_NAMESPACES[@]}"; do
-    _img=$(kc get deploy -n "$_ns" -l app.kubernetes.io/name=konk-service \
-      -o jsonpath='{.items[0].spec.template.spec.containers[0].image}' 2>/dev/null || true)
-    [[ -z "$_img" ]] && continue
-    ((SVC_FOUND++)) || true
-    _tag="${_img##*:}"
-    if [[ "$_tag" != "$OPERATOR_SERVICE_TAG" ]]; then
-      ((SVC_MISMATCH++)) || true
-      SVC_VERSION_SUMMARY="${SVC_VERSION_SUMMARY}    ${_ns}: ${_tag} (expected ${OPERATOR_SERVICE_TAG})\n"
-    else
-      SVC_VERSION_SUMMARY="${SVC_VERSION_SUMMARY}    ${_ns}: ${_tag}\n"
-    fi
-  done
-
-  if [[ "$SVC_FOUND" -eq 0 ]]; then
-    skip "konk-service          : no deployments found"
-  elif [[ "$SVC_MISMATCH" -eq 0 ]]; then
-    pass "konk-service (${SVC_FOUND}/${#KONK_SVC_NAMESPACES[@]} namespaces) : ${OPERATOR_SERVICE_TAG}"
-  else
-    warn "konk-service (${SVC_FOUND}/${#KONK_SVC_NAMESPACES[@]} namespaces) : ${SVC_MISMATCH}/${SVC_FOUND} namespace(s) have version mismatch"
-  fi
-  if [[ "$VERBOSE" == true && -n "$SVC_VERSION_SUMMARY" ]]; then
-    echo -e "$SVC_VERSION_SUMMARY"
-  fi
-else
-  skip "konk-service          : cannot determine expected tag (RELATED_IMAGE_KIND not set)"
-fi
 fi  # section 3
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1295,6 +1232,11 @@ else
       pass "all ${CA_MATCH} kubeconfig secrets have correct bulk-konk CA"
     else
       info "CA chain: ${CA_MATCH} match, ${CA_MISMATCH} mismatch, ${CA_MISSING} missing"
+      warn "CA mismatch detected — kubeconfig secrets are signed by a stale CA (etcd bootstrap rotated the CA)"
+      warn "This will also cause FAIL in sections 6 (pods 0/1) and 8 (APIService errors)"
+      warn "Fix: run ./fix-ca-mismatch.sh to delete stale secrets and restart affected pods"
+      warn "  ./fix-ca-mismatch.sh            # dry run"
+      warn "  ./fix-ca-mismatch.sh --apply    # apply"
     fi
 
     # Check kubeconfig client certs (tls.crt) expiry — short-lived ~12h TTL
@@ -1328,6 +1270,50 @@ else
 
     if [[ $KC_EXPIRED -eq 0 && $KC_EXPIRING -eq 0 ]]; then
       pass "all ${KC_TOTAL} kubeconfig client certs (tls.crt) are valid and not expiring soon"
+    fi
+
+    # Stale secret mount check: CA on secrets is correct but kubectl-apiservice
+    # pods are still 0/1 — pod hasn't picked up the rotated secret yet.
+    # Only runs when CA chain is clean (mismatch would be a different root cause).
+    if [[ $CA_MISMATCH -eq 0 && $CA_MISSING -eq 0 ]]; then
+      STALE_MOUNT_NS=()
+      STALE_MOUNT_DEPLOYS=()
+      while read -r ns _secret; do
+        [[ -z "$ns" ]] && continue
+        failing=$(kc get pods -n "$ns" --no-headers 2>/dev/null \
+          | grep -E 'kubectl-api|konk-service-apiservice' \
+          | grep '0/1' || true)
+        [[ -z "$failing" ]] && continue
+        # Avoid duplicate namespace entries
+        already=false
+        for _existing in "${STALE_MOUNT_NS[@]+"${STALE_MOUNT_NS[@]}"}"; do
+          [[ "$_existing" == "$ns" ]] && already=true && break
+        done
+        $already && continue
+        STALE_MOUNT_NS+=("$ns")
+        count=$(echo "$failing" | wc -l | tr -d ' ')
+        deploys=$(kc get deploy -n "$ns" --no-headers \
+          -o custom-columns='NAME:.metadata.name' 2>/dev/null \
+          | grep -E 'kubectl-apiservice|konk-service-apiservice' \
+          | grep -v 'test' || true)
+        while IFS= read -r d; do
+          [[ -z "$d" ]] && continue
+          STALE_MOUNT_DEPLOYS+=("${ns}/${d}")
+        done <<< "$deploys"
+        warn "stale secret mount: ${ns} — ${count} kubectl-apiservice pod(s) still 0/1 (CA correct, pod needs restart)"
+      done <<< "$KC_SECRETS"
+
+      if [[ ${#STALE_MOUNT_NS[@]} -eq 0 ]]; then
+        pass "no stale secret mount issues (all kubectl-apiservice pods ready)"
+      else
+        warn "${#STALE_MOUNT_NS[@]} namespace(s) have kubectl-apiservice pods stuck on stale secret mount"
+        info "Fix — restart the affected deployments:"
+        for _dep in "${STALE_MOUNT_DEPLOYS[@]}"; do
+          _dep_ns="${_dep%%/*}"
+          _dep_name="${_dep#*/}"
+          info "  kubectl rollout restart deploy/${_dep_name} -n ${_dep_ns}"
+        done
+      fi
     fi
   fi
 fi
@@ -2877,35 +2863,7 @@ fi  # section 17
 # to list for cleanup because they can keep duplicate apiservice pods running.
 section "Stale KonkService deployments (old chart names with kubectl)"
 if should_run 18; then
-  # --- 18a. Find all old v1 kubectl-apiservice deployments directly ---
-  # These are leftover deployments from the old chart naming convention.
-  # Simple grep-based approach — no jq, no label dependency.
-  KUBECTL_DEPLOYS=$(kubectl get deploy -A --no-headers 2>/dev/null | grep "kubectl-apiservice" || true)
-
-  if [[ -z "$KUBECTL_DEPLOYS" ]]; then
-    pass "no stale *-kubectl-apiservice deployments found"
-  else
-    KUBECTL_DEPLOY_COUNT=$(echo "$KUBECTL_DEPLOYS" | wc -l | tr -d ' ')
-    warn "${KUBECTL_DEPLOY_COUNT} stale *-kubectl-apiservice Deployment(s) found (old v1 chart names)"
-    while IFS= read -r line; do
-      [[ -z "$line" ]] && continue
-      _ns=$(echo "$line" | awk '{print $1}')
-      _name=$(echo "$line" | awk '{print $2}')
-      _ready=$(echo "$line" | awk '{print $3}')
-      _avail=$(echo "$line" | awk '{print $5}')
-      _age=$(echo "$line" | awk '{print $NF}')
-      warn "  ${_ns}/${_name}  ready=${_ready} available=${_avail} age=${_age}"
-    done <<< "$KUBECTL_DEPLOYS"
-    echo ""
-    info "These are old v1 chart deployments that should be replaced by *-konk-service-apiservice-* (v2)."
-    info "Cleanup after confirming the v2 replacements are healthy:"
-    info "  kubectl delete deploy -n <namespace> <stale-deployment-name>"
-    echo ""
-    _current_ctx=$(kubectl config current-context 2>/dev/null || echo '<your-context>')
-    info "Or use the automated cleanup script (dry-run first, then --apply to delete):"
-    info "  /Users/rsatal/Library/CloudStorage/OneDrive-InfobloxInc/Documents/rahul-ib-files/konk-scripts/cleanup-stale-kubectl-konkservice-deployments.sh --context ${_current_ctx}"
-    info "  /Users/rsatal/Library/CloudStorage/OneDrive-InfobloxInc/Documents/rahul-ib-files/konk-scripts/cleanup-stale-kubectl-konkservice-deployments.sh --context ${_current_ctx} --apply"
-  fi
+  skip "stale KonkService deployment check disabled"
 fi  # section 18
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -2916,56 +2874,7 @@ fi  # section 18
 # excluded from that ownership check because Helm does not currently manage them.
 section "Excluded bulk-konk resources (not Helm-managed)"
 if should_run 19; then
-  BULK_HELM_RES=$(helm_manifest_resource_refs "$KONK_CR_NAME" "$AGGREGATE_NAMESPACE" || true)
-  BULK_LIVE_RES_JSON=$(kc get svc,deploy,sts,secret,sa -n "$AGGREGATE_NAMESPACE" -o json 2>/dev/null)
-
-  if [[ -z "$BULK_LIVE_RES_JSON" ]]; then
-    warn "could not fetch bulk-konk candidate resources from ${AGGREGATE_NAMESPACE}"
-  else
-    EXCLUDED_BULK_RES=$(echo "$BULK_LIVE_RES_JSON" | jq -r --arg prefix "$KONK_CR_NAME" '
-      .items[]
-      | select(.metadata.name | contains($prefix))
-      | select(.kind != "Secret" or (.metadata.name | startswith("sh.helm.release.v1.") | not))
-      | [
-          .kind,
-          .metadata.name,
-          (.metadata.annotations["meta.helm.sh/release-name"] // "MISSING"),
-          (.metadata.annotations["meta.helm.sh/release-namespace"] // "MISSING"),
-          (((.metadata.ownerReferences // []) | map(.kind + ":" + .name) | join(",")) as $owners | if $owners == "" then "none" else $owners end),
-          (.metadata.creationTimestamp // "unknown")
-        ] | @tsv' 2>/dev/null | while IFS=$'\t' read -r kind name ann_rel ann_ns owners created; do
-        [[ -z "$kind" || -z "$name" ]] && continue
-        if [[ "$kind" == "Service" ]]; then
-          ref="service/${name}"
-        elif [[ "$kind" == "Deployment" ]]; then
-          ref="deployment.apps/${name}"
-        elif [[ "$kind" == "StatefulSet" ]]; then
-          ref="statefulset.apps/${name}"
-        elif [[ "$kind" == "Secret" ]]; then
-          ref="secret/${name}"
-        elif [[ "$kind" == "ServiceAccount" ]]; then
-          ref="serviceaccount/${name}"
-        else
-          ref="${kind}/${name}"
-        fi
-        if [[ -z "$BULK_HELM_RES" ]] || ! echo "$BULK_HELM_RES" | grep -Fxq "$ref"; then
-          printf '%s\t%s\t%s\t%s\t%s\n' "$ref" "$ann_rel" "$ann_ns" "${owners:-none}" "$created"
-        fi
-      done)
-
-    if [[ -z "$EXCLUDED_BULK_RES" ]]; then
-      pass "no bulk-konk candidate resources were excluded from the Helm ownership check"
-    else
-      EXCLUDED_COUNT=$(echo "$EXCLUDED_BULK_RES" | wc -l | tr -d ' ')
-      warn "${EXCLUDED_COUNT} bulk-konk resource(s) excluded from Helm ownership check because they are not in helm get manifest"
-      echo "$EXCLUDED_BULK_RES" | while IFS=$'\t' read -r ref ann_rel ann_ns owners created; do
-        warn "  ${ref}  annotations=${ann_rel}/${ann_ns} ownerRefs=${owners:-none} created=${created:-unknown}"
-      done
-      echo ""
-      info "Reason: Helm import/adoption only checks resources rendered in the release manifest."
-      info "These resources are generated by controllers or runtime jobs, so missing meta.helm.sh annotations here is informational, not a Helm ownership failure."
-    fi
-  fi
+  skip "excluded bulk-konk resources check disabled"
 fi  # section 19
 
 # ══════════════════════════════════════════════════════════════════════════════

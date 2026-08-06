@@ -94,7 +94,9 @@ info "Found ${#KONKSERVICE_NAMESPACES[@]} KonkService namespaces: ${KONKSERVICE_
 # ── Step 1: Check which namespaces have stale CA ──────────────────────────────
 echo
 info "═══ Step 1: Checking for stale kubeconfig-cert secrets ═══"
-declare -A STALE_SECRETS  # ns → space-separated list of stale secret names
+# bash 3.2 (macOS default) has no associative arrays — use flat "ns secret" pairs
+STALE_PAIRS=()  # each entry: "<namespace> <secret>"
+STALE_NS=()     # unique namespaces with at least one stale secret
 ALL_MATCH=true
 
 for ns in "${KONKSERVICE_NAMESPACES[@]}"; do
@@ -108,7 +110,8 @@ for ns in "${KONKSERVICE_NAMESPACES[@]}"; do
       warn "  $ns/$secret: no ca.crt found (may already be deleted)"
     elif [[ "$cert_ca" != "$CURRENT_CA_FP" ]]; then
       warn "  STALE: $ns/$secret (CA: ${cert_ca:0:20}...)"
-      STALE_SECRETS[$ns]="${STALE_SECRETS[$ns]:-} $secret"
+      STALE_PAIRS+=("$ns $secret")
+      case " ${STALE_NS[*]:-} " in *" $ns "*) ;; *) STALE_NS+=("$ns") ;; esac
       ALL_MATCH=false
     else
       pass "  $ns/$secret: CA matches"
@@ -124,11 +127,10 @@ fi
 # ── Step 2: Delete stale kubeconfig-cert secrets ──────────────────────────────
 echo
 info "═══ Step 2: Deleting stale kubeconfig-cert secrets (cert-manager will re-issue) ═══"
-for ns in "${!STALE_SECRETS[@]}"; do
-  for secret in ${STALE_SECRETS[$ns]}; do
-    info "  Deleting $ns/$secret"
-    run_or_dry delete secret "$secret" -n "$ns"
-  done
+for pair in "${STALE_PAIRS[@]}"; do
+  ns=${pair%% *}; secret=${pair##* }
+  info "  Deleting $ns/$secret"
+  run_or_dry delete secret "$secret" -n "$ns"
 done
 
 # ── Step 3: Wait for cert-manager to re-issue ─────────────────────────────────
@@ -140,20 +142,19 @@ fi
 
 # Verify re-issue
 REISSUE_OK=true
-for ns in "${!STALE_SECRETS[@]}"; do
-  for secret in ${STALE_SECRETS[$ns]}; do
-    new_ca=$(kc get secret "$secret" -n "$ns" -o jsonpath='{.data.ca\.crt}' 2>/dev/null | base64 -d | \
-      openssl x509 -fingerprint -sha256 -noout 2>/dev/null | sed 's/sha256 Fingerprint=//')
-    if [[ "$new_ca" == "$CURRENT_CA_FP" ]]; then
-      pass "  $ns/$secret: re-issued with correct CA"
-    elif [[ -z "$new_ca" ]]; then
-      fail "  $ns/$secret: not yet re-issued (cert-manager may need more time)"
-      REISSUE_OK=false
-    else
-      fail "  $ns/$secret: CA still stale (got: ${new_ca:0:20}...)"
-      REISSUE_OK=false
-    fi
-  done
+for pair in "${STALE_PAIRS[@]}"; do
+  ns=${pair%% *}; secret=${pair##* }
+  new_ca=$(kc get secret "$secret" -n "$ns" -o jsonpath='{.data.ca\.crt}' 2>/dev/null | base64 -d | \
+    openssl x509 -fingerprint -sha256 -noout 2>/dev/null | sed 's/sha256 Fingerprint=//')
+  if [[ "$new_ca" == "$CURRENT_CA_FP" ]]; then
+    pass "  $ns/$secret: re-issued with correct CA"
+  elif [[ -z "$new_ca" ]]; then
+    fail "  $ns/$secret: not yet re-issued (cert-manager may need more time)"
+    REISSUE_OK=false
+  else
+    fail "  $ns/$secret: CA still stale (got: ${new_ca:0:20}...)"
+    REISSUE_OK=false
+  fi
 done
 
 if ! $REISSUE_OK; then
@@ -161,14 +162,13 @@ if ! $REISSUE_OK; then
   if ! $DRY_RUN; then
     sleep 30
     # retry check
-    for ns in "${!STALE_SECRETS[@]}"; do
-      for secret in ${STALE_SECRETS[$ns]}; do
-        new_ca=$(kc get secret "$secret" -n "$ns" -o jsonpath='{.data.ca\.crt}' 2>/dev/null | base64 -d | \
-          openssl x509 -fingerprint -sha256 -noout 2>/dev/null | sed 's/sha256 Fingerprint=//')
-        if [[ "$new_ca" != "$CURRENT_CA_FP" ]]; then
-          fail "  $ns/$secret: STILL stale after 55s — cert-manager issue?"
-        fi
-      done
+    for pair in "${STALE_PAIRS[@]}"; do
+      ns=${pair%% *}; secret=${pair##* }
+      new_ca=$(kc get secret "$secret" -n "$ns" -o jsonpath='{.data.ca\.crt}' 2>/dev/null | base64 -d | \
+        openssl x509 -fingerprint -sha256 -noout 2>/dev/null | sed 's/sha256 Fingerprint=//')
+      if [[ "$new_ca" != "$CURRENT_CA_FP" ]]; then
+        fail "  $ns/$secret: STILL stale after 55s — cert-manager issue?"
+      fi
     done
   fi
 fi
@@ -176,7 +176,7 @@ fi
 # ── Step 4: Restart reconcile-kubeconfig pods ─────────────────────────────────
 echo
 info "═══ Step 4: Restarting reconcile-kubeconfig pods ═══"
-for ns in "${!STALE_SECRETS[@]}"; do
+for ns in "${STALE_NS[@]}"; do
   deploys=$(kc get deploy -n "$ns" --no-headers 2>/dev/null | grep 'konk-service-kubeconfig' | awk '{print $1}')
   for d in $deploys; do
     info "  Restarting $ns/$d"
@@ -213,7 +213,7 @@ fi
 # ── Step 6: Restart kubectl-apiservice deployments ────────────────────────────
 echo
 info "═══ Step 6: Restarting kubectl-apiservice deployments (pods cache CA at startup) ═══"
-for ns in "${!STALE_SECRETS[@]}"; do
+for ns in "${STALE_NS[@]}"; do
   deploys=$(kc get deploy -n "$ns" --no-headers 2>/dev/null | \
     grep -E 'apiservice.*konk|konk.*apiservice' | grep -v test | grep -v kubeconfig | awk '{print $1}')
   for d in $deploys; do
