@@ -16,7 +16,7 @@ jobs:
       id-token: write       # required by actions/attest-build-provenance
       attestations: write   # required by actions/attest-build-provenance
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
       with:
         fetch-depth: 0
     - uses: actions/setup-go@v5

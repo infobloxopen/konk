@@ -19,7 +19,7 @@ jobs:
       target_branch: ${{ steps.config.outputs.target_branch }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ vars.TARGET_BRANCH || 'main' }}
           fetch-depth: 1
@@ -74,7 +74,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ needs.resolve-config.outputs.target_branch }}
           fetch-depth: 0
