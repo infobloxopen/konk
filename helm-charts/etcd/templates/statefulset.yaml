@@ -236,7 +236,7 @@ spec:
             {{- toYaml . | nindent 12 }}
           {{- end }}
           volumeMounts:
-            - name: data
+            - name: {{ .Values.persistence.claimName | default "data" }}
               mountPath: {{ .Values.etcd.dataDir }}
             {{- if and .Values.auth.client.secureTransport (not .Values.auth.client.useAutoTLS) }}
             - name: etcd-client-certs
@@ -264,7 +264,7 @@ spec:
   {{- if .Values.persistence.enabled }}
   volumeClaimTemplates:
     - metadata:
-        name: data
+        name: {{ .Values.persistence.claimName | default "data" }}
         {{- with .Values.persistence.annotations }}
         annotations:
           {{- toYaml . | nindent 10 }}
@@ -279,6 +279,6 @@ spec:
             storage: {{ .Values.persistence.size | quote }}
         {{- include "etcd.storageClass" . | nindent 8 }}
   {{- else }}
-        - name: data
+        - name: {{ .Values.persistence.claimName | default "data" }}
           emptyDir: {}
   {{- end }}
