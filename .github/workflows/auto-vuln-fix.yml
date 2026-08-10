@@ -158,7 +158,7 @@ jobs:
           echo "GOPROXY=https://proxy.golang.org,direct" >> "$GITHUB_ENV"
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           # konk has no root go.mod; use one of the per-command modules for version detection.
           go-version-file: cmd/konk-service/go.mod
