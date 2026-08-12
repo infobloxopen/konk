@@ -36,12 +36,13 @@ func runReconcileAPIService() error {
 
 	for {
 		err := reconcileAPIServiceOnce(ctx, kubeconfigPath, certDir, serviceName, namespace, manifests, crds, crdManifests)
+		status := 0
 		if err != nil {
 			log.Printf("Error reconciling APIService: %v", err)
-		} else {
-			if err := writeHealthFile("/tmp/healthy", 0); err != nil {
-				log.Printf("Warning: failed to write health file: %v", err)
-			}
+			status = 1
+		}
+		if err := writeHealthFile("/tmp/healthy", status); err != nil {
+			log.Printf("Warning: failed to write health file: %v", err)
 		}
 		log.Printf("Sleeping 30s...")
 		time.Sleep(30 * time.Second)

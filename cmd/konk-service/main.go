@@ -56,16 +56,20 @@ func main() {
 			err = runFixHelmOrphansInit()
 		}
 	case "healthz":
-		// Readiness probe: exit 0 if the given file exists, 1 otherwise.
-		// Replaces "cat <file>" which requires a shell — unavailable in distroless.
+		// Readiness probe: read status written by the health loop (0=ready, 1=not ready).
+		// Replaces shell "exit $(</tmp/healthy)" — unavailable in distroless.
 		if len(os.Args) < 3 {
 			fmt.Fprintf(os.Stderr, "Usage: konk-service healthz <file>\n")
 			os.Exit(1)
 		}
-		if _, statErr := os.Stat(os.Args[2]); statErr != nil {
+		data, readErr := os.ReadFile(os.Args[2])
+		if readErr != nil {
 			os.Exit(1)
 		}
-		os.Exit(0)
+		if len(data) > 0 && data[0] == '0' {
+			os.Exit(0)
+		}
+		os.Exit(1)
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command: %s\n", os.Args[1])
 		os.Exit(1)

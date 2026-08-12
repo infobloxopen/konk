@@ -1052,18 +1052,22 @@ else
 fi
 
 # --- apiservice-test pods ---
-# Note: test-apiservice pods typically run as 0/1 Running (no readiness probe) — this is normal.
-# We only flag CrashLoopBackOff or Error states.
+# These pods have a readiness probe that checks APIService availability.
+# 0/1 Running means the probe is currently failing — flag it, then check events
+# for historical Unhealthy counts to distinguish a transient blip from sustained flapping.
 TEST_PODS=$(kc get pods -A --no-headers -l app.kubernetes.io/component=apiservice-test \
   | grep -v "Completed" || true)
 
 if [[ -z "$TEST_PODS" ]]; then
-  TEST_PODS=$(kc get pods -A --no-headers | grep "apiservice-test" \
+  # Fallback: shell-image pods (release/upgrade-etcd) don't carry the component label;
+  # match by name suffix instead (kubectl-apiservice-test).
+  TEST_PODS=$(kc get pods -A --no-headers | grep -E "apiservice-test|kubectl-apiservice-test" \
     | grep -v "Completed" || true)
 fi
 
 TEST_TOTAL=0
 TEST_CRASH=0
+TEST_NOT_READY=0
 
 if [[ -n "$TEST_PODS" ]]; then
   while IFS= read -r line; do
@@ -1073,16 +1077,77 @@ if [[ -n "$TEST_PODS" ]]; then
     pod=$(echo "$line" | awk '{print $2}')
     ready=$(echo "$line" | awk '{print $3}')
     status=$(echo "$line" | awk '{print $4}')
+    total_containers=$(echo "$ready" | cut -d/ -f2)
+    ready_containers=$(echo "$ready" | cut -d/ -f1)
+
     if echo "$status" | grep -qE 'CrashLoopBackOff|Error|ImagePullBackOff' 2>/dev/null; then
       fail "apiservice-test ${ns}/${pod}: ${ready} ${status}"
       ((TEST_CRASH++)) || true
+    elif [[ "${ready_containers}" -lt "${total_containers}" && "$status" == "Running" ]]; then
+      # Pod is running but readiness probe is currently failing
+      fail "apiservice-test ${ns}/${pod}: ${ready} Running — readiness probe failing (APIService unavailable)"
+      ((TEST_NOT_READY++)) || true
     else
       vinfo "apiservice-test ${ns}/${pod}: ${ready} ${status}"
     fi
+
+    if [[ "$SKIP_EXEC" != true ]]; then
+      # 1. Event scan — catches flapping within the cluster's event retention window (~1h).
+      #    A single transient failure is noise; >10 Unhealthy events is a real signal.
+      unhealthy_line=$(kubectl get events -n "$ns" \
+        --field-selector "involvedObject.name=${pod},reason=Unhealthy" \
+        --sort-by='.lastTimestamp' --no-headers 2>/dev/null \
+        | tail -1 || true)
+      if [[ -n "$unhealthy_line" ]]; then
+        probe_count=$(echo "$unhealthy_line" | grep -oE 'x[0-9]+' | tr -d 'x' | head -1 || echo "0")
+        probe_window=$(echo "$unhealthy_line" | grep -oE 'over [^)]+' | sed 's/over //' || echo "unknown")
+        if [[ "${probe_count:-0}" -gt 10 ]]; then
+          warn "apiservice-test ${ns}/${pod}: readiness probe flapping — ${probe_count} Unhealthy events over ${probe_window} (APIService intermittently unavailable)"
+        elif [[ "${probe_count:-0}" -gt 0 ]]; then
+          vinfo "apiservice-test ${ns}/${pod}: ${probe_count} Unhealthy event(s) over ${probe_window} (transient)"
+        fi
+      fi
+
+      # 2. Ready condition lastTransitionTime — catches recent recovery after events aged out.
+      #    If a long-running pod only just became Ready, it was probe-failing before.
+      #    Signal: pod up > 10min, Ready for < 30min, gap between start and ready > 5min
+      #    (the 5min floor excludes normal startup probe delay).
+      _pod_json=$(kubectl get pod "$pod" -n "$ns" -o json 2>/dev/null || true)
+      if [[ -n "$_pod_json" ]]; then
+        _times=$(echo "$_pod_json" | python3 -c "
+import sys, json, datetime, calendar
+d = json.load(sys.stdin)
+start = d.get('status', {}).get('startTime', '')
+ready_trans = ''
+for c in d.get('status', {}).get('conditions', []):
+    if c.get('type') == 'Ready' and c.get('status') == 'True':
+        ready_trans = c.get('lastTransitionTime', '')
+        break
+def to_epoch(s):
+    if not s: return 0
+    dt = datetime.datetime.strptime(s, '%Y-%m-%dT%H:%M:%SZ')
+    return calendar.timegm(dt.timetuple())
+print(to_epoch(start), to_epoch(ready_trans))
+" 2>/dev/null || echo "0 0")
+        _start_epoch=$(echo "$_times" | awk '{print $1}')
+        _ready_epoch=$(echo "$_times" | awk '{print $2}')
+        _now=$(date -u +%s)
+        if [[ "${_start_epoch:-0}" -gt 0 && "${_ready_epoch:-0}" -gt 0 ]]; then
+          _uptime=$(( _now - _start_epoch ))
+          _secs_since_ready=$(( _now - _ready_epoch ))
+          _gap=$(( _ready_epoch - _start_epoch ))
+          if [[ "$_uptime" -gt 600 && "$_secs_since_ready" -lt 1800 && "$_gap" -gt 300 ]]; then
+            _gap_min=$(( _gap / 60 ))
+            _ready_min=$(( _secs_since_ready / 60 ))
+            warn "apiservice-test ${ns}/${pod}: recently recovered — not-ready for ~${_gap_min}m, became Ready ${_ready_min}m ago (possible prior probe flapping)"
+          fi
+        fi
+      fi
+    fi
   done <<< "$TEST_PODS"
 
-  if [[ $TEST_CRASH -eq 0 ]]; then
-    pass "${TEST_TOTAL} apiservice-test pods present, none in error state (0/1 Running is normal)"
+  if [[ $TEST_CRASH -eq 0 && $TEST_NOT_READY -eq 0 ]]; then
+    pass "${TEST_TOTAL} apiservice-test pods present, all ready, no probe flapping"
   fi
 else
   vinfo "no apiservice-test pods found (may be normal)"

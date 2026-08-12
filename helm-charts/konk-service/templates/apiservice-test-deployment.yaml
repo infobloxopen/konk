@@ -50,6 +50,7 @@ spec:
             command: ["/usr/local/bin/konk-service", "healthz", "/tmp/healthy"]
           initialDelaySeconds: 5
           periodSeconds: 5
+          failureThreshold: 6
       volumes:
       - name: kubeconfig
         secret:
