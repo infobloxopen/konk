@@ -1068,6 +1068,8 @@ fi
 TEST_TOTAL=0
 TEST_CRASH=0
 TEST_NOT_READY=0
+TEST_WARN=0
+TEST_WARN_DETAILS=()   # entries: "N|ns|pod|type|detail_line"
 
 if [[ -n "$TEST_PODS" ]]; then
   while IFS= read -r line; do
@@ -1084,7 +1086,6 @@ if [[ -n "$TEST_PODS" ]]; then
       fail "apiservice-test ${ns}/${pod}: ${ready} ${status}"
       ((TEST_CRASH++)) || true
     elif [[ "${ready_containers}" -lt "${total_containers}" && "$status" == "Running" ]]; then
-      # Pod is running but readiness probe is currently failing
       fail "apiservice-test ${ns}/${pod}: ${ready} Running — readiness probe failing (APIService unavailable)"
       ((TEST_NOT_READY++)) || true
     else
@@ -1093,7 +1094,6 @@ if [[ -n "$TEST_PODS" ]]; then
 
     if [[ "$SKIP_EXEC" != true ]]; then
       # 1. Event scan — catches flapping within the cluster's event retention window (~1h).
-      #    A single transient failure is noise; >10 Unhealthy events is a real signal.
       unhealthy_line=$(kubectl get events -n "$ns" \
         --field-selector "involvedObject.name=${pod},reason=Unhealthy" \
         --sort-by='.lastTimestamp' --no-headers 2>/dev/null \
@@ -1102,16 +1102,15 @@ if [[ -n "$TEST_PODS" ]]; then
         probe_count=$(echo "$unhealthy_line" | grep -oE 'x[0-9]+' | tr -d 'x' | head -1 || echo "0")
         probe_window=$(echo "$unhealthy_line" | grep -oE 'over [^)]+' | sed 's/over //' || echo "unknown")
         if [[ "${probe_count:-0}" -gt 10 ]]; then
-          warn "apiservice-test ${ns}/${pod}: readiness probe flapping — ${probe_count} Unhealthy events over ${probe_window} (APIService intermittently unavailable)"
+          ((TEST_WARN++)) || true
+          echo -e "  ${YELLOW}[WARN][${TEST_WARN}]${RESET} apiservice-test ${ns}/${pod}: readiness probe flapping — ${probe_count} Unhealthy events over ${probe_window}"
+          TEST_WARN_DETAILS+=("${TEST_WARN}|${ns}|${pod}|event-flapping|${probe_count} probe failures over ${probe_window}")
         elif [[ "${probe_count:-0}" -gt 0 ]]; then
           vinfo "apiservice-test ${ns}/${pod}: ${probe_count} Unhealthy event(s) over ${probe_window} (transient)"
         fi
       fi
 
       # 2. Ready condition lastTransitionTime — catches recent recovery after events aged out.
-      #    If a long-running pod only just became Ready, it was probe-failing before.
-      #    Signal: pod up > 10min, Ready for < 30min, gap between start and ready > 5min
-      #    (the 5min floor excludes normal startup probe delay).
       _pod_json=$(kubectl get pod "$pod" -n "$ns" -o json 2>/dev/null || true)
       if [[ -n "$_pod_json" ]]; then
         _times=$(echo "$_pod_json" | python3 -c "
@@ -1139,15 +1138,54 @@ print(to_epoch(start), to_epoch(ready_trans))
           if [[ "$_uptime" -gt 600 && "$_secs_since_ready" -lt 1800 && "$_gap" -gt 300 ]]; then
             _gap_min=$(( _gap / 60 ))
             _ready_min=$(( _secs_since_ready / 60 ))
-            warn "apiservice-test ${ns}/${pod}: recently recovered — not-ready for ~${_gap_min}m, became Ready ${_ready_min}m ago (possible prior probe flapping)"
+            ((TEST_WARN++)) || true
+            echo -e "  ${YELLOW}[WARN][${TEST_WARN}]${RESET} apiservice-test ${ns}/${pod}: recently recovered — not-ready for ~${_gap_min}m, became Ready ${_ready_min}m ago"
+            TEST_WARN_DETAILS+=("${TEST_WARN}|${ns}|${pod}|recent-recovery|not-ready for ~${_gap_min}m, became Ready ${_ready_min}m ago")
           fi
         fi
       fi
     fi
   done <<< "$TEST_PODS"
 
-  if [[ $TEST_CRASH -eq 0 && $TEST_NOT_READY -eq 0 ]]; then
+  # ── Summary line ──
+  if [[ $TEST_CRASH -eq 0 && $TEST_NOT_READY -eq 0 && $TEST_WARN -eq 0 ]]; then
     pass "${TEST_TOTAL} apiservice-test pods present, all ready, no probe flapping"
+  elif [[ $TEST_CRASH -eq 0 && $TEST_NOT_READY -eq 0 ]]; then
+    pass "${TEST_TOTAL} apiservice-test pods present, all currently ready — ${TEST_WARN} warning(s) (see details below)"
+  fi
+
+  # ── Warning detail block ──
+  if [[ ${#TEST_WARN_DETAILS[@]} -gt 0 ]]; then
+    echo ""
+    echo -e "  ${YELLOW}${BOLD}Probe flapping warning details:${RESET}"
+    for _entry in "${TEST_WARN_DETAILS[@]}"; do
+      _wnum=$(echo "$_entry"  | cut -d'|' -f1)
+      _wns=$(echo "$_entry"   | cut -d'|' -f2)
+      _wpod=$(echo "$_entry"  | cut -d'|' -f3)
+      _wtype=$(echo "$_entry" | cut -d'|' -f4)
+      _wdetail=$(echo "$_entry" | cut -d'|' -f5)
+
+      echo -e "  ${YELLOW}[${_wnum}]${RESET} ${BOLD}${_wns}/${_wpod}${RESET}"
+      if [[ "$_wtype" == "event-flapping" ]]; then
+        echo -e "       Type:    Active probe flapping (events still present)"
+        echo -e "       Detail:  ${_wdetail}"
+        echo -e "       Meaning: The APIService inside konk was intermittently unavailable."
+        echo -e "                Each failure removes this pod from the endpoint pool, causing"
+        echo -e "                bulk export/import ops through konk to fail transiently."
+        echo -e "       Check:   kubectl get events -n ${_wns} --field-selector reason=Unhealthy --sort-by=.lastTimestamp"
+        echo -e "                kubectl top pods -n ${_wns}"
+      elif [[ "$_wtype" == "recent-recovery" ]]; then
+        echo -e "       Type:    Recent recovery (events aged out, detected via Ready condition)"
+        echo -e "       Detail:  ${_wdetail}"
+        echo -e "       Meaning: The pod's Ready condition was False for an extended period before"
+        echo -e "                recovering. The APIService was likely down due to memory pressure"
+        echo -e "                or GC pauses on the backing service causing probe timeouts."
+        echo -e "       Check:   kubectl get events -n ${_wns} --field-selector reason=Unhealthy --sort-by=.lastTimestamp"
+        echo -e "                kubectl describe pod ${_wpod} -n ${_wns} | grep -A5 Conditions"
+        echo -e "                kubectl top pods -n ${_wns}"
+      fi
+      echo ""
+    done
   fi
 else
   vinfo "no apiservice-test pods found (may be normal)"
