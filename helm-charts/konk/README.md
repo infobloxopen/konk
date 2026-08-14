@@ -50,7 +50,7 @@ When deploying with `helm install`, these configurations are values and can be o
 | etcd.replicaCount | int | `3` |  |
 | etcd.resources.limits.memory | string | `"4Gi"` |  |
 | etcd.resources.requests.cpu | string | `"200m"` |  |
-| etcd.resources.requests.memory | string | `"64Mi"` |  |
+| etcd.resources.requests.memory | string | `"128Mi"` |  |
 | etcd.securityContext.enabled | bool | `true` |  |
 | etcd.securityContext.fsGroup | int | `1001` |  |
 | etcd.securityContext.runAsNonRoot | bool | `true` |  |
