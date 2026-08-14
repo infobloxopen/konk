@@ -1,7 +1,7 @@
 apiVersion: v2
 name: etcd
 description: A custom etcd Helm chart using upstream etcd images
-version: 1.1.0
+version: 1.2.0
 appVersion: "3.7.0"
 type: application
 
