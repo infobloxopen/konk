@@ -67,7 +67,7 @@ etcd:
       memory: 4Gi
     requests:
       cpu: 200m
-      memory: 64Mi
+      memory: 128Mi
   tolerations:
     - key: infoblox.com/do-not-disrupt
       operator: Exists
