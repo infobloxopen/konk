@@ -1,6 +1,6 @@
 # konk
 
-![Version: 0.1.0](https://img.shields.io/badge/Version-0.1.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v1.25.8](https://img.shields.io/badge/AppVersion-v1.25.8-informational?style=flat-square)
+![Version: 0.2.0](https://img.shields.io/badge/Version-0.2.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v1.25.8](https://img.shields.io/badge/AppVersion-v1.25.8-informational?style=flat-square)
 
 Deploys an instance of konk (kubernetes on kubernetes), typically run by konk-operator
 
@@ -31,6 +31,10 @@ When deploying with `helm install`, these configurations are values and can be o
 | autoscaling.minReplicas | int | `1` |  |
 | autoscaling.targetCPUUtilizationPercentage | int | `80` |  |
 | certManager.namespace | string | `nil` |  |
+| etcd.affinity.nodeAffinity.preferredDuringSchedulingIgnoredDuringExecution[0].preference.matchExpressions[0].key | string | `"node-group-type"` |  |
+| etcd.affinity.nodeAffinity.preferredDuringSchedulingIgnoredDuringExecution[0].preference.matchExpressions[0].operator | string | `"In"` |  |
+| etcd.affinity.nodeAffinity.preferredDuringSchedulingIgnoredDuringExecution[0].preference.matchExpressions[0].values[0] | string | `"stable"` |  |
+| etcd.affinity.nodeAffinity.preferredDuringSchedulingIgnoredDuringExecution[0].weight | int | `100` |  |
 | etcd.containerSecurityContext.allowPrivilegeEscalation | bool | `false` |  |
 | etcd.containerSecurityContext.capabilities.drop[0] | string | `"ALL"` |  |
 | etcd.containerSecurityContext.enabled | bool | `true` |  |
@@ -45,12 +49,15 @@ When deploying with `helm install`, these configurations are values and can be o
 | etcd.persistence.size | string | `"8Gi"` |  |
 | etcd.replicaCount | int | `3` |  |
 | etcd.resources.limits.memory | string | `"4Gi"` |  |
-| etcd.resources.requests.cpu | string | `"10m"` |  |
-| etcd.resources.requests.memory | string | `"64Mi"` |  |
+| etcd.resources.requests.cpu | string | `"200m"` |  |
+| etcd.resources.requests.memory | string | `"128Mi"` |  |
 | etcd.securityContext.enabled | bool | `true` |  |
 | etcd.securityContext.fsGroup | int | `1001` |  |
 | etcd.securityContext.runAsNonRoot | bool | `true` |  |
 | etcd.securityContext.runAsUser | int | `1001` |  |
+| etcd.tolerations[0].effect | string | `"NoSchedule"` |  |
+| etcd.tolerations[0].key | string | `"infoblox.com/do-not-disrupt"` |  |
+| etcd.tolerations[0].operator | string | `"Exists"` |  |
 | fullnameOverride | string | `""` |  |
 | hooks.preInstallUpgrade.enabled | bool | `true` |  |
 | imagePullSecrets | list | `[]` |  |

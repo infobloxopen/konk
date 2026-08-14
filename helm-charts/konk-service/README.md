@@ -1,6 +1,6 @@
 # konk-service
 
-![Version: 0.1.0](https://img.shields.io/badge/Version-0.1.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v1.25.8](https://img.shields.io/badge/AppVersion-v1.25.8-informational?style=flat-square)
+![Version: 0.2.0](https://img.shields.io/badge/Version-0.2.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v1.25.8](https://img.shields.io/badge/AppVersion-v1.25.8-informational?style=flat-square)
 
 Registers an aggregate API service in Konk
 
@@ -12,6 +12,10 @@ When deploying with `helm install`, these configurations are values and can be o
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
+| affinity.nodeAffinity.preferredDuringSchedulingIgnoredDuringExecution[0].preference.matchExpressions[0].key | string | `"node-group-type"` |  |
+| affinity.nodeAffinity.preferredDuringSchedulingIgnoredDuringExecution[0].preference.matchExpressions[0].operator | string | `"In"` |  |
+| affinity.nodeAffinity.preferredDuringSchedulingIgnoredDuringExecution[0].preference.matchExpressions[0].values[0] | string | `"stable"` |  |
+| affinity.nodeAffinity.preferredDuringSchedulingIgnoredDuringExecution[0].weight | int | `100` |  |
 | annotations | object | `{}` | annotations to add to the APIService created in Konk by KonkService |
 | crds | string | `nil` |  |
 | fullnameOverride | string | `""` |  |
@@ -26,7 +30,7 @@ When deploying with `helm install`, these configurations are values and can be o
 | ingress.hosts[0].host | string | `"localhost"` |  |
 | ingress.tls | list | `[]` |  |
 | insecureSkipTLSVerify | bool | `false` |  |
-| kind | object | `{"image":{"pullPolicy":"IfNotPresent","repository":"ghcr.io/infobloxopen/konk-service","tag":""},"resources":{"limits":{"memory":"256Mi"},"requests":{"cpu":"10m","memory":"32Mi"}},"securityContext":{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true,"runAsNonRoot":true}}` | konk-service Go binary image (replaces konk-tools shell-based containers) Contains a single statically-linked Go binary on a distroless base. No shell, no busybox — all kubectl/shell logic is implemented in Go. |
+| kind | object | `{"image":{"pullPolicy":"IfNotPresent","repository":"ghcr.io/infobloxopen/konk-service","tag":""},"resources":{"limits":{"memory":"256Mi"},"requests":{"cpu":"100m","memory":"32Mi"}},"securityContext":{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true,"runAsNonRoot":true}}` | konk-service Go binary image (replaces konk-tools shell-based containers) Contains a single statically-linked Go binary on a distroless base. No shell, no busybox — all kubectl/shell logic is implemented in Go. |
 | kind.image.tag | string | `""` | Overrides the image tag whose default is the chart appVersion. |
 | konk.name | string | `""` | should be set to the konk-name |
 | konk.namespace | string | `""` |  |
@@ -38,4 +42,7 @@ When deploying with `helm install`, these configurations are values and can be o
 | serviceAccount.create | bool | `true` |  |
 | serviceAccount.name | string | `""` |  |
 | space.enabled | bool | `false` |  |
+| tolerations[0].effect | string | `"NoSchedule"` |  |
+| tolerations[0].key | string | `"infoblox.com/do-not-disrupt"` |  |
+| tolerations[0].operator | string | `"Exists"` |  |
 | version | string | `"v1alpha1"` |  |

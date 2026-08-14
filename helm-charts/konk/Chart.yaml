@@ -3,4 +3,4 @@ appVersion: v1.25.8
 description: Deploys an instance of konk (kubernetes on kubernetes), typically run by konk-operator
 name: konk
 type: application
-version: 0.1.0
+version: 0.2.0

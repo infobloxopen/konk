@@ -3,4 +3,4 @@ appVersion: v1.25.8
 description: Registers an aggregate API service in Konk
 name: konk-service
 type: application
-version: 0.1.0
+version: 0.2.0
