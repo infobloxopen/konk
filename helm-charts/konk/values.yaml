@@ -66,8 +66,22 @@ etcd:
     limits:
       memory: 4Gi
     requests:
-      cpu: 10m
+      cpu: 200m
       memory: 64Mi
+  tolerations:
+    - key: infoblox.com/do-not-disrupt
+      operator: Exists
+      effect: NoSchedule
+  affinity:
+    nodeAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          preference:
+            matchExpressions:
+              - key: node-group-type
+                operator: In
+                values:
+                  - stable
   securityContext:
     enabled: true
     fsGroup: 1001
