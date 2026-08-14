@@ -23,6 +23,14 @@ spec:
         app.kubernetes.io/component: apiservice-test
     spec:
       serviceAccountName: {{ include "konk-service.serviceAccountName" . }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
       - name: kind
         securityContext:

@@ -1,0 +1,16 @@
+{{- if and .Values.pdb.enabled (gt (int .Values.statefulset.replicaCount) 1) }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "etcd.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    {{- include "etcd.helmAnnotations" . | nindent 4 }}
+  labels:
+    {{- include "etcd.labels" . | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.pdb.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "etcd.selectorLabels" . | nindent 6 }}
+{{- end }}
