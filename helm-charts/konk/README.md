@@ -47,7 +47,6 @@ When deploying with `helm install`, these configurations are values and can be o
 | etcd.operator | bool | `true` | defines how Konk's internal etcd is deployed. `true`: etcd is deployed by konk-operator `false`: etcd is deployed as a sidecar of konk's kube-apiserver |
 | etcd.persistence.enabled | bool | `true` |  |
 | etcd.persistence.size | string | `"8Gi"` |  |
-| etcd.replicaCount | int | `3` |  |
 | etcd.resources.limits.memory | string | `"4Gi"` |  |
 | etcd.resources.requests.cpu | string | `"200m"` |  |
 | etcd.resources.requests.memory | string | `"128Mi"` |  |
@@ -55,6 +54,7 @@ When deploying with `helm install`, these configurations are values and can be o
 | etcd.securityContext.fsGroup | int | `1001` |  |
 | etcd.securityContext.runAsNonRoot | bool | `true` |  |
 | etcd.securityContext.runAsUser | int | `1001` |  |
+| etcd.statefulset.replicaCount | int | `3` |  |
 | etcd.tolerations[0].effect | string | `"NoSchedule"` |  |
 | etcd.tolerations[0].key | string | `"infoblox.com/do-not-disrupt"` |  |
 | etcd.tolerations[0].operator | string | `"Exists"` |  |
