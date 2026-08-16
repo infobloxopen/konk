@@ -91,7 +91,7 @@ jobs:
           make deploy-cert-manager deploy-ingress-nginx INGRESS_VERSION=${{ matrix.ingressVersion || env.ingress_version }}
       - name: Install konk-operator
         if: ${{ matrix.isUpgrade }}
-        timeout-minutes: 6
+        timeout-minutes: 12
         run: |
           make kind-load-konk KIND_NAME="chart-testing"
           make deploy-konk-operator
