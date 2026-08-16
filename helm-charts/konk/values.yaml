@@ -100,10 +100,11 @@ etcd:
   # `true`: etcd is deployed by konk-operator
   # `false`: etcd is deployed as a sidecar of konk's kube-apiserver
   operator: true
-  
-  # Number of etcd replicas
-  replicaCount: 3
-  
+
+  statefulset:
+    # Number of etcd replicas
+    replicaCount: 3
+
   # Persistence settings
   persistence:
     enabled: true
