@@ -66,8 +66,22 @@ etcd:
     limits:
       memory: 4Gi
     requests:
-      cpu: 10m
-      memory: 64Mi
+      cpu: 200m
+      memory: 128Mi
+  tolerations:
+    - key: infoblox.com/do-not-disrupt
+      operator: Exists
+      effect: NoSchedule
+  affinity:
+    nodeAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          preference:
+            matchExpressions:
+              - key: node-group-type
+                operator: In
+                values:
+                  - stable
   securityContext:
     enabled: true
     fsGroup: 1001
@@ -86,10 +100,11 @@ etcd:
   # `true`: etcd is deployed by konk-operator
   # `false`: etcd is deployed as a sidecar of konk's kube-apiserver
   operator: true
-  
-  # Number of etcd replicas
-  replicaCount: 3
-  
+
+  statefulset:
+    # Number of etcd replicas
+    replicaCount: 3
+
   # Persistence settings
   persistence:
     enabled: true

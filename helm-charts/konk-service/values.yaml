@@ -30,7 +30,7 @@ kind:
     limits:
       memory: 4Gi
     requests:
-      cpu: 10m
+      cpu: 100m
       memory: 40Mi
   securityContext: {}
     # capabilities:
@@ -39,6 +39,22 @@ kind:
     # readOnlyRootFilesystem: true
     # runAsNonRoot: true
     # runAsUser: 1000
+
+tolerations:
+  - key: infoblox.com/do-not-disrupt
+    operator: Exists
+    effect: NoSchedule
+
+affinity:
+  nodeAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        preference:
+          matchExpressions:
+            - key: node-group-type
+              operator: In
+              values:
+                - stable
 
 ingress:
   enabled: false
