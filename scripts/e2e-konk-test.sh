@@ -97,6 +97,7 @@ while [[ $# -gt 0 ]]; do
       fi
       shift 2 ;;
     --context)    KUBE_CONTEXT="$2"; shift 2 ;;
+    --context=*)  KUBE_CONTEXT="${1#--context=}"; shift ;;
     --sample-ns)   SAMPLE_NS="$2"; shift 2 ;;
     --skip-bulk)   SKIP_BULK=true; shift ;;
     --skip-exec)   SKIP_EXEC=true; shift ;;
