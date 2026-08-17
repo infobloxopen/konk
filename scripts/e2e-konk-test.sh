@@ -1002,12 +1002,63 @@ else
     pod=$(echo "$line" | awk '{print $2}')
     ready=$(echo "$line" | awk '{print $3}')
     status=$(echo "$line" | awk '{print $4}')
+    restarts=$(echo "$line" | awk '{print $5}' | grep -oE '^[0-9]+' || echo "0")
     total=$(echo "$ready" | cut -d/ -f2)
     if [[ "$ready" == "${total}/${total}" && "$status" == "Running" ]]; then
       vinfo "kubectl-apiservice ${ns}/${pod}: ${ready} ${status}"
     else
-      fail "kubectl-apiservice ${ns}/${pod}: ${ready} ${status}"
+      _nr_dur=$(kubectl get pod "$pod" -n "$ns" -o json 2>/dev/null | python3 -c "
+import sys, json
+from datetime import datetime, timezone
+d = json.load(sys.stdin)
+for c in d.get('status', {}).get('conditions', []):
+    if c.get('type') == 'Ready' and c.get('status') == 'False':
+        t = datetime.fromisoformat(c['lastTransitionTime'].replace('Z', '+00:00'))
+        print(f'not-ready for {int((datetime.now(timezone.utc) - t).total_seconds() / 60)}m')
+        break
+" 2>/dev/null || true)
+      [[ -n "$_nr_dur" ]] \
+        && fail "kubectl-apiservice ${ns}/${pod}: ${ready} ${status} — ${_nr_dur}" \
+        || fail "kubectl-apiservice ${ns}/${pod}: ${ready} ${status}"
       ((APISERVICE_BAD++)) || true
+    fi
+
+    if [[ "${restarts:-0}" -gt 0 ]]; then
+      warn "kubectl-apiservice ${ns}/${pod}: ${restarts} restart(s) — not running continuously since creation"
+    fi
+
+    if [[ "$SKIP_EXEC" != true ]]; then
+      _pod_json=$(kubectl get pod "$pod" -n "$ns" -o json 2>/dev/null || true)
+      if [[ -n "$_pod_json" ]]; then
+        _times=$(echo "$_pod_json" | python3 -c "
+import sys, json, datetime, calendar
+d = json.load(sys.stdin)
+start = d.get('status', {}).get('startTime', '')
+ready_trans = ''
+for c in d.get('status', {}).get('conditions', []):
+    if c.get('type') == 'Ready' and c.get('status') == 'True':
+        ready_trans = c.get('lastTransitionTime', '')
+        break
+def to_epoch(s):
+    if not s: return 0
+    dt = datetime.datetime.strptime(s, '%Y-%m-%dT%H:%M:%SZ')
+    return calendar.timegm(dt.timetuple())
+print(to_epoch(start), to_epoch(ready_trans))
+" 2>/dev/null || echo "0 0")
+        _start_epoch=$(echo "$_times" | awk '{print $1}')
+        _ready_epoch=$(echo "$_times" | awk '{print $2}')
+        _now=$(date -u +%s)
+        if [[ "${_start_epoch:-0}" -gt 0 && "${_ready_epoch:-0}" -gt 0 ]]; then
+          _uptime=$(( _now - _start_epoch ))
+          _secs_since_ready=$(( _now - _ready_epoch ))
+          _gap=$(( _ready_epoch - _start_epoch ))
+          if [[ "$_uptime" -gt 600 && "$_secs_since_ready" -lt 1800 && "$_gap" -gt 300 ]]; then
+            _uptime_min=$(( _uptime / 60 ))
+            _ready_min=$(( _secs_since_ready / 60 ))
+            warn "kubectl-apiservice ${ns}/${pod}: recently recovered — became Ready ${_ready_min}m ago (pod age: ${_uptime_min}m)"
+          fi
+        fi
+      fi
     fi
   done <<< "$APISERVICE_PODS"
 
@@ -1037,12 +1088,63 @@ else
     pod=$(echo "$line" | awk '{print $2}')
     ready=$(echo "$line" | awk '{print $3}')
     status=$(echo "$line" | awk '{print $4}')
+    restarts=$(echo "$line" | awk '{print $5}' | grep -oE '^[0-9]+' || echo "0")
     total=$(echo "$ready" | cut -d/ -f2)
     if [[ "$ready" == "${total}/${total}" && "$status" == "Running" ]]; then
       vinfo "kubeconfig ${ns}/${pod}: ${ready} ${status}"
     else
-      fail "kubeconfig ${ns}/${pod}: ${ready} ${status}"
+      _nr_dur=$(kubectl get pod "$pod" -n "$ns" -o json 2>/dev/null | python3 -c "
+import sys, json
+from datetime import datetime, timezone
+d = json.load(sys.stdin)
+for c in d.get('status', {}).get('conditions', []):
+    if c.get('type') == 'Ready' and c.get('status') == 'False':
+        t = datetime.fromisoformat(c['lastTransitionTime'].replace('Z', '+00:00'))
+        print(f'not-ready for {int((datetime.now(timezone.utc) - t).total_seconds() / 60)}m')
+        break
+" 2>/dev/null || true)
+      [[ -n "$_nr_dur" ]] \
+        && fail "kubeconfig ${ns}/${pod}: ${ready} ${status} — ${_nr_dur}" \
+        || fail "kubeconfig ${ns}/${pod}: ${ready} ${status}"
       ((KUBECONFIG_BAD++)) || true
+    fi
+
+    if [[ "${restarts:-0}" -gt 0 ]]; then
+      warn "kubeconfig ${ns}/${pod}: ${restarts} restart(s) — not running continuously since creation"
+    fi
+
+    if [[ "$SKIP_EXEC" != true ]]; then
+      _pod_json=$(kubectl get pod "$pod" -n "$ns" -o json 2>/dev/null || true)
+      if [[ -n "$_pod_json" ]]; then
+        _times=$(echo "$_pod_json" | python3 -c "
+import sys, json, datetime, calendar
+d = json.load(sys.stdin)
+start = d.get('status', {}).get('startTime', '')
+ready_trans = ''
+for c in d.get('status', {}).get('conditions', []):
+    if c.get('type') == 'Ready' and c.get('status') == 'True':
+        ready_trans = c.get('lastTransitionTime', '')
+        break
+def to_epoch(s):
+    if not s: return 0
+    dt = datetime.datetime.strptime(s, '%Y-%m-%dT%H:%M:%SZ')
+    return calendar.timegm(dt.timetuple())
+print(to_epoch(start), to_epoch(ready_trans))
+" 2>/dev/null || echo "0 0")
+        _start_epoch=$(echo "$_times" | awk '{print $1}')
+        _ready_epoch=$(echo "$_times" | awk '{print $2}')
+        _now=$(date -u +%s)
+        if [[ "${_start_epoch:-0}" -gt 0 && "${_ready_epoch:-0}" -gt 0 ]]; then
+          _uptime=$(( _now - _start_epoch ))
+          _secs_since_ready=$(( _now - _ready_epoch ))
+          _gap=$(( _ready_epoch - _start_epoch ))
+          if [[ "$_uptime" -gt 600 && "$_secs_since_ready" -lt 1800 && "$_gap" -gt 300 ]]; then
+            _uptime_min=$(( _uptime / 60 ))
+            _ready_min=$(( _secs_since_ready / 60 ))
+            warn "kubeconfig ${ns}/${pod}: recently recovered — became Ready ${_ready_min}m ago (pod age: ${_uptime_min}m)"
+          fi
+        fi
+      fi
     fi
   done <<< "$KUBECONFIG_PODS"
 
@@ -1079,6 +1181,7 @@ if [[ -n "$TEST_PODS" ]]; then
     pod=$(echo "$line" | awk '{print $2}')
     ready=$(echo "$line" | awk '{print $3}')
     status=$(echo "$line" | awk '{print $4}')
+    restarts=$(echo "$line" | awk '{print $5}' | grep -oE '^[0-9]+' || echo "0")
     total_containers=$(echo "$ready" | cut -d/ -f2)
     ready_containers=$(echo "$ready" | cut -d/ -f1)
 
@@ -1090,6 +1193,10 @@ if [[ -n "$TEST_PODS" ]]; then
       ((TEST_NOT_READY++)) || true
     else
       vinfo "apiservice-test ${ns}/${pod}: ${ready} ${status}"
+    fi
+
+    if [[ "${restarts:-0}" -gt 0 ]]; then
+      warn "apiservice-test ${ns}/${pod}: ${restarts} restart(s) — not running continuously since creation"
     fi
 
     if [[ "$SKIP_EXEC" != true ]]; then
@@ -1136,11 +1243,11 @@ print(to_epoch(start), to_epoch(ready_trans))
           _secs_since_ready=$(( _now - _ready_epoch ))
           _gap=$(( _ready_epoch - _start_epoch ))
           if [[ "$_uptime" -gt 600 && "$_secs_since_ready" -lt 1800 && "$_gap" -gt 300 ]]; then
-            _gap_min=$(( _gap / 60 ))
+            _uptime_min=$(( _uptime / 60 ))
             _ready_min=$(( _secs_since_ready / 60 ))
             ((TEST_WARN++)) || true
-            echo -e "  ${YELLOW}[WARN][${TEST_WARN}]${RESET} apiservice-test ${ns}/${pod}: recently recovered — not-ready for ~${_gap_min}m, became Ready ${_ready_min}m ago"
-            TEST_WARN_DETAILS+=("${TEST_WARN}|${ns}|${pod}|recent-recovery|not-ready for ~${_gap_min}m, became Ready ${_ready_min}m ago")
+            echo -e "  ${YELLOW}[WARN][${TEST_WARN}]${RESET} apiservice-test ${ns}/${pod}: recently recovered — became Ready ${_ready_min}m ago (pod age: ${_uptime_min}m)"
+            TEST_WARN_DETAILS+=("${TEST_WARN}|${ns}|${pod}|recent-recovery|became Ready ${_ready_min}m ago (pod age: ${_uptime_min}m)")
           fi
         fi
       fi
@@ -1175,11 +1282,11 @@ print(to_epoch(start), to_epoch(ready_trans))
         echo -e "       Check:   kubectl get events -n ${_wns} --field-selector reason=Unhealthy --sort-by=.lastTimestamp"
         echo -e "                kubectl top pods -n ${_wns}"
       elif [[ "$_wtype" == "recent-recovery" ]]; then
-        echo -e "       Type:    Recent recovery (events aged out, detected via Ready condition)"
+        echo -e "       Type:    Recent recovery (detected via Ready condition lastTransitionTime)"
         echo -e "       Detail:  ${_wdetail}"
-        echo -e "       Meaning: The pod's Ready condition was False for an extended period before"
-        echo -e "                recovering. The APIService was likely down due to memory pressure"
-        echo -e "                or GC pauses on the backing service causing probe timeouts."
+        echo -e "       Meaning: The pod became Ready within the last 30m after not being ready since"
+        echo -e "                pod start. The disruption may have been brief (e.g. an etcd rolling"
+        echo -e "                restart) or sustained. Check events/logs to determine actual duration."
         echo -e "       Check:   kubectl get events -n ${_wns} --field-selector reason=Unhealthy --sort-by=.lastTimestamp"
         echo -e "                kubectl describe pod ${_wpod} -n ${_wns} | grep -A5 Conditions"
         echo -e "                kubectl top pods -n ${_wns}"
