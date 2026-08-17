@@ -117,10 +117,10 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-      "description": "Per pod: 1 = leader visible, 0 = pod sees no leader (disrupted). Drops to 0 on the restarting pod during recreation.",
+      "description": "Number of etcd pods in Ready state. Normal = 3. Drops to 2 during a rolling restart (still quorate). Drops to 1 = quorum at risk.",
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "palette-classic" },
+          "color": { "mode": "fixed", "fixedColor": "green" },
           "custom": {
             "axisBorderShow": false,
             "axisCenteredZero": false,
@@ -129,7 +129,7 @@
             "axisPlacement": "auto",
             "barAlignment": 0,
             "drawStyle": "line",
-            "fillOpacity": 10,
+            "fillOpacity": 20,
             "gradientMode": "none",
             "hideFrom": { "legend": false, "tooltip": false, "viz": false },
             "insertNulls": false,
@@ -140,17 +140,19 @@
             "showPoints": "auto",
             "spanNulls": false,
             "stacking": { "group": "A", "mode": "none" },
-            "thresholdsStyle": { "mode": "off" }
+            "thresholdsStyle": { "mode": "line+area" }
           },
           "links": [],
-          "mappings": [
-            { "options": { "0": { "color": "red", "index": 0, "text": "No leader" }, "1": { "color": "green", "index": 1, "text": "Has leader" } }, "type": "value" }
-          ],
-          "max": 1,
+          "mappings": [],
+          "max": 3,
           "min": 0,
           "thresholds": {
             "mode": "absolute",
-            "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 0 }]
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 2 },
+              { "color": "green", "value": 3 }
+            ]
           }
         },
         "overrides": []
@@ -165,12 +167,18 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "etcd_server_has_leader{namespace=\"$namespace\", pod=~\"$pod\"}",
-          "legendFormat": "{{pod}}",
+          "expr": "sum(kube_pod_status_ready{namespace=\"$namespace\", pod=~\"$pod\", condition=\"true\"})",
+          "legendFormat": "ready",
           "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
+          "expr": "sum(kube_pod_status_ready{namespace=\"$namespace\", pod=~\"$pod\", condition=\"false\"})",
+          "legendFormat": "not ready",
+          "refId": "B"
         }
       ],
-      "title": "Has Leader (per pod)",
+      "title": "Pods Ready",
       "type": "timeseries"
     },
     {
