@@ -41,6 +41,7 @@
 #   ./e2e-konk-test.sh --skip-trigger-registration # section 8: skip default registration trigger test
 #   ./e2e-konk-test.sh -v                     # verbose (show all passing details)
 #   ./e2e-konk-test.sh -d                     # debug (show commands + full output)
+#   ./e2e-konk-test.sh --context us-stg-1            # target a specific cluster context
 #   ./e2e-konk-test.sh --csp-url URL --token TOKEN  # for section 14 (external API)
 #
 
@@ -57,6 +58,7 @@ KONK_NAMESPACE="konk"
 AGGREGATE_NAMESPACE="aggregate"
 KONK_CR_NAME="bulk-konk"
 SAMPLE_NS="tagging-v2"
+KUBE_CONTEXT=""
 SKIP_BULK=false
 SKIP_EXEC=false
 SKIP_CA=false
@@ -94,6 +96,7 @@ while [[ $# -gt 0 ]]; do
         RUN_SECTIONS+=("$2")
       fi
       shift 2 ;;
+    --context)    KUBE_CONTEXT="$2"; shift 2 ;;
     --sample-ns)   SAMPLE_NS="$2"; shift 2 ;;
     --skip-bulk)   SKIP_BULK=true; shift ;;
     --skip-exec)   SKIP_EXEC=true; shift ;;
@@ -105,13 +108,19 @@ while [[ $# -gt 0 ]]; do
     -v|--verbose)  VERBOSE=true;   shift ;;
     -d|--debug)    DEBUG=true; VERBOSE=true; shift ;;
     --help|-h)
-      sed -n '2,38p' "$0" | sed 's/^# \?//'
+      sed -n '2,46p' "$0" | sed 's/^# \?//'
       exit 0
       ;;
     *)
       echo "Unknown option: $1 (use --help)" >&2; exit 1 ;;
   esac
 done
+
+# ── Context override — intercepts all kubectl/helm calls in this script ───────
+if [[ -n "$KUBE_CONTEXT" ]]; then
+  kubectl() { command kubectl --context "$KUBE_CONTEXT" "$@"; }
+  helm()    { command helm    --kube-context "$KUBE_CONTEXT" "$@"; }
+fi
 
 # ── Load token from file if not set via --token or env var ────────────────────
 if [[ -z "$CSP_TOKEN" && -f "$TOKEN_FILE" ]]; then
@@ -272,7 +281,7 @@ echo ""
 echo -e "${BOLD}================================================================${RESET}"
 echo -e "${BOLD} Konk End-to-End Health Validation${RESET}"
 echo -e "${BOLD}================================================================${RESET}"
-echo -e "  Cluster:      $(kubectl config current-context 2>/dev/null || echo 'unknown')"
+echo -e "  Cluster:      ${KUBE_CONTEXT:-$(kubectl config current-context 2>/dev/null || echo 'unknown')}"
 echo -e "  Date (UTC):   $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
 echo -e "  Date (IST):   $(TZ=Asia/Kolkata date '+%Y-%m-%d %H:%M:%S IST')"
 echo -e "  Sample NS:    ${SAMPLE_NS}"
@@ -280,7 +289,8 @@ SKIP_TRIGGER_DISPLAY="false"
 if [[ "$TRIGGER_REGISTRATION" != true ]]; then
   SKIP_TRIGGER_DISPLAY="true"
 fi
-echo -e "  Flags:        skip-bulk=${SKIP_BULK} skip-exec=${SKIP_EXEC} skip-ca=${SKIP_CA} skip-trigger-registration=${SKIP_TRIGGER_DISPLAY} debug=${DEBUG}"
+_ctx_display="${KUBE_CONTEXT:+ context=${KUBE_CONTEXT}}"
+echo -e "  Flags:        skip-bulk=${SKIP_BULK} skip-exec=${SKIP_EXEC} skip-ca=${SKIP_CA} skip-trigger-registration=${SKIP_TRIGGER_DISPLAY} debug=${DEBUG}${_ctx_display}"
 if [[ ${#RUN_SECTIONS[@]} -gt 0 ]]; then
   echo -e "  Sections:     ${RUN_SECTIONS[*]}"
 fi
