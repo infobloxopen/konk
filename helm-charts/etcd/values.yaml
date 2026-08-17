@@ -147,3 +147,8 @@ metrics:
     enabled: false
     interval: 60s
     scrapeTimeout: 10s
+
+## @section Dashboard parameters
+dashboards:
+  create: false
+  prometheusUid: "000000001"
