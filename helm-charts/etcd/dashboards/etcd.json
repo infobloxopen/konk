@@ -62,7 +62,7 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-      "description": "Unix timestamp of when each etcd process started. A step-jump (any pod, leader or follower) means that pod was recreated.",
+      "description": "Wall-clock time of last etcd process start per pod. A step-jump means that pod was recreated.",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -107,7 +107,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "process_start_time_seconds{namespace=\"$namespace\", pod=~\"$pod\"}",
+          "expr": "process_start_time_seconds{namespace=\"$namespace\", pod=~\"$pod\"} * 1000",
           "legendFormat": "{{pod}}",
           "refId": "A"
         }
@@ -237,7 +237,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "increase(etcd_server_leader_changes_seen_total{namespace=\"$namespace\", pod=~\"$pod\"}[$__rate_interval])",
+          "expr": "ceil(increase(etcd_server_leader_changes_seen_total{namespace=\"$namespace\", pod=~\"$pod\"}[$__rate_interval]))",
           "legendFormat": "{{pod}}",
           "refId": "A"
         }
@@ -247,7 +247,7 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-      "description": "Failed Raft proposals. Non-zero sustained values indicate write failures during a restart window.",
+      "description": "Failed Raft proposals (new failures in window) and pending proposals (current gauge). Non-zero sustained failed values indicate write failures during a restart window.",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -292,7 +292,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "etcd_server_proposals_failed_total{namespace=\"$namespace\", pod=~\"$pod\"}",
+          "expr": "increase(etcd_server_proposals_failed_total{namespace=\"$namespace\", pod=~\"$pod\"}[$__rate_interval])",
           "legendFormat": "{{pod}} failed",
           "refId": "A"
         },
