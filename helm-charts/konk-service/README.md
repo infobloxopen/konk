@@ -12,10 +12,7 @@ When deploying with `helm install`, these configurations are values and can be o
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| affinity.nodeAffinity.preferredDuringSchedulingIgnoredDuringExecution[0].preference.matchExpressions[0].key | string | `"node-group-type"` |  |
-| affinity.nodeAffinity.preferredDuringSchedulingIgnoredDuringExecution[0].preference.matchExpressions[0].operator | string | `"In"` |  |
-| affinity.nodeAffinity.preferredDuringSchedulingIgnoredDuringExecution[0].preference.matchExpressions[0].values[0] | string | `"stable"` |  |
-| affinity.nodeAffinity.preferredDuringSchedulingIgnoredDuringExecution[0].weight | int | `100` |  |
+| affinity | object | `{}` |  |
 | annotations | object | `{}` | annotations to add to the APIService created in Konk by KonkService |
 | crds | string | `nil` |  |
 | fullnameOverride | string | `""` |  |
@@ -45,7 +42,5 @@ When deploying with `helm install`, these configurations are values and can be o
 | serviceAccount.create | bool | `true` |  |
 | serviceAccount.name | string | `""` |  |
 | space.enabled | bool | `false` |  |
-| tolerations[0].effect | string | `"NoSchedule"` |  |
-| tolerations[0].key | string | `"infoblox.com/do-not-disrupt"` |  |
-| tolerations[0].operator | string | `"Exists"` |  |
+| tolerations | list | `[]` |  |
 | version | string | `"v1alpha1"` |  |
