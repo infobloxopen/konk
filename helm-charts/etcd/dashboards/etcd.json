@@ -167,13 +167,13 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "sum(kube_pod_status_ready{namespace=\"$namespace\", pod=~\"$pod\", condition=\"true\"})",
+          "expr": "sum(max by (pod, namespace) (kube_pod_status_ready{namespace=\"$namespace\", pod=~\"$pod\", condition=\"true\"}))",
           "legendFormat": "ready",
           "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "sum(kube_pod_status_ready{namespace=\"$namespace\", pod=~\"$pod\", condition=\"false\"})",
+          "expr": "sum(max by (pod, namespace) (kube_pod_status_ready{namespace=\"$namespace\", pod=~\"$pod\", condition=\"false\"}))",
           "legendFormat": "not ready",
           "refId": "B"
         }
