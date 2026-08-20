@@ -5,12 +5,10 @@ metadata:
   name: {{ include "konk-operator.fullname" . }}
   namespace: {{ .Release.Namespace }}
   labels:
-    app: grafana
+    integreatly.org/operator: appinfra-grafana
     {{- include "konk-operator.labels" . | nindent 4 }}
 spec:
-  datasources:
-    - inputName: "DS_PROMETHEUS"
-      datasourceName: "Prometheus"
+  customFolderName: "konk"
   json: |-
-    {{- .Files.Get "dashboards/konk-operator.json" | nindent 4  }}
+    {{- .Files.Get "dashboards/konk-operator.json" | replace "${DS_PROMETHEUS_UID}" .Values.dashboards.prometheusUid | nindent 4  }}
 {{- end }}
