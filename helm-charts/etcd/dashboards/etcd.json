@@ -224,7 +224,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "etcd_server_has_leader{namespace=\"$namespace\", pod=~\"$pod\"}",
+          "expr": "max by (pod) (etcd_server_has_leader{namespace=\"$namespace\", pod=~\"$pod\"})",
           "refId": "A",
           "legendFormat": "{{pod}}"
         }
@@ -280,7 +280,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "ceil(increase(etcd_server_leader_changes_seen_total{namespace=\"$namespace\", pod=~\"$pod\"}[$__rate_interval]))",
+          "expr": "ceil(max by (pod) (increase(etcd_server_leader_changes_seen_total{namespace=\"$namespace\", pod=~\"$pod\"}[$__rate_interval])))",
           "legendFormat": "{{pod}}",
           "refId": "A"
         }
@@ -335,13 +335,13 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "increase(etcd_server_proposals_failed_total{namespace=\"$namespace\", pod=~\"$pod\"}[$__rate_interval])",
+          "expr": "max by (pod) (increase(etcd_server_proposals_failed_total{namespace=\"$namespace\", pod=~\"$pod\"}[$__rate_interval]))",
           "legendFormat": "{{pod}} failed",
           "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "etcd_server_proposals_pending{namespace=\"$namespace\", pod=~\"$pod\"}",
+          "expr": "max by (pod) (etcd_server_proposals_pending{namespace=\"$namespace\", pod=~\"$pod\"})",
           "legendFormat": "{{pod}} pending",
           "refId": "B"
         }
@@ -392,7 +392,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "rate(etcd_server_proposals_committed_total{namespace=\"$namespace\", pod=~\"$pod\"}[5m])",
+          "expr": "max by (pod) (rate(etcd_server_proposals_committed_total{namespace=\"$namespace\", pod=~\"$pod\"}[5m]))",
           "refId": "A",
           "legendFormat": "{{pod}}"
         }
@@ -451,7 +451,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "rate(etcd_server_heartbeat_send_failures_total{namespace=\"$namespace\", pod=~\"$pod\"}[5m])",
+          "expr": "max by (pod) (rate(etcd_server_heartbeat_send_failures_total{namespace=\"$namespace\", pod=~\"$pod\"}[5m]))",
           "refId": "A",
           "legendFormat": "{{pod}}"
         }
@@ -508,7 +508,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "histogram_quantile(0.99, rate(etcd_network_peer_round_trip_time_seconds_bucket{namespace=\"$namespace\", pod=~\"$pod\"}[$__rate_interval]))",
+          "expr": "histogram_quantile(0.99, sum by (le, pod) (rate(etcd_network_peer_round_trip_time_seconds_bucket{namespace=\"$namespace\", pod=~\"$pod\"}[$__rate_interval])))",
           "legendFormat": "{{pod}}",
           "refId": "A"
         }
@@ -577,7 +577,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "histogram_quantile(0.99, rate(etcd_disk_wal_fsync_duration_seconds_bucket{namespace=\"$namespace\", pod=~\"$pod\"}[$__rate_interval]))",
+          "expr": "histogram_quantile(0.99, sum by (le, pod) (rate(etcd_disk_wal_fsync_duration_seconds_bucket{namespace=\"$namespace\", pod=~\"$pod\"}[$__rate_interval])))",
           "legendFormat": "{{pod}}",
           "refId": "A"
         }
@@ -637,7 +637,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "histogram_quantile(0.99, rate(etcd_disk_backend_commit_duration_seconds_bucket{namespace=\"$namespace\", pod=~\"$pod\"}[$__rate_interval]))",
+          "expr": "histogram_quantile(0.99, sum by (le, pod) (rate(etcd_disk_backend_commit_duration_seconds_bucket{namespace=\"$namespace\", pod=~\"$pod\"}[$__rate_interval])))",
           "legendFormat": "{{pod}}",
           "refId": "A"
         }
@@ -693,13 +693,13 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "etcd_mvcc_db_total_size_in_bytes{namespace=\"$namespace\", pod=~\"$pod\"}",
+          "expr": "max by (pod) (etcd_mvcc_db_total_size_in_bytes{namespace=\"$namespace\", pod=~\"$pod\"})",
           "legendFormat": "{{pod}} allocated",
           "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "etcd_mvcc_db_total_size_in_use_in_bytes{namespace=\"$namespace\", pod=~\"$pod\"}",
+          "expr": "max by (pod) (etcd_mvcc_db_total_size_in_use_in_bytes{namespace=\"$namespace\", pod=~\"$pod\"})",
           "legendFormat": "{{pod}} in-use",
           "refId": "B"
         }
@@ -750,13 +750,13 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "rate(etcd_network_client_grpc_received_bytes_total{namespace=\"$namespace\", pod=~\"$pod\"}[5m])",
+          "expr": "max by (pod) (rate(etcd_network_client_grpc_received_bytes_total{namespace=\"$namespace\", pod=~\"$pod\"}[5m]))",
           "refId": "A",
           "legendFormat": "{{pod}} received"
         },
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "rate(etcd_network_client_grpc_sent_bytes_total{namespace=\"$namespace\", pod=~\"$pod\"}[5m])",
+          "expr": "max by (pod) (rate(etcd_network_client_grpc_sent_bytes_total{namespace=\"$namespace\", pod=~\"$pod\"}[5m]))",
           "refId": "B",
           "legendFormat": "{{pod}} sent"
         }
@@ -800,7 +800,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "1 - (etcd_mvcc_db_total_size_in_use_in_bytes{namespace=\"$namespace\", pod=~\"$pod\"} / etcd_mvcc_db_total_size_in_bytes{namespace=\"$namespace\", pod=~\"$pod\"})",
+          "expr": "1 - (max by (pod) (etcd_mvcc_db_total_size_in_use_in_bytes{namespace=\"$namespace\", pod=~\"$pod\"}) / max by (pod) (etcd_mvcc_db_total_size_in_bytes{namespace=\"$namespace\", pod=~\"$pod\"}))",
           "refId": "A",
           "legendFormat": "{{pod}}"
         }
