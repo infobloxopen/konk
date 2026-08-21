@@ -376,7 +376,20 @@
           },
           "noValue": "none scaled to 0"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Deployment" },
+            "properties": [{ "id": "custom.width", "value": 440 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "namespace" },
+            "properties": [{ "id": "custom.width", "value": 110 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "replicas" },
+            "properties": [{ "id": "custom.width", "value": 100 }]
+          }
+        ]
       },
       "gridPos": { "h": 7, "w": 12, "x": 0, "y": 7 },
       "id": 201,
@@ -594,7 +607,24 @@
             "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "KonkServices" },
+            "properties": [{ "id": "custom.width", "value": 100 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "kubeconfig Deployments" },
+            "properties": [{ "id": "custom.width", "value": 100 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "missing" },
+            "properties": [{ "id": "custom.width", "value": 100 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "namespace" },
+            "properties": [{ "id": "custom.width", "value": 110 }]
+          }
+        ]
       },
       "gridPos": { "h": 7, "w": 8, "x": 8, "y": 14 },
       "id": 204,
@@ -681,7 +711,20 @@
           },
           "noValue": "no failed hooks"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Job" },
+            "properties": [{ "id": "custom.width", "value": 440 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "failed pods" },
+            "properties": [{ "id": "custom.width", "value": 100 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "namespace" },
+            "properties": [{ "id": "custom.width", "value": 110 }]
+          }
+        ]
       },
       "gridPos": { "h": 7, "w": 8, "x": 16, "y": 14 },
       "id": 205,
@@ -1022,7 +1065,20 @@
             "steps": [{ "color": "text", "value": null }]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Pod" },
+            "properties": [{ "id": "custom.width", "value": 440 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "age" },
+            "properties": [{ "id": "custom.width", "value": 100 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "namespace" },
+            "properties": [{ "id": "custom.width", "value": 110 }]
+          }
+        ]
       },
       "gridPos": { "h": 7, "w": 8, "x": 16, "y": 29 },
       "id": 306,
@@ -1196,7 +1252,20 @@
           },
           "noValue": "all Certificates ready"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "certificate" },
+            "properties": [{ "id": "custom.width", "value": 440 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "namespace" },
+            "properties": [{ "id": "custom.width", "value": 110 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "not ready" },
+            "properties": [{ "id": "custom.width", "value": 100 }]
+          }
+        ]
       },
       "gridPos": { "h": 7, "w": 8, "x": 16, "y": 37 },
       "id": 403,
@@ -1381,7 +1450,20 @@
           },
           "noValue": "all backends have ready endpoints"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Service" },
+            "properties": [{ "id": "custom.width", "value": 440 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "namespace" },
+            "properties": [{ "id": "custom.width", "value": 110 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "ready addresses" },
+            "properties": [{ "id": "custom.width", "value": 100 }]
+          }
+        ]
       },
       "gridPos": { "h": 7, "w": 12, "x": 0, "y": 52 },
       "id": 501,
@@ -1852,7 +1934,20 @@
             "steps": [{ "color": "text", "value": null }]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Pod" },
+            "properties": [{ "id": "custom.width", "value": 440 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "namespace" },
+            "properties": [{ "id": "custom.width", "value": 110 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "peak" },
+            "properties": [{ "id": "custom.width", "value": 100 }]
+          }
+        ]
       },
       "gridPos": { "h": 7, "w": 8, "x": 16, "y": 74 },
       "id": 605,
@@ -1919,7 +2014,20 @@
             "steps": [{ "color": "red", "value": null }]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Pod" },
+            "properties": [{ "id": "custom.width", "value": 440 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "namespace" },
+            "properties": [{ "id": "custom.width", "value": 110 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "oomkilled" },
+            "properties": [{ "id": "custom.width", "value": 100 }]
+          }
+        ]
       },
       "gridPos": { "h": 7, "w": 24, "x": 0, "y": 81 },
       "id": 606,
