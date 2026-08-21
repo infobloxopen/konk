@@ -235,7 +235,7 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-      "description": "Rate of leader elections. Spikes indicate a leader-disrupting pod restart or network partition.",
+      "description": "Rate of leader elections. Spikes indicate a leader-disrupting pod restart or network partition. Min interval is pinned to 1m to match the chart's 60s PodMonitor scrape interval, so $__rate_interval expands to >=4m and the window always spans several samples.",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -286,11 +286,12 @@
         }
       ],
       "title": "Leader Changes Rate",
-      "type": "timeseries"
+      "type": "timeseries",
+      "interval": "1m"
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-      "description": "Failed Raft proposals (new failures in window) and pending proposals (current gauge). Non-zero sustained failed values indicate write failures during a restart window.",
+      "description": "Failed Raft proposals (new failures in window) and pending proposals (current gauge). Non-zero sustained failed values indicate write failures during a restart window. Min interval is pinned to 1m to match the chart's 60s PodMonitor scrape interval, so $__rate_interval expands to >=4m and the window always spans several samples.",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -347,7 +348,8 @@
         }
       ],
       "title": "Proposals Failed / Pending",
-      "type": "timeseries"
+      "type": "timeseries",
+      "interval": "1m"
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
@@ -462,7 +464,7 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-      "description": "Peer round-trip latency p99. High values indicate network issues between etcd members, which can precede instability.",
+      "description": "Peer round-trip latency p99. High values indicate network issues between etcd members, which can precede instability. Min interval is pinned to 1m to match the chart's 60s PodMonitor scrape interval, so $__rate_interval expands to >=4m and the window always spans several samples.",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -514,7 +516,8 @@
         }
       ],
       "title": "Peer RTT p99",
-      "type": "timeseries"
+      "type": "timeseries",
+      "interval": "1m"
     },
     {
       "collapsed": false,
@@ -527,7 +530,7 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-      "description": "WAL fsync latency p99. Values above 10ms indicate disk pressure and can cause etcd to become unhealthy.",
+      "description": "WAL fsync latency p99. Values above 10ms indicate disk pressure and can cause etcd to become unhealthy. Min interval is pinned to 1m to match the chart's 60s PodMonitor scrape interval, so $__rate_interval expands to >=4m and the window always spans several samples.",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -583,11 +586,12 @@
         }
       ],
       "title": "WAL Sync Latency p99",
-      "type": "timeseries"
+      "type": "timeseries",
+      "interval": "1m"
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-      "description": "Backend commit latency p99. High values indicate MVCC/snapshot pressure.",
+      "description": "Backend commit latency p99. High values indicate MVCC/snapshot pressure. Min interval is pinned to 1m to match the chart's 60s PodMonitor scrape interval, so $__rate_interval expands to >=4m and the window always spans several samples.",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -643,7 +647,8 @@
         }
       ],
       "title": "Backend Commit Latency p99",
-      "type": "timeseries"
+      "type": "timeseries",
+      "interval": "1m"
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
