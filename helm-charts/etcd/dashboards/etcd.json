@@ -235,7 +235,7 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-      "description": "Rate of leader elections. Spikes indicate a leader-disrupting pod restart or network partition. Min interval is pinned to 1m to match the chart's 60s PodMonitor scrape interval, so $__rate_interval expands to >=4m and the window always spans several samples.",
+      "description": "Rate of leader elections. Spikes indicate a leader-disrupting pod restart or network partition. Uses an explicit [5m] window rather than $__rate_interval: the chart scrapes every 60s, and $__rate_interval resolves to ~60-75s, which is too few samples for rate()/increase() to return anything.",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -258,7 +258,9 @@
             "showPoints": "auto",
             "spanNulls": false,
             "stacking": { "group": "A", "mode": "none" },
-            "thresholdsStyle": { "mode": "off" }
+            "thresholdsStyle": { "mode": "off" },
+            "axisSoftMax": 2,
+            "axisSoftMin": 0
           },
           "links": [],
           "mappings": [],
@@ -280,18 +282,17 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "ceil(max by (pod) (increase(etcd_server_leader_changes_seen_total{namespace=\"$namespace\", pod=~\"$pod\"}[$__rate_interval])))",
+          "expr": "ceil(max by (pod) (increase(etcd_server_leader_changes_seen_total{namespace=\"$namespace\", pod=~\"$pod\"}[5m])))",
           "legendFormat": "{{pod}}",
           "refId": "A"
         }
       ],
       "title": "Leader Changes Rate",
-      "type": "timeseries",
-      "interval": "1m"
+      "type": "timeseries"
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-      "description": "Failed Raft proposals (new failures in window) and pending proposals (current gauge). Non-zero sustained failed values indicate write failures during a restart window. Min interval is pinned to 1m to match the chart's 60s PodMonitor scrape interval, so $__rate_interval expands to >=4m and the window always spans several samples.",
+      "description": "Failed Raft proposals (new failures in window) and pending proposals (current gauge). Non-zero sustained failed values indicate write failures during a restart window. Uses an explicit [5m] window rather than $__rate_interval: the chart scrapes every 60s, and $__rate_interval resolves to ~60-75s, which is too few samples for rate()/increase() to return anything.",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -314,7 +315,9 @@
             "showPoints": "auto",
             "spanNulls": false,
             "stacking": { "group": "A", "mode": "none" },
-            "thresholdsStyle": { "mode": "off" }
+            "thresholdsStyle": { "mode": "off" },
+            "axisSoftMax": 5,
+            "axisSoftMin": 0
           },
           "links": [],
           "mappings": [],
@@ -336,7 +339,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "max by (pod) (increase(etcd_server_proposals_failed_total{namespace=\"$namespace\", pod=~\"$pod\"}[$__rate_interval]))",
+          "expr": "max by (pod) (increase(etcd_server_proposals_failed_total{namespace=\"$namespace\", pod=~\"$pod\"}[5m]))",
           "legendFormat": "{{pod}} failed",
           "refId": "A"
         },
@@ -348,8 +351,7 @@
         }
       ],
       "title": "Proposals Failed / Pending",
-      "type": "timeseries",
-      "interval": "1m"
+      "type": "timeseries"
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
@@ -427,7 +429,9 @@
             "showPoints": "auto",
             "spanNulls": false,
             "stacking": { "group": "A", "mode": "none" },
-            "thresholdsStyle": { "mode": "line+area" }
+            "thresholdsStyle": { "mode": "off" },
+            "axisSoftMax": 1,
+            "axisSoftMin": 0
           },
           "links": [],
           "mappings": [],
@@ -464,7 +468,7 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-      "description": "Peer round-trip latency p99. High values indicate network issues between etcd members, which can precede instability. Min interval is pinned to 1m to match the chart's 60s PodMonitor scrape interval, so $__rate_interval expands to >=4m and the window always spans several samples.",
+      "description": "Peer round-trip latency p99. High values indicate network issues between etcd members, which can precede instability. Uses an explicit [5m] window rather than $__rate_interval: the chart scrapes every 60s, and $__rate_interval resolves to ~60-75s, which is too few samples for rate()/increase() to return anything.",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -510,14 +514,13 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "histogram_quantile(0.99, sum by (le, pod) (rate(etcd_network_peer_round_trip_time_seconds_bucket{namespace=\"$namespace\", pod=~\"$pod\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.99, sum by (le, pod) (rate(etcd_network_peer_round_trip_time_seconds_bucket{namespace=\"$namespace\", pod=~\"$pod\"}[5m])))",
           "legendFormat": "{{pod}}",
           "refId": "A"
         }
       ],
       "title": "Peer RTT p99",
-      "type": "timeseries",
-      "interval": "1m"
+      "type": "timeseries"
     },
     {
       "collapsed": false,
@@ -530,7 +533,7 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-      "description": "WAL fsync latency p99. Values above 10ms indicate disk pressure and can cause etcd to become unhealthy. Min interval is pinned to 1m to match the chart's 60s PodMonitor scrape interval, so $__rate_interval expands to >=4m and the window always spans several samples.",
+      "description": "WAL fsync latency p99. Values above 10ms indicate disk pressure and can cause etcd to become unhealthy. Uses an explicit [5m] window rather than $__rate_interval: the chart scrapes every 60s, and $__rate_interval resolves to ~60-75s, which is too few samples for rate()/increase() to return anything.",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -580,18 +583,17 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "histogram_quantile(0.99, sum by (le, pod) (rate(etcd_disk_wal_fsync_duration_seconds_bucket{namespace=\"$namespace\", pod=~\"$pod\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.99, sum by (le, pod) (rate(etcd_disk_wal_fsync_duration_seconds_bucket{namespace=\"$namespace\", pod=~\"$pod\"}[5m])))",
           "legendFormat": "{{pod}}",
           "refId": "A"
         }
       ],
       "title": "WAL Sync Latency p99",
-      "type": "timeseries",
-      "interval": "1m"
+      "type": "timeseries"
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-      "description": "Backend commit latency p99. High values indicate MVCC/snapshot pressure. Min interval is pinned to 1m to match the chart's 60s PodMonitor scrape interval, so $__rate_interval expands to >=4m and the window always spans several samples.",
+      "description": "Backend commit latency p99. High values indicate MVCC/snapshot pressure. Uses an explicit [5m] window rather than $__rate_interval: the chart scrapes every 60s, and $__rate_interval resolves to ~60-75s, which is too few samples for rate()/increase() to return anything.",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -641,14 +643,13 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "histogram_quantile(0.99, sum by (le, pod) (rate(etcd_disk_backend_commit_duration_seconds_bucket{namespace=\"$namespace\", pod=~\"$pod\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.99, sum by (le, pod) (rate(etcd_disk_backend_commit_duration_seconds_bucket{namespace=\"$namespace\", pod=~\"$pod\"}[5m])))",
           "legendFormat": "{{pod}}",
           "refId": "A"
         }
       ],
       "title": "Backend Commit Latency p99",
-      "type": "timeseries",
-      "interval": "1m"
+      "type": "timeseries"
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
