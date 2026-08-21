@@ -1835,14 +1835,14 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS_UID}"
           },
-          "expr": "count(kube_pod_status_ready{pod=~\".*-(kubeconfig|apiservice|apiservice-test)-.*\", condition=\"true\"} == 0)",
+          "expr": "count(kube_pod_status_ready{pod=~\".*konk-service.*\", condition=\"true\"} == 0)",
           "refId": "A",
           "legendFormat": "not ready"
         }
       ],
       "title": "konk-service pods not Ready",
       "type": "stat",
-      "description": "konk-service pods failing their readiness probe.",
+      "description": "konk-service pods failing their readiness probe. Matches '.*konk-service.*'; the previous component-suffix regex missed pods whose names Kubernetes truncated.",
       "links": [
         {
           "title": "Drill down: konk-services",
