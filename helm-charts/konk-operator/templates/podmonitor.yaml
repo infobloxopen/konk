@@ -27,6 +27,13 @@ metadata:
   labels:
     {{- include "konk-operator.labels" . | nindent 4 }}
 spec:
+  # Carry app.kubernetes.io/instance onto the metrics. Alloy's annotation-based
+  # discovery labelmaps pod labels in automatically, but a PodMonitor adds only
+  # namespace/pod/container unless told otherwise -- so without this the label
+  # set differs depending on which collector picked the pod up, and any query
+  # selecting on it silently stops matching when the PodMonitor takes over.
+  podTargetLabels:
+    - app.kubernetes.io/instance
   selector:
     matchLabels:
       {{- include "konk-operator.selectorLabels" . | nindent 6 }}
