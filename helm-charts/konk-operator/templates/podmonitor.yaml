@@ -11,7 +11,14 @@ Without this, resource_created_at_seconds / rest_client_requests_total /
 process_start_time_seconds are never collected and the operator-sourced panels
 on the konk-operator dashboard are permanently empty.
 */}}
-{{- if and .Values.metrics.enabled .Values.metrics.podMonitor.enabled }}
+{{- /*
+Also gated on the PodMonitor CRD actually being installed. monitoring.coreos.com
+is not guaranteed on every cluster, and rendering the object where the CRD is
+absent fails the whole install -- so enabling metrics must never be able to break
+a cluster that has no prometheus-operator. Same capability-check pattern the
+charts already use for cert-manager in _helpers.tpl.
+*/}}
+{{- if and .Values.metrics.enabled .Values.metrics.podMonitor.enabled (.Capabilities.APIVersions.Has "monitoring.coreos.com/v1") }}
 apiVersion: monitoring.coreos.com/v1
 kind: PodMonitor
 metadata:
