@@ -1531,52 +1531,56 @@
         "defaults": {
           "color": { "mode": "thresholds" },
           "custom": {
-            "fillOpacity": 70,
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "axisSoftMax": 5,
+            "axisSoftMin": 0,
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "none",
             "hideFrom": { "legend": false, "tooltip": false, "viz": false },
             "insertNulls": false,
-            "lineWidth": 0,
-            "spanNulls": false
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "off" }
           },
-          "mappings": [
-            {
-              "options": {
-                "0": { "color": "red", "index": 1, "text": "Not Ready" },
-                "1": { "color": "green", "index": 0, "text": "Ready" }
-              },
-              "type": "value"
-            }
-          ],
+          "mappings": [],
           "min": 0,
-          "max": 1,
           "thresholds": {
             "mode": "absolute",
-            "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }]
-          }
+            "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }]
+          },
+          "noValue": "all pods ready"
         },
         "overrides": []
       },
       "gridPos": { "h": 7, "w": 16, "x": 8, "y": 59 },
       "id": 504,
       "options": {
-        "alignValue": "left",
         "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
-        "mergeValues": true,
-        "rowHeight": 0.9,
-        "showValue": "never",
-        "tooltip": { "mode": "single", "sort": "none" }
+        "tooltip": { "mode": "multi", "sort": "none" }
       },
       "pluginVersion": "10.4.19",
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "kube_pod_status_ready{namespace=~\"$namespace\", namespace=~\"aggregate|ddi|atcapi|hostapp|ngp-cp|ntp|tagging-v2|redirect|endpoints\", condition=\"true\"}",
-          "refId": "A",
-          "legendFormat": "{{namespace}}/{{pod}}"
+          "expr": "count by (namespace) (kube_pod_status_ready{namespace=~\"$namespace\", namespace=~\"aggregate|ddi|atcapi|hostapp|ngp-cp|ntp|tagging-v2|redirect|endpoints\", condition=\"true\"} == 0)",
+          "legendFormat": "{{namespace}}",
+          "refId": "A"
         }
       ],
-      "title": "Backend pod readiness",
-      "type": "state-timeline",
-      "description": "Broad view of every pod in the KonkService namespaces — these are the pods actually serving the aggregated APIs."
+      "title": "Not-ready pods per namespace",
+      "type": "timeseries",
+      "description": "Count of pods failing readiness in each konk namespace, over time. Was a per-pod state timeline, which tried to draw one row per pod -- 512 pods across these namespaces on us-dev-5, 319 in ddi alone -- so the labels collapsed into an illegible block. Counting per namespace bounds it to at most nine series, and only namespaces with a problem appear at all. Reads \"all pods ready\" when empty. This is the broad backend view; the endpoint panels above give the per-Service signal, and Row 3 covers the konk-service components specifically."
     },
     {
       "collapsed": false,
