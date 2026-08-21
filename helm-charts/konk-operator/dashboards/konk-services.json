@@ -105,7 +105,14 @@
             "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "of total" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "text" } }
+            ]
+          }
+        ]
       },
       "gridPos": { "h": 5, "w": 4, "x": 4, "y": 1 },
       "id": 102,
@@ -116,7 +123,7 @@
         "orientation": "auto",
         "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
         "showPercentChange": false,
-        "textMode": "auto",
+        "textMode": "value_and_name",
         "wideLayout": true
       },
       "pluginVersion": "10.4.19",
@@ -126,11 +133,17 @@
           "expr": "count(kube_deployment_spec_replicas{deployment=~\".*-(kubeconfig|konk-service-apiservice|kubectl-apiservice|apiservice-test)\"} == 0) or vector(0)",
           "refId": "A",
           "legendFormat": "scaled to 0"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
+          "expr": "count(kube_deployment_spec_replicas{deployment=~\".*-(kubeconfig|konk-service-apiservice|kubectl-apiservice|apiservice-test)\"}) or vector(0)",
+          "legendFormat": "of total",
+          "refId": "B"
         }
       ],
       "title": "Deployments scaled to 0",
       "type": "stat",
-      "description": "Any konk-service Deployment with replicas=0. A scaled-to-0 kubeconfig Deployment silently expires the client cert within 12h."
+      "description": "Any konk-service Deployment with replicas=0. A scaled-to-0 kubeconfig Deployment silently expires the client cert within 12h. Shown against the total population it was counted from, so a 0 is distinguishable from a query that matched nothing."
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
@@ -144,7 +157,14 @@
             "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "of total" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "text" } }
+            ]
+          }
+        ]
       },
       "gridPos": { "h": 5, "w": 4, "x": 8, "y": 1 },
       "id": 103,
@@ -155,7 +175,7 @@
         "orientation": "auto",
         "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
         "showPercentChange": false,
-        "textMode": "auto",
+        "textMode": "value_and_name",
         "wideLayout": true
       },
       "pluginVersion": "10.4.19",
@@ -165,11 +185,17 @@
           "expr": "count(kube_deployment_status_replicas_available{deployment=~\".*-(kubeconfig|konk-service-apiservice|kubectl-apiservice)\"} < 1) or vector(0)",
           "refId": "A",
           "legendFormat": "unavailable"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
+          "expr": "count(kube_deployment_status_replicas_available{deployment=~\".*-(kubeconfig|konk-service-apiservice|kubectl-apiservice)\"}) or vector(0)",
+          "legendFormat": "of total",
+          "refId": "B"
         }
       ],
       "title": "Deployments with 0 available",
       "type": "stat",
-      "description": "kubeconfig or apiservice Deployments with no available replica."
+      "description": "kubeconfig or apiservice Deployments with no available replica. Shown against the total population it was counted from, so a 0 is distinguishable from a query that matched nothing."
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
@@ -229,7 +255,14 @@
             "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "of total" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "text" } }
+            ]
+          }
+        ]
       },
       "gridPos": { "h": 5, "w": 4, "x": 16, "y": 1 },
       "id": 105,
@@ -240,7 +273,7 @@
         "orientation": "auto",
         "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
         "showPercentChange": false,
-        "textMode": "auto",
+        "textMode": "value_and_name",
         "wideLayout": true
       },
       "pluginVersion": "10.4.19",
@@ -250,11 +283,17 @@
           "expr": "count(sum by (namespace, endpoint) (kube_endpoint_info{namespace=~\"aggregate|ddi|atcapi|hostapp|ngp-cp|ntp|tagging-v2|redirect|endpoints\"}) unless sum by (namespace, endpoint) (kube_endpoint_address{namespace=~\"aggregate|ddi|atcapi|hostapp|ngp-cp|ntp|tagging-v2|redirect|endpoints\", ready=\"true\"})) or vector(0)",
           "refId": "A",
           "legendFormat": "no endpoints"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
+          "expr": "count(sum by (namespace, endpoint) (kube_endpoint_info{namespace=~\"aggregate|ddi|atcapi|hostapp|ngp-cp|ntp|tagging-v2|redirect|endpoints\"})) or vector(0)",
+          "legendFormat": "of total",
+          "refId": "B"
         }
       ],
       "title": "Backends with no endpoints",
       "type": "stat",
-      "description": "APIService backends that have an Endpoints object but zero ready addresses -- the backend is completely down. Uses kube_endpoint_info UNLESS kube_endpoint_address{ready=\"true\"}: kube_endpoint_address_available was removed in kube-state-metrics v2.10+, and a plain sum over ready=\"true\" cannot detect the failure because a backend with no ready addresses has no such series to sum."
+      "description": "APIService backends that have an Endpoints object but zero ready addresses -- the backend is completely down. Uses kube_endpoint_info UNLESS kube_endpoint_address{ready=\"true\"}: kube_endpoint_address_available was removed in kube-state-metrics v2.10+, and a plain sum over ready=\"true\" cannot detect the failure because a backend with no ready addresses has no such series to sum. Shown against the total population it was counted from, so a 0 is distinguishable from a query that matched nothing."
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
@@ -308,7 +347,7 @@
       ],
       "title": "Not available by component",
       "type": "bargauge",
-      "description": "konk-service Deployments with no available replica, split by component. Measured at the Deployment level because pod names cannot identify the component: Kubernetes truncates the ReplicaSet name before appending the pod hash, so apiservice and apiservice-test become indistinguishable. Deployment names keep their suffix."
+      "description": "konk-service Deployments with no available replica, split by component. Measured at the Deployment level because pod names cannot identify the component: Kubernetes truncates the ReplicaSet name before appending the pod hash, so apiservice and apiservice-test become indistinguishable. Deployment names keep their suffix. Denominator is the KonkService count in the first tile -- one Deployment of each component per KonkService, so each bar is out of that same total. Kept as three bars rather than six: adding per-component totals would double the bars in this width."
     },
     {
       "collapsed": false,
