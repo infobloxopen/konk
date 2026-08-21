@@ -373,7 +373,8 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [{ "color": "red", "value": null }]
-          }
+          },
+          "noValue": "none scaled to 0"
         },
         "overrides": []
       },
@@ -677,7 +678,8 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [{ "color": "red", "value": null }]
-          }
+          },
+          "noValue": "no failed hooks"
         },
         "overrides": []
       },
@@ -1192,7 +1194,7 @@
             "mode": "absolute",
             "steps": [{ "color": "red", "value": null }]
           },
-          "noValue": "all Ready"
+          "noValue": "all Certificates ready"
         },
         "overrides": []
       },
@@ -1376,7 +1378,8 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [{ "color": "red", "value": null }]
-          }
+          },
+          "noValue": "all backends have ready endpoints"
         },
         "overrides": []
       },
