@@ -991,15 +991,20 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "red",
+                "color": "text",
                 "value": null
+              },
+              {
+                "color": "red",
+                "value": 0
               },
               {
                 "color": "green",
                 "value": 1
               }
             ]
-          }
+          },
+          "noValue": "no metrics"
         },
         "overrides": []
       },
@@ -1059,8 +1064,12 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "red",
+                "color": "text",
                 "value": null
+              },
+              {
+                "color": "red",
+                "value": 0
               },
               {
                 "color": "yellow",
@@ -1071,7 +1080,8 @@
                 "value": 86400
               }
             ]
-          }
+          },
+          "noValue": "no metrics"
         },
         "overrides": []
       },
@@ -1297,8 +1307,12 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "red",
+                "color": "text",
                 "value": null
+              },
+              {
+                "color": "red",
+                "value": -99999
               },
               {
                 "color": "yellow",
@@ -1309,7 +1323,8 @@
                 "value": 60
               }
             ]
-          }
+          },
+          "noValue": "no metrics"
         },
         "overrides": []
       },
@@ -1370,15 +1385,20 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "red",
+                "color": "text",
                 "value": null
+              },
+              {
+                "color": "red",
+                "value": -99999
               },
               {
                 "color": "green",
                 "value": 0
               }
             ]
-          }
+          },
+          "noValue": "no metrics"
         },
         "overrides": []
       },
@@ -1437,8 +1457,12 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "red",
+                "color": "text",
                 "value": null
+              },
+              {
+                "color": "red",
+                "value": -99999
               },
               {
                 "color": "yellow",
@@ -1449,7 +1473,8 @@
                 "value": 90
               }
             ]
-          }
+          },
+          "noValue": "no metrics"
         },
         "overrides": []
       },
@@ -1836,8 +1861,12 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "red",
+                "color": "text",
                 "value": null
+              },
+              {
+                "color": "red",
+                "value": -99999
               },
               {
                 "color": "orange",
@@ -1852,7 +1881,8 @@
                 "value": 6
               }
             ]
-          }
+          },
+          "noValue": "no metrics"
         },
         "overrides": []
       },

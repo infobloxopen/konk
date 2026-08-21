@@ -198,8 +198,13 @@
           ],
           "thresholds": {
             "mode": "absolute",
-            "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }]
-          }
+            "steps": [
+              { "color": "text", "value": null },
+              { "color": "red", "value": 0 },
+              { "color": "green", "value": 1 }
+            ]
+          },
+          "noValue": "no metrics"
         },
         "overrides": []
       },
