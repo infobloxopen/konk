@@ -1975,7 +1975,7 @@
       {
         "current": {},
         "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-        "definition": "label_values(kube_pod_status_ready{pod=~\".*-(kubeconfig|apiservice|apiservice-test)-.*\"}, namespace)",
+        "definition": "label_values(kube_pod_status_ready{pod=~\".*konk-service.*\"}, namespace)",
         "hide": 0,
         "includeAll": true,
         "label": "Namespace",
@@ -1983,7 +1983,7 @@
         "name": "namespace",
         "options": [],
         "query": {
-          "query": "label_values(kube_pod_status_ready{pod=~\".*-(kubeconfig|apiservice|apiservice-test)-.*\"}, namespace)",
+          "query": "label_values(kube_pod_status_ready{pod=~\".*konk-service.*\"}, namespace)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 2,
@@ -1995,7 +1995,7 @@
       {
         "current": {},
         "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-        "definition": "label_values(resource_created_at_seconds{group=\"konk.infoblox.com\",kind=\"KonkService\"}, name)",
+        "definition": "label_values(resource_created_at_seconds{group=\"konk.infoblox.com\",kind=\"KonkService\", namespace=~\"$namespace\"}, name)",
         "hide": 0,
         "includeAll": true,
         "label": "KonkService",
@@ -2003,7 +2003,7 @@
         "name": "konkservice",
         "options": [],
         "query": {
-          "query": "label_values(resource_created_at_seconds{group=\"konk.infoblox.com\",kind=\"KonkService\"}, name)",
+          "query": "label_values(resource_created_at_seconds{group=\"konk.infoblox.com\",kind=\"KonkService\", namespace=~\"$namespace\"}, name)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 2,
