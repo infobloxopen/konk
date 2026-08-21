@@ -54,7 +54,7 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-      "description": "Wall-clock time of last etcd process start per pod. A step-jump means that pod was recreated.",
+      "description": "Wall-clock time of last etcd process start per pod. A step-jump means that pod was recreated. Requires the etcd pods themselves to be scraped (metrics.enabled=true + PodMonitor, etcd chart >= 1.2.x); blank otherwise. Pods Ready comes from kube-state-metrics and works regardless.",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -99,7 +99,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "process_start_time_seconds{namespace=\"$namespace\", pod=~\"$pod\"} * 1000",
+          "expr": "process_start_time_seconds{namespace=\"$namespace\", pod=~\"$pod\", pod=~\".*-etcd-[0-9]+\"} * 1000",
           "legendFormat": "{{pod}}",
           "refId": "A"
         }
@@ -159,13 +159,13 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "sum(max by (pod, namespace) (kube_pod_status_ready{namespace=\"$namespace\", pod=~\"$pod\", condition=\"true\"}))",
+          "expr": "sum(max by (pod, namespace) (kube_pod_status_ready{namespace=\"$namespace\", pod=~\"$pod\", pod=~\".*-etcd-[0-9]+\", condition=\"true\"}))",
           "legendFormat": "ready",
           "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "sum(max by (pod, namespace) (kube_pod_status_ready{namespace=\"$namespace\", pod=~\"$pod\", condition=\"false\"}))",
+          "expr": "sum(max by (pod, namespace) (kube_pod_status_ready{namespace=\"$namespace\", pod=~\"$pod\", pod=~\".*-etcd-[0-9]+\", condition=\"false\"}))",
           "legendFormat": "not ready",
           "refId": "B"
         }
@@ -813,7 +813,7 @@
       {
         "current": {},
         "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-        "definition": "label_values(etcd_server_has_leader, namespace)",
+        "definition": "label_values(kube_pod_status_ready{pod=~\".*-etcd-[0-9]+\"}, namespace)",
         "hide": 0,
         "includeAll": false,
         "label": "Namespace",
@@ -821,7 +821,7 @@
         "name": "namespace",
         "options": [],
         "query": {
-          "query": "label_values(etcd_server_has_leader, namespace)",
+          "query": "label_values(kube_pod_status_ready{pod=~\".*-etcd-[0-9]+\"}, namespace)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 2,
@@ -832,7 +832,7 @@
       {
         "current": {},
         "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-        "definition": "label_values(etcd_server_has_leader{namespace=\"$namespace\"}, pod)",
+        "definition": "label_values(kube_pod_status_ready{namespace=\"$namespace\", pod=~\".*-etcd-[0-9]+\"}, pod)",
         "hide": 0,
         "includeAll": true,
         "allValue": ".*",
@@ -841,7 +841,7 @@
         "name": "pod",
         "options": [],
         "query": {
-          "query": "label_values(etcd_server_has_leader{namespace=\"$namespace\"}, pod)",
+          "query": "label_values(kube_pod_status_ready{namespace=\"$namespace\", pod=~\".*-etcd-[0-9]+\"}, pod)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 2,

@@ -1226,7 +1226,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "kube_endpoint_address_available{namespace=~\"$namespace\"} == 0",
+          "expr": "kube_endpoint_address_available{namespace=~\"$namespace\", namespace=~\"aggregate|ddi|atcapi|hostapp|ngp-cp|ntp|tagging-v2|redirect|endpoints\"} == 0",
           "refId": "A",
           "instant": true,
           "range": false,
@@ -1307,7 +1307,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "kube_endpoint_address_available{namespace=~\"$namespace\"}",
+          "expr": "kube_endpoint_address_available{namespace=~\"$namespace\", namespace=~\"aggregate|ddi|atcapi|hostapp|ngp-cp|ntp|tagging-v2|redirect|endpoints\"}",
           "refId": "A",
           "legendFormat": "{{namespace}}/{{endpoint}}"
         }
@@ -1346,7 +1346,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "absent(kube_endpoint_address_available{namespace=~\"$namespace\"})",
+          "expr": "absent(kube_endpoint_address_available{namespace=~\"$namespace\", namespace=~\"aggregate|ddi|atcapi|hostapp|ngp-cp|ntp|tagging-v2|redirect|endpoints\"})",
           "refId": "A",
           "legendFormat": "absent"
         }
@@ -1399,7 +1399,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "kube_pod_status_ready{namespace=~\"$namespace\", condition=\"true\"}",
+          "expr": "kube_pod_status_ready{namespace=~\"$namespace\", namespace=~\"aggregate|ddi|atcapi|hostapp|ngp-cp|ntp|tagging-v2|redirect|endpoints\", condition=\"true\"}",
           "refId": "A",
           "legendFormat": "{{namespace}}/{{pod}}"
         }
