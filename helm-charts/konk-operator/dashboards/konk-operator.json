@@ -507,7 +507,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS_UID}"
       },
-      "description": "negative numbers are not-ready pods",
+      "description": "Readiness of each konk (kube-apiserver) pod. Positive is ready, negative is not ready, so a pod flipping shows as a spike through zero. One series per pod, so pods replaced during the window each keep their own line -- repeated replacements of a single-replica Deployment show up here as a staircase.",
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -522,9 +522,10 @@
             "uid": "${DS_PROMETHEUS_UID}"
           },
           "editorMode": "code",
-          "expr": "sum(kube_pod_status_ready{pod=~\".*-konk-[a-f0-9]+-[a-z0-9]+$\",condition=\"true\"}) by (namespace, pod, condition) or on() vector(0)",
+          "expr": "sum(kube_pod_status_ready{pod=~\".*-konk-[a-f0-9]+-[a-z0-9]+$\",condition=\"true\"}) by (namespace, pod)",
           "range": true,
-          "refId": "A"
+          "refId": "A",
+          "legendFormat": "{{namespace}}/{{pod}}"
         },
         {
           "datasource": {
@@ -532,9 +533,10 @@
             "uid": "${DS_PROMETHEUS_UID}"
           },
           "editorMode": "code",
-          "expr": "(sum(kube_pod_status_ready{pod=~\".*-konk-[a-f0-9]+-[a-z0-9]+$\",condition=\"false\"}) by (namespace, pod, condition) or on() vector(0)) * -1",
+          "expr": "sum(kube_pod_status_ready{pod=~\".*-konk-[a-f0-9]+-[a-z0-9]+$\",condition=\"false\"}) by (namespace, pod) * -1",
           "range": true,
-          "refId": "B"
+          "refId": "B",
+          "legendFormat": "{{namespace}}/{{pod}} not ready"
         }
       ],
       "title": "konks ready",
