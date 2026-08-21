@@ -124,8 +124,13 @@ resources:
   limits:
     memory: 2Gi
   requests:
-    cpu: 100m
+    cpu: 200m
     memory: 256Mi
+
+## @section PodDisruptionBudget parameters
+pdb:
+  enabled: true
+  minAvailable: 2
 
 ## @section Probe parameters
 livenessProbe:
@@ -152,11 +157,6 @@ startupProbe:
   failureThreshold: 60
   successThreshold: 1
 
-## @section PodDisruptionBudget parameters
-pdb:
-  enabled: true
-  minAvailable: 2
-
 ## @section Scheduling parameters
 nodeSelector: {}
 tolerations:
@@ -181,6 +181,16 @@ clusterDomain: cluster.local
 ## @section Metrics parameters
 metrics:
   enabled: false
+  port: 2381
   podAnnotations:
     prometheus.io/scrape: "true"
-    prometheus.io/port: "2379"
+    prometheus.io/port: "2381"
+  podMonitor:
+    enabled: false
+    interval: 60s
+    scrapeTimeout: 10s
+
+## @section Dashboard parameters
+dashboards:
+  create: false
+  prometheusUid: "000000001"

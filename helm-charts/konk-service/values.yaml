@@ -40,21 +40,26 @@ kind:
     # runAsNonRoot: true
     # runAsUser: 1000
 
-tolerations:
-  - key: infoblox.com/do-not-disrupt
-    operator: Exists
-    effect: NoSchedule
-
-affinity:
-  nodeAffinity:
-    preferredDuringSchedulingIgnoredDuringExecution:
-      - weight: 100
-        preference:
-          matchExpressions:
-            - key: node-group-type
-              operator: In
-              values:
-                - stable
+# Scheduling preferences are disabled by default. The deployment templates wire
+# these through, so populating them here (or via the KonkService CR spec) opts
+# pods into the stable-node-pool soft preference without a chart change:
+#
+#   tolerations:
+#     - key: infoblox.com/do-not-disrupt
+#       operator: Exists
+#       effect: NoSchedule
+#   affinity:
+#     nodeAffinity:
+#       preferredDuringSchedulingIgnoredDuringExecution:
+#         - weight: 100
+#           preference:
+#             matchExpressions:
+#               - key: node-group-type
+#                 operator: In
+#                 values:
+#                   - stable
+tolerations: []
+affinity: {}
 
 ingress:
   enabled: false

@@ -67,6 +67,7 @@ crds:
 
 dashboards:
   create: false
+  prometheusUid: "000000001"
 
 vaultCommon:
   imagepullsecret:
