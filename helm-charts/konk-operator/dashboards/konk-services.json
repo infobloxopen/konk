@@ -769,7 +769,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 7, "w": 24, "x": 0, "y": 22 },
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 22 },
       "id": 301,
       "options": {
         "alignValue": "left",
@@ -790,7 +790,7 @@
       ],
       "title": "★ apiservice-test availability (ground truth)",
       "type": "state-timeline",
-      "description": "GROUND TRUTH. This component's probe passes only when the APIService exists and its API group lists resources inside konk. If this is red the API is not serving, whatever the other panels say. Tracked per Deployment rather than per pod: with replicaCount 1 '0 available' is exactly 'its pod is not ready', and pod names are truncated so they cannot identify the component."
+      "description": "GROUND TRUTH. This component's probe passes only when the APIService exists and its API group lists resources inside konk. If this is red the API is not serving, whatever the other panels say. Tracked per Deployment rather than per pod: with replicaCount 1 '0 available' is exactly 'its pod is not ready', and pod names are truncated so they cannot identify the component. Placed third by preference: apiservice is the component that serves traffic, so it is read first. Note the spec asks for this panel to be MOST prominent -- it is the only signal that the API is actually serving, because its probe passes only when the APIService exists AND its API group lists resources inside konk. apiservice being available only means the reconciler pod is running."
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
@@ -822,7 +822,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 29 },
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 22 },
       "id": 302,
       "options": {
         "alignValue": "left",
@@ -875,7 +875,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 29 },
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 22 },
       "id": 303,
       "options": {
         "alignValue": "left",
@@ -917,7 +917,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 36 },
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 29 },
       "id": 304,
       "options": {
         "displayMode": "gradient",
@@ -984,7 +984,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 36 },
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 29 },
       "id": 305,
       "options": {
         "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
@@ -1024,7 +1024,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 36 },
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 29 },
       "id": 306,
       "options": {
         "cellHeight": "sm",
@@ -1075,7 +1075,7 @@
     {
       "collapsed": false,
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 43 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 36 },
       "id": 400,
       "panels": [],
       "title": "Row 4 — Certificate Health",
@@ -1103,7 +1103,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 44 },
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 37 },
       "id": 401,
       "options": {
         "displayMode": "gradient",
@@ -1151,7 +1151,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 44 },
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 37 },
       "id": 402,
       "options": {
         "displayMode": "gradient",
@@ -1198,7 +1198,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 44 },
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 37 },
       "id": 403,
       "options": {
         "cellHeight": "sm",
@@ -1284,7 +1284,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 51 },
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 44 },
       "id": 404,
       "options": {
         "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
@@ -1329,7 +1329,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 51 },
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 44 },
       "id": 405,
       "options": {
         "colorMode": "background",
@@ -1357,7 +1357,7 @@
     {
       "collapsed": false,
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 58 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 51 },
       "id": 500,
       "panels": [],
       "title": "Row 5 — Backend Endpoints",
@@ -1383,7 +1383,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 59 },
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 52 },
       "id": 501,
       "options": {
         "cellHeight": "sm",
@@ -1467,7 +1467,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 59 },
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 52 },
       "id": 502,
       "options": {
         "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
@@ -1500,7 +1500,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 66 },
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 59 },
       "id": 503,
       "options": {
         "colorMode": "value",
@@ -1555,7 +1555,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 7, "w": 16, "x": 8, "y": 66 },
+      "gridPos": { "h": 7, "w": 16, "x": 8, "y": 59 },
       "id": 504,
       "options": {
         "alignValue": "left",
@@ -1581,7 +1581,7 @@
     {
       "collapsed": false,
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 73 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 66 },
       "id": 600,
       "panels": [],
       "title": "Row 6 — Resource Usage (CPU & Memory)",
@@ -1620,7 +1620,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 74 },
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 67 },
       "id": 601,
       "options": {
         "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
@@ -1678,7 +1678,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 74 },
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 67 },
       "id": 602,
       "options": {
         "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
@@ -1750,7 +1750,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 81 },
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 74 },
       "id": 603,
       "options": {
         "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
@@ -1811,7 +1811,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 81 },
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 74 },
       "id": 604,
       "options": {
         "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
@@ -1850,7 +1850,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 81 },
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 74 },
       "id": 605,
       "options": {
         "cellHeight": "sm",
@@ -1917,7 +1917,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 7, "w": 24, "x": 0, "y": 88 },
+      "gridPos": { "h": 7, "w": 24, "x": 0, "y": 81 },
       "id": 606,
       "options": {
         "cellHeight": "sm",
