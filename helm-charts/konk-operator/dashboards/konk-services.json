@@ -442,7 +442,24 @@
             "steps": [{ "color": "text", "value": null }]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Deployment" },
+            "properties": [{ "id": "custom.width", "value": 460 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "namespace" },
+            "properties": [{ "id": "custom.width", "value": 110 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "desired" },
+            "properties": [{ "id": "custom.width", "value": 90 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "available" },
+            "properties": [{ "id": "custom.width", "value": 90 }]
+          }
+        ]
       },
       "gridPos": { "h": 7, "w": 12, "x": 12, "y": 7 },
       "id": 202,
@@ -455,52 +472,54 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "kube_deployment_spec_replicas{namespace=~\"$namespace\", deployment=~\".*-(kubeconfig|konk-service-apiservice|kubectl-apiservice|apiservice-test)\"}",
-          "refId": "A",
+          "expr": "sum by (namespace, deployment) (kube_deployment_spec_replicas{namespace=~\"$namespace\", deployment=~\".*-(kubeconfig|konk-service-apiservice|kubectl-apiservice|apiservice-test)\"})",
+          "format": "table",
           "instant": true,
           "range": false,
-          "format": "table"
+          "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "kube_deployment_status_replicas_available{namespace=~\"$namespace\", deployment=~\".*-(kubeconfig|konk-service-apiservice|kubectl-apiservice|apiservice-test)\"}",
-          "refId": "B",
+          "expr": "sum by (namespace, deployment) (kube_deployment_status_replicas_available{namespace=~\"$namespace\", deployment=~\".*-(kubeconfig|konk-service-apiservice|kubectl-apiservice|apiservice-test)\"})",
+          "format": "table",
           "instant": true,
           "range": false,
-          "format": "table"
+          "refId": "B"
         }
       ],
       "title": "Deployment desired vs available",
       "transformations": [
-        { "id": "merge", "options": {} },
+        { "id": "joinByField", "options": { "byField": "deployment", "mode": "outer" } },
         {
           "id": "organize",
           "options": {
             "excludeByName": {
               "Time": true,
-              "__name__": true,
+              "Time 1": true,
+              "Time 2": true,
+              "cluster": true,
+              "env": true,
               "job": true,
               "instance": true,
-              "endpoint": false,
-              "container": false,
-              "uid": true,
               "prometheus": true,
               "service": true,
-              "cluster": true,
-              "env": true
+              "uid": true,
+              "__name__": true,
+              "namespace 2": true
             },
             "includeByName": {},
             "renameByName": {
-              "Value #A": "desired",
-              "Value #B": "available",
               "deployment": "Deployment",
-              "namespace": "namespace"
+              "namespace": "namespace",
+              "namespace 1": "namespace",
+              "Value #A": "desired",
+              "Value #B": "available"
             }
           }
         }
       ],
       "type": "table",
-      "description": "Desired vs available replicas per Deployment. available < desired means the component is degraded."
+      "description": "Desired vs available replicas per konk-service Deployment; available < desired means the component is degraded. Joined with joinByField on the deployment name -- the merge transformation matches on every shared field including Time, and two instant queries land on different timestamps, so it stacked the two frames into separate rows instead of joining them (desired filled on some rows, available on others)."
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
