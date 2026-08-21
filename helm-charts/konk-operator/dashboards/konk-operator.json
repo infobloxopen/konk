@@ -215,7 +215,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS_UID}"
           },
-          "expr": "sum(rate(rest_client_requests_total{app_kubernetes_io_instance=\"konk-operator\"}[2m])) by (method, code)",
+          "expr": "sum(rate(rest_client_requests_total{app_kubernetes_io_instance=\"konk-operator\"}[5m])) by (method, code)",
           "legendFormat": "{{method}} {{ code}}",
           "refId": "A"
         }
@@ -288,14 +288,15 @@
           "placement": "bottom",
           "showLegend": true
         }
-      }
+      },
+      "description": "Kube API requests the operator makes, split by method and response code. Selects on app_kubernetes_io_instance, which is present under BOTH collection paths: Alloy's annotation discovery labelmaps pod labels in automatically, and the chart's PodMonitor carries it via podTargetLabels. Selecting on namespace would break under annotation discovery, which sets kubernetes_namespace rather than namespace."
     },
     {
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS_UID}"
       },
-      "description": "Step-jump on any line = that pod was restarted or recreated (eviction, rollout, OOMKill). Catches both leader and follower restarts unlike restart counters which reset on eviction.",
+      "description": "When the operator process started. A jump means it restarted; eviction-based recreates show here even though Container Restarts stays 0, because a new pod starts with RESTARTS=0. Selects on app_kubernetes_io_instance, which is present under BOTH collection paths: Alloy's annotation discovery labelmaps pod labels in automatically, and the chart's PodMonitor carries it via podTargetLabels. Selecting on namespace would break under annotation discovery, which sets kubernetes_namespace rather than namespace.",
       "gridPos": {
         "h": 9,
         "w": 12,
@@ -309,7 +310,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS_UID}"
           },
-          "expr": "process_start_time_seconds{namespace=\"konk\", pod=~\"konk-operator-.*\"}",
+          "expr": "process_start_time_seconds{app_kubernetes_io_instance=\"konk-operator\"} * 1000",
           "legendFormat": "{{pod}}",
           "refId": "A"
         }
@@ -507,7 +508,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS_UID}"
       },
-      "description": "negative numbers are not-ready pods",
+      "description": "Readiness of each konk (kube-apiserver) pod. Positive is ready, negative is not ready, so a pod flipping shows as a spike through zero. One series per pod, so pods replaced during the window each keep their own line -- repeated replacements of a single-replica Deployment show up here as a staircase.",
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -522,9 +523,10 @@
             "uid": "${DS_PROMETHEUS_UID}"
           },
           "editorMode": "code",
-          "expr": "sum(kube_pod_status_ready{pod=~\".*-konk-[a-f0-9]+-[a-z0-9]+$\",condition=\"true\"}) by (namespace, pod, condition) or on() vector(0)",
+          "expr": "sum(kube_pod_status_ready{pod=~\".*-konk-[a-f0-9]+-[a-z0-9]+$\",condition=\"true\"}) by (namespace, pod)",
           "range": true,
-          "refId": "A"
+          "refId": "A",
+          "legendFormat": "{{namespace}}/{{pod}}"
         },
         {
           "datasource": {
@@ -532,9 +534,10 @@
             "uid": "${DS_PROMETHEUS_UID}"
           },
           "editorMode": "code",
-          "expr": "(sum(kube_pod_status_ready{pod=~\".*-konk-[a-f0-9]+-[a-z0-9]+$\",condition=\"false\"}) by (namespace, pod, condition) or on() vector(0)) * -1",
+          "expr": "sum(kube_pod_status_ready{pod=~\".*-konk-[a-f0-9]+-[a-z0-9]+$\",condition=\"false\"}) by (namespace, pod) * -1",
           "range": true,
-          "refId": "B"
+          "refId": "B",
+          "legendFormat": "{{namespace}}/{{pod}} not ready"
         }
       ],
       "title": "konks ready",
@@ -842,7 +845,7 @@
       ],
       "title": "Operator 5xx error rate",
       "type": "timeseries",
-      "description": "Operator reconcile failures against the parent Kube API. Sustained non-zero means reconciliation is failing."
+      "description": "Operator reconcile failures against the parent Kube API. Sustained non-zero means reconciliation is failing. Reads \"No data\" rather than 0 while healthy: Prometheus only creates series for response codes actually observed, so with no 5xx ever returned there is no series to rate. Selects on app_kubernetes_io_instance, which is present under BOTH collection paths: Alloy's annotation discovery labelmaps pod labels in automatically, and the chart's PodMonitor carries it via podTargetLabels. Selecting on namespace would break under annotation discovery, which sets kubernetes_namespace rather than namespace."
     },
     {
       "datasource": {
@@ -991,15 +994,20 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "red",
+                "color": "text",
                 "value": null
+              },
+              {
+                "color": "red",
+                "value": 0
               },
               {
                 "color": "green",
                 "value": 1
               }
             ]
-          }
+          },
+          "noValue": "no metrics"
         },
         "overrides": []
       },
@@ -1059,8 +1067,12 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "red",
+                "color": "text",
                 "value": null
+              },
+              {
+                "color": "red",
+                "value": 0
               },
               {
                 "color": "yellow",
@@ -1071,7 +1083,8 @@
                 "value": 86400
               }
             ]
-          }
+          },
+          "noValue": "no metrics"
         },
         "overrides": []
       },
@@ -1297,8 +1310,12 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "red",
+                "color": "text",
                 "value": null
+              },
+              {
+                "color": "red",
+                "value": -99999
               },
               {
                 "color": "yellow",
@@ -1309,7 +1326,8 @@
                 "value": 60
               }
             ]
-          }
+          },
+          "noValue": "no metrics"
         },
         "overrides": []
       },
@@ -1345,7 +1363,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS_UID}"
           },
-          "expr": "(certmanager_certificate_expiration_timestamp_seconds{namespace=\"aggregate\", name!~\".*kubeconfig.*\"} - time()) / 86400",
+          "expr": "(max by (name) (certmanager_certificate_expiration_timestamp_seconds{namespace=\"aggregate\", name!~\".*kubeconfig.*\"}) - time()) / 86400",
           "refId": "A",
           "legendFormat": "{{name}}"
         }
@@ -1370,15 +1388,20 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "red",
+                "color": "text",
                 "value": null
+              },
+              {
+                "color": "red",
+                "value": -99999
               },
               {
                 "color": "green",
                 "value": 0
               }
             ]
-          }
+          },
+          "noValue": "no metrics"
         },
         "overrides": []
       },
@@ -1437,8 +1460,12 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "red",
+                "color": "text",
                 "value": null
+              },
+              {
+                "color": "red",
+                "value": -99999
               },
               {
                 "color": "yellow",
@@ -1449,7 +1476,8 @@
                 "value": 90
               }
             ]
-          }
+          },
+          "noValue": "no metrics"
         },
         "overrides": []
       },
@@ -1483,14 +1511,14 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS_UID}"
           },
-          "expr": "min((certmanager_certificate_expiration_timestamp_seconds{name=~\".*bulk-konk-ca\"} - time()) / 86400)",
+          "expr": "min((max by (name) (certmanager_certificate_expiration_timestamp_seconds{namespace=\"aggregate\", name=~\".*requestheader-self-signed\"}) - time()) / 86400)",
           "refId": "A",
           "legendFormat": "days"
         }
       ],
-      "title": "CA cert expiry (days)",
+      "title": "Self-signed issuer cert expiry (days)",
       "type": "stat",
-      "description": "bulk-konk-ca is long-lived and annotated helm.sh/resource-policy=keep. Alert below 30 days."
+      "description": "Expiry of bulk-konk-requestheader-self-signed, the long-lived (~2 year) self-signed issuer cert managed by cert-manager. NOTE: this panel previously tracked bulk-konk-ca, which cannot work -- that is a raw kubernetes.io/tls Secret created by provision/kubeadm, not a cert-manager Certificate, so cert-manager exports no metric for it. Cluster-CA expiry needs a different source (x509 parsing or a custom exporter); see spec 4.2."
     },
     {
       "datasource": {
@@ -1519,9 +1547,47 @@
                 "value": null
               }
             ]
-          }
+          },
+          "noValue": "all Ready"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "certificate"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 440
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "namespace"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 110
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "not ready"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 100
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 7,
@@ -1549,7 +1615,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS_UID}"
           },
-          "expr": "certmanager_certificate_ready_status{namespace=\"aggregate\", condition=\"True\"} == 0",
+          "expr": "max by (namespace, name) (certmanager_certificate_ready_status{namespace=\"aggregate\", condition=\"True\"}) == 0",
           "format": "table",
           "instant": true,
           "range": false,
@@ -1572,13 +1638,15 @@
               "prometheus": true,
               "service": true,
               "condition": true,
-              "exported_namespace": true
+              "exported_namespace": true,
+              "cluster": true,
+              "env": true
             },
             "includeByName": {},
             "renameByName": {
               "Value": "not ready",
               "name": "certificate",
-              "namespace": "ns"
+              "namespace": "namespace"
             }
           }
         }
@@ -1804,14 +1872,14 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS_UID}"
           },
-          "expr": "count(kube_pod_status_ready{pod=~\".*-(kubeconfig|apiservice|apiservice-test)-.*\", condition=\"true\"} == 0)",
+          "expr": "count(kube_pod_status_ready{pod=~\".*konk-service.*\", condition=\"true\"} == 0)",
           "refId": "A",
           "legendFormat": "not ready"
         }
       ],
       "title": "konk-service pods not Ready",
       "type": "stat",
-      "description": "konk-service pods failing their readiness probe.",
+      "description": "konk-service pods failing their readiness probe. Matches '.*konk-service.*'; the previous component-suffix regex missed pods whose names Kubernetes truncated.",
       "links": [
         {
           "title": "Drill down: konk-services",
@@ -1836,8 +1904,12 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "red",
+                "color": "text",
                 "value": null
+              },
+              {
+                "color": "red",
+                "value": -99999
               },
               {
                 "color": "orange",
@@ -1852,7 +1924,8 @@
                 "value": 6
               }
             ]
-          }
+          },
+          "noValue": "no metrics"
         },
         "overrides": []
       },

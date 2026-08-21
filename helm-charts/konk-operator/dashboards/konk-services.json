@@ -102,10 +102,17 @@
           "decimals": 0,
           "thresholds": {
             "mode": "absolute",
-            "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }]
+            "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "of total" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "text" } }
+            ]
+          }
+        ]
       },
       "gridPos": { "h": 5, "w": 4, "x": 4, "y": 1 },
       "id": 102,
@@ -116,21 +123,27 @@
         "orientation": "auto",
         "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
         "showPercentChange": false,
-        "textMode": "auto",
+        "textMode": "value_and_name",
         "wideLayout": true
       },
       "pluginVersion": "10.4.19",
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "count(kube_deployment_spec_replicas{deployment=~\".*-(kubeconfig|konk-service-apiservice|kubectl-apiservice|apiservice-test)\"} == 0) or vector(0)",
-          "refId": "A",
-          "legendFormat": "scaled to 0"
+          "expr": "count(kube_deployment_spec_replicas{deployment=~\".*-(kubeconfig|konk-service-apiservice|kubectl-apiservice|apiservice-test)\"} > 0) or vector(0)",
+          "legendFormat": "scaled up",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
+          "expr": "count(kube_deployment_spec_replicas{deployment=~\".*-(kubeconfig|konk-service-apiservice|kubectl-apiservice|apiservice-test)\"}) or vector(0)",
+          "legendFormat": "of total",
+          "refId": "B"
         }
       ],
-      "title": "Deployments scaled to 0",
+      "title": "Deployments scaled up",
       "type": "stat",
-      "description": "Any konk-service Deployment with replicas=0. A scaled-to-0 kubeconfig Deployment silently expires the client cert within 12h."
+      "description": "konk-service Deployments with at least one desired replica, against the total. A shortfall means a Deployment is scaled to 0 -- for kubeconfig that silently expires the 12h client cert. Row 2 lists exactly which."
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
@@ -141,10 +154,17 @@
           "decimals": 0,
           "thresholds": {
             "mode": "absolute",
-            "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }]
+            "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "of total" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "text" } }
+            ]
+          }
+        ]
       },
       "gridPos": { "h": 5, "w": 4, "x": 8, "y": 1 },
       "id": 103,
@@ -155,21 +175,27 @@
         "orientation": "auto",
         "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
         "showPercentChange": false,
-        "textMode": "auto",
+        "textMode": "value_and_name",
         "wideLayout": true
       },
       "pluginVersion": "10.4.19",
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "count(kube_deployment_status_replicas_available{deployment=~\".*-(kubeconfig|konk-service-apiservice|kubectl-apiservice)\"} < 1) or vector(0)",
-          "refId": "A",
-          "legendFormat": "unavailable"
+          "expr": "count(kube_deployment_status_replicas_available{deployment=~\".*-(kubeconfig|konk-service-apiservice|kubectl-apiservice)\"} >= 1) or vector(0)",
+          "legendFormat": "available",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
+          "expr": "count(kube_deployment_status_replicas_available{deployment=~\".*-(kubeconfig|konk-service-apiservice|kubectl-apiservice)\"}) or vector(0)",
+          "legendFormat": "of total",
+          "refId": "B"
         }
       ],
-      "title": "Deployments with 0 available",
+      "title": "Deployments available",
       "type": "stat",
-      "description": "kubeconfig or apiservice Deployments with no available replica."
+      "description": "kubeconfig and apiservice Deployments with at least one available replica, against the total. apiservice-test is excluded -- the spec treats it as optional. Row 2 lists any shortfall."
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
@@ -181,12 +207,14 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "red", "value": null },
+              { "color": "text", "value": null },
+              { "color": "red", "value": -99999 },
               { "color": "orange", "value": 2 },
               { "color": "yellow", "value": 4 },
               { "color": "green", "value": 6 }
             ]
-          }
+          },
+          "noValue": "no metrics"
         },
         "overrides": []
       },
@@ -224,10 +252,17 @@
           "decimals": 0,
           "thresholds": {
             "mode": "absolute",
-            "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }]
+            "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "of total" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "text" } }
+            ]
+          }
+        ]
       },
       "gridPos": { "h": 5, "w": 4, "x": 16, "y": 1 },
       "id": 105,
@@ -238,21 +273,27 @@
         "orientation": "auto",
         "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
         "showPercentChange": false,
-        "textMode": "auto",
+        "textMode": "value_and_name",
         "wideLayout": true
       },
       "pluginVersion": "10.4.19",
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "count(kube_endpoint_address_available{namespace=~\"aggregate|ddi|atcapi|hostapp|ngp-cp|ntp|tagging-v2|redirect|endpoints\"} == 0) or vector(0)",
-          "refId": "A",
-          "legendFormat": "no endpoints"
+          "expr": "count(sum by (namespace, endpoint) (kube_endpoint_address{namespace=~\"aggregate|ddi|atcapi|hostapp|ngp-cp|ntp|tagging-v2|redirect|endpoints\", endpoint=~\".*-apiservice\", ready=\"true\"})) or vector(0)",
+          "legendFormat": "with endpoints",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
+          "expr": "count(sum by (namespace, endpoint) (kube_endpoint_info{namespace=~\"aggregate|ddi|atcapi|hostapp|ngp-cp|ntp|tagging-v2|redirect|endpoints\", endpoint=~\".*-apiservice\"})) or vector(0)",
+          "legendFormat": "of total",
+          "refId": "B"
         }
       ],
-      "title": "Backends with no endpoints",
+      "title": "Backends with endpoints",
       "type": "stat",
-      "description": "APIService backends with zero ready endpoints — the backend is completely down. On newer kube-state-metrics this metric is replaced by kube_endpoint_address{ready=\"true\"}; see the panel query if this reads 0 unexpectedly."
+      "description": "APIService backend Services with at least one ready endpoint address, against the total. Scoped to endpoint=~\".*-apiservice\", the naming of every backend declared in a KonkService spec.service.name -- without that scope this counted all 276 Endpoints objects in the konk namespaces and reported unrelated workloads as failures."
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
@@ -264,7 +305,7 @@
           "decimals": 0,
           "thresholds": {
             "mode": "absolute",
-            "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }]
+            "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }]
           }
         },
         "overrides": []
@@ -276,7 +317,7 @@
         "maxVizHeight": 300,
         "minVizHeight": 16,
         "minVizWidth": 8,
-        "namePlacement": "auto",
+        "namePlacement": "top",
         "orientation": "horizontal",
         "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
         "showUnfilled": true,
@@ -287,26 +328,26 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "count(kube_pod_status_ready{pod=~\".*-kubeconfig-.*\", condition=\"true\"} == 0) or vector(0)",
+          "expr": "count(kube_deployment_status_replicas_available{deployment=~\".*-kubeconfig\"} >= 1) or vector(0)",
           "refId": "A",
           "legendFormat": "kubeconfig"
         },
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "count(kube_pod_status_ready{pod=~\".*-(konk-service-apiservice|kubectl-apiservice)-.*\", condition=\"true\"} == 0) or vector(0)",
+          "expr": "count(kube_deployment_status_replicas_available{deployment=~\".*-(kubectl-apiservice|konk-service-apiservice)\"} >= 1) or vector(0)",
           "refId": "B",
           "legendFormat": "apiservice"
         },
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "count(kube_pod_status_ready{pod=~\".*-apiservice-test-.*\", condition=\"true\"} == 0) or vector(0)",
+          "expr": "count(kube_deployment_status_replicas_available{deployment=~\".*-(kubectl-apiservice|konk-service-apiservice)-test\"} >= 1) or vector(0)",
           "refId": "C",
           "legendFormat": "apiservice-test"
         }
       ],
-      "title": "Pods not Ready by component",
+      "title": "Components available",
       "type": "bargauge",
-      "description": "konk-service pods failing readiness, split by component. Uses pod-name suffixes because kube-state-metrics does not expose app.kubernetes.io/component."
+      "description": "Deployments with an available replica, per component. One Deployment of each component per KonkService, so a healthy fleet shows the KonkService count from the first tile on every bar. A bar falling below that count is the signal; Row 3 shows which Deployment."
     },
     {
       "collapsed": false,
@@ -332,9 +373,23 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [{ "color": "red", "value": null }]
-          }
+          },
+          "noValue": "none scaled to 0"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Deployment" },
+            "properties": [{ "id": "custom.width", "value": 440 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "namespace" },
+            "properties": [{ "id": "custom.width", "value": 110 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "replicas" },
+            "properties": [{ "id": "custom.width", "value": 100 }]
+          }
+        ]
       },
       "gridPos": { "h": 7, "w": 12, "x": 0, "y": 7 },
       "id": 201,
@@ -368,13 +423,15 @@
               "container": false,
               "uid": true,
               "prometheus": true,
-              "service": true
+              "service": true,
+              "cluster": true,
+              "env": true
             },
             "includeByName": {},
             "renameByName": {
               "Value": "replicas",
               "deployment": "Deployment",
-              "namespace": "ns"
+              "namespace": "namespace"
             }
           }
         }
@@ -399,7 +456,24 @@
             "steps": [{ "color": "text", "value": null }]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Deployment" },
+            "properties": [{ "id": "custom.width", "value": 460 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "namespace" },
+            "properties": [{ "id": "custom.width", "value": 110 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "desired" },
+            "properties": [{ "id": "custom.width", "value": 90 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "available" },
+            "properties": [{ "id": "custom.width", "value": 90 }]
+          }
+        ]
       },
       "gridPos": { "h": 7, "w": 12, "x": 12, "y": 7 },
       "id": 202,
@@ -412,49 +486,54 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "kube_deployment_spec_replicas{namespace=~\"$namespace\", deployment=~\".*-(kubeconfig|konk-service-apiservice|kubectl-apiservice|apiservice-test)\"}",
-          "refId": "A",
+          "expr": "sum by (namespace, deployment) (kube_deployment_spec_replicas{namespace=~\"$namespace\", deployment=~\".*-(kubeconfig|konk-service-apiservice|kubectl-apiservice|apiservice-test)\"})",
+          "format": "table",
           "instant": true,
           "range": false,
-          "format": "table"
+          "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "kube_deployment_status_replicas_available{namespace=~\"$namespace\", deployment=~\".*-(kubeconfig|konk-service-apiservice|kubectl-apiservice|apiservice-test)\"}",
-          "refId": "B",
+          "expr": "sum by (namespace, deployment) (kube_deployment_status_replicas_available{namespace=~\"$namespace\", deployment=~\".*-(kubeconfig|konk-service-apiservice|kubectl-apiservice|apiservice-test)\"})",
+          "format": "table",
           "instant": true,
           "range": false,
-          "format": "table"
+          "refId": "B"
         }
       ],
       "title": "Deployment desired vs available",
       "transformations": [
+        { "id": "joinByField", "options": { "byField": "deployment", "mode": "outer" } },
         {
           "id": "organize",
           "options": {
             "excludeByName": {
               "Time": true,
-              "__name__": true,
+              "Time 1": true,
+              "Time 2": true,
+              "cluster": true,
+              "env": true,
               "job": true,
               "instance": true,
-              "endpoint": false,
-              "container": false,
-              "uid": true,
               "prometheus": true,
-              "service": true
+              "service": true,
+              "uid": true,
+              "__name__": true,
+              "namespace 2": true
             },
             "includeByName": {},
             "renameByName": {
-              "Value #A": "desired",
-              "Value #B": "available",
               "deployment": "Deployment",
-              "namespace": "ns"
+              "namespace": "namespace",
+              "namespace 1": "namespace",
+              "Value #A": "desired",
+              "Value #B": "available"
             }
           }
         }
       ],
       "type": "table",
-      "description": "Desired vs available replicas per Deployment. available < desired means the component is degraded."
+      "description": "Desired vs available replicas per konk-service Deployment; available < desired means the component is degraded. Joined with joinByField on the deployment name -- the merge transformation matches on every shared field including Time, and two instant queries land on different timestamps, so it stacked the two frames into separate rows instead of joining them (desired filled on some rows, available on others)."
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
@@ -492,7 +571,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 14 },
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 14 },
       "id": 203,
       "options": {
         "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
@@ -528,9 +607,26 @@
             "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "KonkServices" },
+            "properties": [{ "id": "custom.width", "value": 100 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "kubeconfig Deployments" },
+            "properties": [{ "id": "custom.width", "value": 100 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "missing" },
+            "properties": [{ "id": "custom.width", "value": 100 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "namespace" },
+            "properties": [{ "id": "custom.width", "value": 110 }]
+          }
+        ]
       },
-      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 14 },
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 14 },
       "id": 204,
       "options": {
         "cellHeight": "sm",
@@ -541,15 +637,32 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "count by (namespace) (resource_created_at_seconds{group=\"konk.infoblox.com\",kind=\"KonkService\", namespace=~\"$namespace\"}) - on(namespace) (count by (namespace) (kube_deployment_spec_replicas{namespace=~\"$namespace\", deployment=~\".*-kubeconfig\"}) or vector(0))",
-          "refId": "A",
+          "expr": "count by (namespace) (max by (namespace, name) (resource_created_at_seconds{group=\"konk.infoblox.com\",kind=\"KonkService\", namespace=~\"$namespace\"}))",
+          "format": "table",
           "instant": true,
           "range": false,
-          "format": "table"
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
+          "expr": "count by (namespace) (max by (namespace, deployment) (kube_deployment_spec_replicas{namespace=~\"$namespace\", deployment=~\".*-kubeconfig\"}))",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "refId": "B"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
+          "expr": "count by (namespace) (max by (namespace, name) (resource_created_at_seconds{group=\"konk.infoblox.com\",kind=\"KonkService\", namespace=~\"$namespace\"})) - (count by (namespace) (max by (namespace, deployment) (kube_deployment_spec_replicas{namespace=~\"$namespace\", deployment=~\".*-kubeconfig\"})) or (count by (namespace) (max by (namespace, name) (resource_created_at_seconds{group=\"konk.infoblox.com\",kind=\"KonkService\", namespace=~\"$namespace\"})) * 0))",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "refId": "C"
         }
       ],
-      "title": "Missing component Deployments",
+      "title": "kubeconfig Deployments vs KonkServices (per namespace)",
       "transformations": [
+        { "id": "merge", "options": {} },
         {
           "id": "organize",
           "options": {
@@ -562,15 +675,103 @@
               "container": false,
               "uid": true,
               "prometheus": true,
-              "service": true
+              "service": true,
+              "cluster": true,
+              "env": true
             },
             "includeByName": {},
-            "renameByName": { "Value": "missing", "namespace": "ns" }
+            "renameByName": {
+              "Value #A": "KonkServices",
+              "Value #B": "kubeconfig Deployments",
+              "Value #C": "missing",
+              "namespace": "namespace"
+            }
           }
         }
       ],
       "type": "table",
-      "description": "KonkService count minus kubeconfig-Deployment count, per namespace. Any non-zero value means a KonkService is missing a required Deployment."
+      "description": "Every KonkService should have exactly one kubeconfig Deployment. A shortfall means the Deployment was never created, so nothing renews the 12h client cert. Reported per NAMESPACE, not per KonkService: mapping a CR name to its Deployment name is not possible from these metrics because Kubernetes truncates to 63 characters (konk-service can be cut to 'k'), so the namespace is as precise as this can honestly get -- use it to narrow where to look. Counts dedupe per object with max by(...) before counting, so a double-scraped operator cannot inflate the KonkService side and fabricate a deficit. The 'missing' column uses a label-preserving zero rather than `or vector(0)`, which is unlabelled and so could never match the `- on(namespace)` join -- the previous form returned nothing in exactly the case this panel exists to catch."
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
+      "description": "Failed delete-apiservice hook Jobs. This component is a Job with helm.sh/hook: pre-delete, not a Deployment, so it has no availability to track -- it runs once on release removal and completes. A FAILURE matters though: the hook is what deregisters the APIService inside konk, so a failed run leaves a stale APIService behind. Any row here is worth investigating.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "custom": {
+            "align": "auto",
+            "cellOptions": { "type": "auto" },
+            "filterable": true,
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "red", "value": null }]
+          },
+          "noValue": "no failed hooks"
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Job" },
+            "properties": [{ "id": "custom.width", "value": 440 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "failed pods" },
+            "properties": [{ "id": "custom.width", "value": 100 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "namespace" },
+            "properties": [{ "id": "custom.width", "value": 110 }]
+          }
+        ]
+      },
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 14 },
+      "id": 205,
+      "options": {
+        "cellHeight": "sm",
+        "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false },
+        "showHeader": true
+      },
+      "pluginVersion": "10.4.19",
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
+          "expr": "kube_job_status_failed{namespace=~\"$namespace\", job_name=~\".*delete-apiservice\"} > 0",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "Failed delete-apiservice hooks",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "job": true,
+              "instance": true,
+              "prometheus": true,
+              "service": true,
+              "uid": true,
+              "cluster": true,
+              "env": true,
+              "endpoint": false,
+              "container": false
+            },
+            "includeByName": {},
+            "renameByName": {
+              "Value": "failed pods",
+              "job_name": "Job",
+              "namespace": "namespace"
+            }
+          }
+        }
+      ],
+      "type": "table"
     },
     {
       "collapsed": false,
@@ -611,7 +812,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 7, "w": 24, "x": 0, "y": 22 },
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 22 },
       "id": 301,
       "options": {
         "alignValue": "left",
@@ -625,14 +826,14 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "kube_pod_status_ready{namespace=~\"$namespace\", pod=~\".*-apiservice-test-.*\", condition=\"true\"}",
+          "expr": "max by (namespace, deployment) (kube_deployment_status_replicas_available{namespace=~\"$namespace\", deployment=~\".*-(kubectl-apiservice|konk-service-apiservice)-test\"})",
           "refId": "A",
-          "legendFormat": "{{namespace}}/{{pod}}"
+          "legendFormat": "{{namespace}}/{{deployment}}"
         }
       ],
-      "title": "★ apiservice-test readiness (ground truth)",
+      "title": "★ apiservice-test availability (ground truth)",
       "type": "state-timeline",
-      "description": "GROUND TRUTH. This probe passes only when the APIService exists and its API group lists resources inside konk. If this is red the API is not serving, whatever the other panels say."
+      "description": "GROUND TRUTH. This component's probe passes only when the APIService exists and its API group lists resources inside konk. If this is red the API is not serving, whatever the other panels say. Tracked per Deployment rather than per pod: with replicaCount 1 '0 available' is exactly 'its pod is not ready', and pod names are truncated so they cannot identify the component. Placed third by preference: apiservice is the component that serves traffic, so it is read first. Note the spec asks for this panel to be MOST prominent -- it is the only signal that the API is actually serving, because its probe passes only when the APIService exists AND its API group lists resources inside konk. apiservice being available only means the reconciler pod is running."
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
@@ -664,7 +865,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 29 },
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 22 },
       "id": 302,
       "options": {
         "alignValue": "left",
@@ -678,14 +879,14 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "kube_pod_status_ready{namespace=~\"$namespace\", pod=~\".*-kubeconfig-.*\", condition=\"true\"}",
+          "expr": "max by (namespace, deployment) (kube_deployment_status_replicas_available{namespace=~\"$namespace\", deployment=~\".*-kubeconfig\"})",
           "refId": "A",
-          "legendFormat": "{{namespace}}/{{pod}}"
+          "legendFormat": "{{namespace}}/{{deployment}}"
         }
       ],
-      "title": "kubeconfig pod readiness",
+      "title": "kubeconfig availability",
       "type": "state-timeline",
-      "description": "Not Ready for more than 12h means the client cert has already expired."
+      "description": "Not available for more than 12h means the client cert has already expired. Tracked per Deployment rather than per pod: with replicaCount 1 '0 available' is exactly 'its pod is not ready', and pod names are truncated so they cannot identify the component."
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
@@ -717,7 +918,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 29 },
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 22 },
       "id": 303,
       "options": {
         "alignValue": "left",
@@ -731,14 +932,14 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "kube_pod_status_ready{namespace=~\"$namespace\", pod=~\".*-(konk-service-apiservice|kubectl-apiservice)-.*\", condition=\"true\"}",
+          "expr": "max by (namespace, deployment) (kube_deployment_status_replicas_available{namespace=~\"$namespace\", deployment=~\".*-(kubectl-apiservice|konk-service-apiservice)\"})",
           "refId": "A",
-          "legendFormat": "{{namespace}}/{{pod}}"
+          "legendFormat": "{{namespace}}/{{deployment}}"
         }
       ],
-      "title": "apiservice pod readiness",
+      "title": "apiservice availability",
       "type": "state-timeline",
-      "description": "Covers both the v1 (kubectl-apiservice) and v2 (konk-service-apiservice) names."
+      "description": "Covers both the v1 (kubectl-apiservice) and v2 (konk-service-apiservice) names. Tracked per Deployment rather than per pod: with replicaCount 1 '0 available' is exactly 'its pod is not ready', and pod names are truncated so they cannot identify the component."
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
@@ -759,7 +960,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 36 },
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 29 },
       "id": 304,
       "options": {
         "displayMode": "gradient",
@@ -777,14 +978,14 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "increase(kube_pod_container_status_restarts_total{namespace=~\"$namespace\", pod=~\".*-(kubeconfig|apiservice|apiservice-test)-.*\"}[24h])",
+          "expr": "increase(kube_pod_container_status_restarts_total{namespace=~\"$namespace\", pod=~\".*konk-service.*\"}[24h])",
           "refId": "A",
           "legendFormat": "{{namespace}}/{{pod}}"
         }
       ],
       "title": "Restarts (24h) by pod",
       "type": "bargauge",
-      "description": "These pods should run continuously since creation, so any restart is worth a look."
+      "description": "These pods should run continuously since creation, so any restart is worth a look. Matches pods by '.*konk-service.*', which covers all konk-service pods (51/51 on us-dev-5); the previous component-suffix regex missed pods whose names were truncated by Kubernetes."
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
@@ -826,7 +1027,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 36 },
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 29 },
       "id": 305,
       "options": {
         "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
@@ -836,14 +1037,14 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "changes(kube_pod_status_ready{namespace=~\"$namespace\", pod=~\".*-(kubeconfig|apiservice|apiservice-test)-.*\", condition=\"true\"}[6h])",
+          "expr": "changes(kube_pod_status_ready{namespace=~\"$namespace\", pod=~\".*konk-service.*\", condition=\"true\"}[6h])",
           "refId": "A",
           "legendFormat": "{{namespace}}/{{pod}}"
         }
       ],
       "title": "Readiness flapping (6h transitions)",
       "type": "timeseries",
-      "description": "Metric-native equivalent of the e2e script's 'recently recovered' warning. More than 2 transitions in 6h means flapping, which distinguishes a transient blip from sustained instability."
+      "description": "Metric-native equivalent of the e2e script's 'recently recovered' warning. More than 2 transitions in 6h means flapping, which distinguishes a transient blip from sustained instability. Matches pods by '.*konk-service.*', which covers all konk-service pods (51/51 on us-dev-5); the previous component-suffix regex missed pods whose names were truncated by Kubernetes."
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
@@ -864,9 +1065,22 @@
             "steps": [{ "color": "text", "value": null }]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Pod" },
+            "properties": [{ "id": "custom.width", "value": 440 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "age" },
+            "properties": [{ "id": "custom.width", "value": 100 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "namespace" },
+            "properties": [{ "id": "custom.width", "value": 110 }]
+          }
+        ]
       },
-      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 36 },
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 29 },
       "id": 306,
       "options": {
         "cellHeight": "sm",
@@ -877,7 +1091,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "time() - kube_pod_start_time{namespace=~\"$namespace\", pod=~\".*-(kubeconfig|apiservice|apiservice-test)-.*\"}",
+          "expr": "time() - kube_pod_start_time{namespace=~\"$namespace\", pod=~\".*konk-service.*\"}",
           "refId": "A",
           "instant": true,
           "range": false,
@@ -898,10 +1112,12 @@
               "container": false,
               "uid": true,
               "prometheus": true,
-              "service": true
+              "service": true,
+              "cluster": true,
+              "env": true
             },
             "includeByName": {},
-            "renameByName": { "Value": "age", "pod": "Pod", "namespace": "ns" }
+            "renameByName": { "Value": "age", "pod": "Pod", "namespace": "namespace" }
           }
         },
         {
@@ -910,12 +1126,12 @@
         }
       ],
       "type": "table",
-      "description": "A young pod that is Ready indicates a recent recovery — worth finding out why it restarted."
+      "description": "A young pod that is Ready indicates a recent recovery — worth finding out why it restarted. Matches pods by '.*konk-service.*', which covers all konk-service pods (51/51 on us-dev-5); the previous component-suffix regex missed pods whose names were truncated by Kubernetes."
     },
     {
       "collapsed": false,
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 43 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 36 },
       "id": 400,
       "panels": [],
       "title": "Row 4 — Certificate Health",
@@ -932,16 +1148,18 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "red", "value": null },
+              { "color": "text", "value": null },
+              { "color": "red", "value": -99999 },
               { "color": "orange", "value": 2 },
               { "color": "yellow", "value": 4 },
               { "color": "green", "value": 6 }
             ]
-          }
+          },
+          "noValue": "no metrics"
         },
         "overrides": []
       },
-      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 44 },
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 37 },
       "id": 401,
       "options": {
         "displayMode": "gradient",
@@ -959,7 +1177,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "(certmanager_certificate_expiration_timestamp_seconds{namespace=~\"$namespace\", name=~\".*kubeconfig.*\"} - time()) / 3600",
+          "expr": "(max by (namespace, name) (certmanager_certificate_expiration_timestamp_seconds{namespace=~\"$namespace\", name=~\".*kubeconfig.*\"}) - time()) / 3600",
           "refId": "A",
           "legendFormat": "{{namespace}}/{{name}}"
         }
@@ -979,15 +1197,17 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "red", "value": null },
+              { "color": "text", "value": null },
+              { "color": "red", "value": -99999 },
               { "color": "yellow", "value": 7 },
               { "color": "green", "value": 30 }
             ]
-          }
+          },
+          "noValue": "no metrics"
         },
         "overrides": []
       },
-      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 44 },
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 37 },
       "id": 402,
       "options": {
         "displayMode": "gradient",
@@ -1005,7 +1225,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "(certmanager_certificate_expiration_timestamp_seconds{namespace=~\"$namespace\", name=~\".*konk-service-server\"} - time()) / 86400",
+          "expr": "(max by (namespace, name) (certmanager_certificate_expiration_timestamp_seconds{namespace=~\"$namespace\", name=~\".*konk-service-server\"}) - time()) / 86400",
           "refId": "A",
           "legendFormat": "{{namespace}}/{{name}}"
         }
@@ -1029,11 +1249,25 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [{ "color": "red", "value": null }]
-          }
+          },
+          "noValue": "all Certificates ready"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "certificate" },
+            "properties": [{ "id": "custom.width", "value": 440 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "namespace" },
+            "properties": [{ "id": "custom.width", "value": 110 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "not ready" },
+            "properties": [{ "id": "custom.width", "value": 100 }]
+          }
+        ]
       },
-      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 44 },
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 37 },
       "id": 403,
       "options": {
         "cellHeight": "sm",
@@ -1044,7 +1278,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "certmanager_certificate_ready_status{namespace=~\"$namespace\", condition=\"True\"} == 0",
+          "expr": "max by (namespace, name) (certmanager_certificate_ready_status{namespace=~\"$namespace\", condition=\"True\"}) == 0",
           "refId": "A",
           "instant": true,
           "range": false,
@@ -1067,13 +1301,15 @@
               "prometheus": true,
               "service": true,
               "condition": true,
-              "exported_namespace": true
+              "exported_namespace": true,
+              "cluster": true,
+              "env": true
             },
             "includeByName": {},
             "renameByName": {
               "Value": "not ready",
               "name": "certificate",
-              "namespace": "ns"
+              "namespace": "namespace"
             }
           }
         }
@@ -1117,7 +1353,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 51 },
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 44 },
       "id": 404,
       "options": {
         "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
@@ -1127,7 +1363,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "changes(certmanager_certificate_expiration_timestamp_seconds{namespace=~\"$namespace\", name=~\".*kubeconfig.*\"}[24h])",
+          "expr": "max by (namespace, name) (changes(certmanager_certificate_expiration_timestamp_seconds{namespace=~\"$namespace\", name=~\".*kubeconfig.*\"}[24h]))",
           "refId": "A",
           "legendFormat": "{{namespace}}/{{name}}"
         }
@@ -1162,7 +1398,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 51 },
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 44 },
       "id": 405,
       "options": {
         "colorMode": "background",
@@ -1178,19 +1414,19 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "(changes(certmanager_certificate_expiration_timestamp_seconds{name=~\".*bulk-konk-ca\"}[1h]) > 0) and on() ((count(changes(certmanager_certificate_expiration_timestamp_seconds{name=~\".*kubeconfig.*\"}[1h]) > 0) or vector(0)) == 0)",
+          "expr": "(max(changes(kube_secret_metadata_resource_version{secret=~\".*-konk-ca\"}[1h])) > 0) and on() ((count(changes(certmanager_certificate_expiration_timestamp_seconds{name=~\".*kubeconfig.*\"}[1h]) > 0) or vector(0)) == 0)",
           "refId": "A",
           "legendFormat": "firing"
         }
       ],
       "title": "★ CA rotated without propagation",
       "type": "stat",
-      "description": "Highest-value alert in the spec. Catches the us-dev-5 outage: the CA rotated but the per-namespace kubeconfig certs were never re-issued. Fires ~20 min BEFORE pods start failing TLS, so it is a warning rather than a post-mortem."
+      "description": "Highest-value alert in the spec: the CA changed but the per-namespace kubeconfig certs were not re-issued, so every consumer will fail TLS once it validates against the new CA. Fires ~20 min BEFORE pods start failing, per the us-dev-5 timeline.\n\nWatches the CA SECRET via kube-state-metrics, not a cert-manager Certificate. The konk CA is generated by kubeadm inside the provision container and stored as a plain kubernetes.io/tls Secret -- ClusterIssuer bulk-konk-kubeadm-ca resolves spec.ca.secretName: bulk-konk-ca -- so cert-manager never issues it and certmanager_* metrics can never see it. The previous query selected a Certificate named .*bulk-konk-ca, which does not exist, so the detector could never fire.\n\nresource_version rather than kube_secret_created: an in-place update to the CA data leaves the creation timestamp untouched, and rotation may update rather than recreate. Unscoped by namespace deliberately -- the Secret exists both in the konk namespace and, because cert-manager resolves ClusterIssuer CAs from --cluster-resource-namespace, in the cert-manager namespace. max() over both means a change to either copy trips the alert."
     },
     {
       "collapsed": false,
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 58 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 51 },
       "id": 500,
       "panels": [],
       "title": "Row 5 — Backend Endpoints",
@@ -1211,11 +1447,25 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [{ "color": "red", "value": null }]
-          }
+          },
+          "noValue": "all backends have ready endpoints"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Service" },
+            "properties": [{ "id": "custom.width", "value": 440 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "namespace" },
+            "properties": [{ "id": "custom.width", "value": 110 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "ready addresses" },
+            "properties": [{ "id": "custom.width", "value": 100 }]
+          }
+        ]
       },
-      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 59 },
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 52 },
       "id": 501,
       "options": {
         "cellHeight": "sm",
@@ -1226,7 +1476,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "kube_endpoint_address_available{namespace=~\"$namespace\"} == 0",
+          "expr": "sum by (namespace, endpoint) (kube_endpoint_info{namespace=~\"$namespace\", endpoint=~\".*-apiservice\"}) unless sum by (namespace, endpoint) (kube_endpoint_address{namespace=~\"$namespace\", endpoint=~\".*-apiservice\", ready=\"true\"})",
           "refId": "A",
           "instant": true,
           "range": false,
@@ -1247,19 +1497,21 @@
               "container": false,
               "uid": true,
               "prometheus": true,
-              "service": true
+              "service": true,
+              "cluster": true,
+              "env": true
             },
             "includeByName": {},
             "renameByName": {
               "Value": "ready addresses",
               "endpoint": "Service",
-              "namespace": "ns"
+              "namespace": "namespace"
             }
           }
         }
       ],
       "type": "table",
-      "description": "The e2e script's harshest failure: the APIService backend is completely down. Alert on any row. kube-state-metrics version note: newer KSM replaces kube_endpoint_address_available with kube_endpoint_address{ready=\"true\"}. If this panel is empty, switch to sum by (namespace, endpoint) (kube_endpoint_address{ready=\"true\"})."
+      "description": "APIService backends with an Endpoints object but no ready address -- the backend is completely down. Alert on any row. Scoped to the backend naming from KonkService spec.service.name so unrelated services in these shared namespaces are not reported."
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
@@ -1297,7 +1549,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 59 },
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 52 },
       "id": 502,
       "options": {
         "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
@@ -1307,14 +1559,14 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "kube_endpoint_address_available{namespace=~\"$namespace\"}",
+          "expr": "sum by (namespace, endpoint) (kube_endpoint_address{namespace=~\"$namespace\", endpoint=~\".*-apiservice\", ready=\"true\"})",
           "refId": "A",
           "legendFormat": "{{namespace}}/{{endpoint}}"
         }
       ],
       "title": "Ready endpoint count per backend",
       "type": "timeseries",
-      "description": "Watch for drops to 0. kube-state-metrics version note: newer KSM replaces kube_endpoint_address_available with kube_endpoint_address{ready=\"true\"}. If this panel is empty, switch to sum by (namespace, endpoint) (kube_endpoint_address{ready=\"true\"})."
+      "description": "Ready endpoint addresses per APIService backend. Watch for drops to 0."
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
@@ -1330,7 +1582,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 66 },
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 59 },
       "id": 503,
       "options": {
         "colorMode": "value",
@@ -1346,14 +1598,14 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "absent(kube_endpoint_address_available{namespace=~\"$namespace\"})",
+          "expr": "count(count by (namespace, service) (kube_service_info{namespace=~\"$namespace\", service=~\".*-apiservice\"}) unless on (namespace) count by (namespace) (kube_endpoint_info{namespace=~\"$namespace\", endpoint=~\".*-apiservice\"})) or vector(0)",
           "refId": "A",
           "legendFormat": "absent"
         }
       ],
-      "title": "Endpoints metric absent",
+      "title": "Backends with no Endpoints object",
       "type": "stat",
-      "description": "Fires when the selection returns no endpoint series at all — either no Endpoints objects exist, or this KSM version uses the newer metric name. Note: absent() cannot detect a single missing service, only a wholly empty result. kube-state-metrics version note: newer KSM replaces kube_endpoint_address_available with kube_endpoint_address{ready=\"true\"}. If this panel is empty, switch to sum by (namespace, endpoint) (kube_endpoint_address{ready=\"true\"})."
+      "description": "Backend Services with no Endpoints object at all, as distinct from one holding zero ready addresses. Catches a backend that was never wired up."
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
@@ -1361,57 +1613,61 @@
         "defaults": {
           "color": { "mode": "thresholds" },
           "custom": {
-            "fillOpacity": 70,
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "axisSoftMax": 5,
+            "axisSoftMin": 0,
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "none",
             "hideFrom": { "legend": false, "tooltip": false, "viz": false },
             "insertNulls": false,
-            "lineWidth": 0,
-            "spanNulls": false
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "off" }
           },
-          "mappings": [
-            {
-              "options": {
-                "0": { "color": "red", "index": 1, "text": "Not Ready" },
-                "1": { "color": "green", "index": 0, "text": "Ready" }
-              },
-              "type": "value"
-            }
-          ],
+          "mappings": [],
           "min": 0,
-          "max": 1,
           "thresholds": {
             "mode": "absolute",
-            "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }]
-          }
+            "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }]
+          },
+          "noValue": "all pods ready"
         },
         "overrides": []
       },
-      "gridPos": { "h": 7, "w": 16, "x": 8, "y": 66 },
+      "gridPos": { "h": 7, "w": 16, "x": 8, "y": 59 },
       "id": 504,
       "options": {
-        "alignValue": "left",
         "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
-        "mergeValues": true,
-        "rowHeight": 0.9,
-        "showValue": "never",
-        "tooltip": { "mode": "single", "sort": "none" }
+        "tooltip": { "mode": "multi", "sort": "none" }
       },
       "pluginVersion": "10.4.19",
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "kube_pod_status_ready{namespace=~\"$namespace\", condition=\"true\"}",
-          "refId": "A",
-          "legendFormat": "{{namespace}}/{{pod}}"
+          "expr": "count by (namespace) (kube_pod_status_ready{namespace=~\"$namespace\", namespace=~\"aggregate|ddi|atcapi|hostapp|ngp-cp|ntp|tagging-v2|redirect|endpoints\", condition=\"true\"} == 0)",
+          "legendFormat": "{{namespace}}",
+          "refId": "A"
         }
       ],
-      "title": "Backend pod readiness",
-      "type": "state-timeline",
-      "description": "Broad view of every pod in the KonkService namespaces — these are the pods actually serving the aggregated APIs."
+      "title": "Not-ready pods per namespace",
+      "type": "timeseries",
+      "description": "Count of pods failing readiness in each konk namespace, over time. Was a per-pod state timeline, which tried to draw one row per pod -- 512 pods across these namespaces on us-dev-5, 319 in ddi alone -- so the labels collapsed into an illegible block. Counting per namespace bounds it to at most nine series, and only namespaces with a problem appear at all. Reads \"all pods ready\" when empty. This is the broad backend view; the endpoint panels above give the per-Service signal, and Row 3 covers the konk-service components specifically."
     },
     {
       "collapsed": false,
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 73 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 66 },
       "id": 600,
       "panels": [],
       "title": "Row 6 — Resource Usage (CPU & Memory)",
@@ -1450,7 +1706,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 74 },
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 67 },
       "id": 601,
       "options": {
         "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
@@ -1508,7 +1764,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 74 },
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 67 },
       "id": 602,
       "options": {
         "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
@@ -1580,7 +1836,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 81 },
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 74 },
       "id": 603,
       "options": {
         "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
@@ -1641,7 +1897,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 81 },
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 74 },
       "id": 604,
       "options": {
         "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
@@ -1678,9 +1934,22 @@
             "steps": [{ "color": "text", "value": null }]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Pod" },
+            "properties": [{ "id": "custom.width", "value": 440 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "namespace" },
+            "properties": [{ "id": "custom.width", "value": 110 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "peak" },
+            "properties": [{ "id": "custom.width", "value": 100 }]
+          }
+        ]
       },
-      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 81 },
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 74 },
       "id": 605,
       "options": {
         "cellHeight": "sm",
@@ -1712,10 +1981,12 @@
               "container": false,
               "uid": true,
               "prometheus": true,
-              "service": true
+              "service": true,
+              "cluster": true,
+              "env": true
             },
             "includeByName": {},
-            "renameByName": { "Value": "peak", "pod": "Pod", "namespace": "ns" }
+            "renameByName": { "Value": "peak", "pod": "Pod", "namespace": "namespace" }
           }
         },
         {
@@ -1743,9 +2014,22 @@
             "steps": [{ "color": "red", "value": null }]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Pod" },
+            "properties": [{ "id": "custom.width", "value": 440 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "namespace" },
+            "properties": [{ "id": "custom.width", "value": 110 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "oomkilled" },
+            "properties": [{ "id": "custom.width", "value": 100 }]
+          }
+        ]
       },
-      "gridPos": { "h": 7, "w": 24, "x": 0, "y": 88 },
+      "gridPos": { "h": 7, "w": 24, "x": 0, "y": 81 },
       "id": 606,
       "options": {
         "cellHeight": "sm",
@@ -1778,10 +2062,16 @@
               "uid": true,
               "prometheus": true,
               "service": true,
-              "reason": true
+              "reason": true,
+              "cluster": true,
+              "env": true
             },
             "includeByName": {},
-            "renameByName": { "Value": "oomkilled", "pod": "Pod", "namespace": "ns" }
+            "renameByName": {
+              "Value": "oomkilled",
+              "pod": "Pod",
+              "namespace": "namespace"
+            }
           }
         }
       ],
@@ -1797,7 +2087,7 @@
       {
         "current": {},
         "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-        "definition": "label_values(kube_pod_status_ready{pod=~\".*-(kubeconfig|apiservice|apiservice-test)-.*\"}, namespace)",
+        "definition": "label_values(kube_pod_status_ready{pod=~\".*konk-service.*\"}, namespace)",
         "hide": 0,
         "includeAll": true,
         "label": "Namespace",
@@ -1805,19 +2095,19 @@
         "name": "namespace",
         "options": [],
         "query": {
-          "query": "label_values(kube_pod_status_ready{pod=~\".*-(kubeconfig|apiservice|apiservice-test)-.*\"}, namespace)",
+          "query": "label_values(kube_pod_status_ready{pod=~\".*konk-service.*\"}, namespace)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 2,
         "regex": "",
         "sort": 1,
         "type": "query",
-        "allValue": ".*"
+        "allValue": "aggregate|ddi|atcapi|hostapp|ngp-cp|ntp|tagging-v2|redirect|endpoints"
       },
       {
         "current": {},
         "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-        "definition": "label_values(resource_created_at_seconds{group=\"konk.infoblox.com\",kind=\"KonkService\"}, name)",
+        "definition": "label_values(resource_created_at_seconds{group=\"konk.infoblox.com\",kind=\"KonkService\", namespace=~\"$namespace\"}, name)",
         "hide": 0,
         "includeAll": true,
         "label": "KonkService",
@@ -1825,7 +2115,7 @@
         "name": "konkservice",
         "options": [],
         "query": {
-          "query": "label_values(resource_created_at_seconds{group=\"konk.infoblox.com\",kind=\"KonkService\"}, name)",
+          "query": "label_values(resource_created_at_seconds{group=\"konk.infoblox.com\",kind=\"KonkService\", namespace=~\"$namespace\"}, name)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 2,
@@ -1837,7 +2127,7 @@
       {
         "current": {},
         "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-        "definition": "label_values(container_memory_working_set_bytes{namespace=~\"$namespace\", container=~\"kubeconfig|apiservice|apiservice-test\"}, container)",
+        "definition": "label_values(container_memory_working_set_bytes{namespace=~\"$namespace\", pod=~\".*konk-service.*\"}, container)",
         "hide": 0,
         "includeAll": true,
         "label": "Container (Row 6)",
@@ -1845,7 +2135,7 @@
         "name": "container",
         "options": [],
         "query": {
-          "query": "label_values(container_memory_working_set_bytes{namespace=~\"$namespace\", container=~\"kubeconfig|apiservice|apiservice-test\"}, container)",
+          "query": "label_values(container_memory_working_set_bytes{namespace=~\"$namespace\", pod=~\".*konk-service.*\"}, container)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 2,
@@ -1857,7 +2147,7 @@
       {
         "current": {},
         "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-        "definition": "label_values(container_memory_working_set_bytes{namespace=~\"$namespace\", container=~\"$container\"}, pod)",
+        "definition": "label_values(container_memory_working_set_bytes{namespace=~\"$namespace\", container=~\"$container\", pod=~\".*konk-service.*\"}, pod)",
         "hide": 0,
         "includeAll": true,
         "label": "Pod (Row 6)",
@@ -1865,14 +2155,14 @@
         "name": "pod",
         "options": [],
         "query": {
-          "query": "label_values(container_memory_working_set_bytes{namespace=~\"$namespace\", container=~\"$container\"}, pod)",
+          "query": "label_values(container_memory_working_set_bytes{namespace=~\"$namespace\", container=~\"$container\", pod=~\".*konk-service.*\"}, pod)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 2,
         "regex": "",
         "sort": 1,
         "type": "query",
-        "allValue": ".*"
+        "allValue": ".*konk-service.*"
       }
     ]
   },

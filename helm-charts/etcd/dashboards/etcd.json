@@ -54,7 +54,7 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-      "description": "Wall-clock time of last etcd process start per pod. A step-jump means that pod was recreated.",
+      "description": "Wall-clock time of last etcd process start per pod. A step-jump means that pod was recreated. Requires the etcd pods themselves to be scraped (metrics.enabled=true + PodMonitor, etcd chart >= 1.2.x); blank otherwise. Pods Ready comes from kube-state-metrics and works regardless.",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -99,7 +99,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "process_start_time_seconds{namespace=\"$namespace\", pod=~\"$pod\"} * 1000",
+          "expr": "process_start_time_seconds{namespace=\"$namespace\", pod=~\"$pod\", pod=~\".*-etcd-[0-9]+\"} * 1000",
           "legendFormat": "{{pod}}",
           "refId": "A"
         }
@@ -159,13 +159,13 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "sum(max by (pod, namespace) (kube_pod_status_ready{namespace=\"$namespace\", pod=~\"$pod\", condition=\"true\"}))",
+          "expr": "sum(max by (pod, namespace) (kube_pod_status_ready{namespace=\"$namespace\", pod=~\"$pod\", pod=~\".*-etcd-[0-9]+\", condition=\"true\"}))",
           "legendFormat": "ready",
           "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "sum(max by (pod, namespace) (kube_pod_status_ready{namespace=\"$namespace\", pod=~\"$pod\", condition=\"false\"}))",
+          "expr": "sum(max by (pod, namespace) (kube_pod_status_ready{namespace=\"$namespace\", pod=~\"$pod\", pod=~\".*-etcd-[0-9]+\", condition=\"false\"}))",
           "legendFormat": "not ready",
           "refId": "B"
         }
@@ -198,12 +198,17 @@
           ],
           "thresholds": {
             "mode": "absolute",
-            "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }]
-          }
+            "steps": [
+              { "color": "text", "value": null },
+              { "color": "red", "value": 0 },
+              { "color": "green", "value": 1 }
+            ]
+          },
+          "noValue": "no metrics"
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 10 },
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 10 },
       "id": 14,
       "options": {
         "colorMode": "background",
@@ -219,7 +224,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "etcd_server_has_leader{namespace=\"$namespace\", pod=~\"$pod\"}",
+          "expr": "max by (pod) (etcd_server_has_leader{namespace=\"$namespace\", pod=~\"$pod\"})",
           "refId": "A",
           "legendFormat": "{{pod}}"
         }
@@ -230,7 +235,7 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-      "description": "Rate of leader elections. Spikes indicate a leader-disrupting pod restart or network partition.",
+      "description": "Rate of leader elections. Spikes indicate a leader-disrupting pod restart or network partition. Uses an explicit [5m] window rather than $__rate_interval: the chart scrapes every 60s, and $__rate_interval resolves to ~60-75s, which is too few samples for rate()/increase() to return anything.",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -253,7 +258,9 @@
             "showPoints": "auto",
             "spanNulls": false,
             "stacking": { "group": "A", "mode": "none" },
-            "thresholdsStyle": { "mode": "off" }
+            "thresholdsStyle": { "mode": "off" },
+            "axisSoftMax": 2,
+            "axisSoftMin": 0
           },
           "links": [],
           "mappings": [],
@@ -265,7 +272,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 10 },
+      "gridPos": { "h": 8, "w": 6, "x": 6, "y": 10 },
       "id": 11,
       "options": {
         "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
@@ -275,7 +282,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "ceil(increase(etcd_server_leader_changes_seen_total{namespace=\"$namespace\", pod=~\"$pod\"}[$__rate_interval]))",
+          "expr": "ceil(max by (pod) (increase(etcd_server_leader_changes_seen_total{namespace=\"$namespace\", pod=~\"$pod\"}[5m])))",
           "legendFormat": "{{pod}}",
           "refId": "A"
         }
@@ -285,7 +292,7 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-      "description": "Failed Raft proposals (new failures in window) and pending proposals (current gauge). Non-zero sustained failed values indicate write failures during a restart window.",
+      "description": "Raft proposals that failed to commit, as an increase over a 5m window. Should stay flat at zero; any sustained non-zero means proposals are being rejected, which accompanies leader elections or lost quorum. Uses an explicit [5m] window rather than $__rate_interval: the chart scrapes every 60s, and $__rate_interval resolves to ~60-75s, which is too few samples for rate()/increase() to return anything.",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -308,7 +315,9 @@
             "showPoints": "auto",
             "spanNulls": false,
             "stacking": { "group": "A", "mode": "none" },
-            "thresholdsStyle": { "mode": "off" }
+            "thresholdsStyle": { "mode": "off" },
+            "axisSoftMax": 5,
+            "axisSoftMin": 0
           },
           "links": [],
           "mappings": [],
@@ -320,7 +329,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 10 },
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 10 },
       "id": 12,
       "options": {
         "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
@@ -330,18 +339,73 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "increase(etcd_server_proposals_failed_total{namespace=\"$namespace\", pod=~\"$pod\"}[$__rate_interval])",
-          "legendFormat": "{{pod}} failed",
+          "expr": "max by (pod) (increase(etcd_server_proposals_failed_total{namespace=\"$namespace\", pod=~\"$pod\"}[5m]))",
+          "legendFormat": "{{pod}}",
           "refId": "A"
-        },
-        {
-          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "etcd_server_proposals_pending{namespace=\"$namespace\", pod=~\"$pod\"}",
-          "legendFormat": "{{pod}} pending",
-          "refId": "B"
         }
       ],
-      "title": "Proposals Failed / Pending",
+      "title": "Proposals Failed",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
+      "description": "Proposals queued awaiting commit, sampled instantaneously. Brief non-zero values are normal under write load; a sustained backlog points at slow disk or a struggling quorum. Unlike Proposals Failed this is a gauge, not a windowed delta, which is why the two are separate panels.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "off" },
+            "axisSoftMax": 5,
+            "axisSoftMin": 0
+          },
+          "links": [],
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "red", "value": 10 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 10 },
+      "id": 17,
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      },
+      "pluginVersion": "10.4.19",
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
+          "expr": "max by (pod) (etcd_server_proposals_pending{namespace=\"$namespace\", pod=~\"$pod\"})",
+          "legendFormat": "{{pod}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Proposals Pending",
       "type": "timeseries"
     },
     {
@@ -387,7 +451,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "rate(etcd_server_proposals_committed_total{namespace=\"$namespace\", pod=~\"$pod\"}[5m])",
+          "expr": "max by (pod) (rate(etcd_server_proposals_committed_total{namespace=\"$namespace\", pod=~\"$pod\"}[5m]))",
           "refId": "A",
           "legendFormat": "{{pod}}"
         }
@@ -420,7 +484,9 @@
             "showPoints": "auto",
             "spanNulls": false,
             "stacking": { "group": "A", "mode": "none" },
-            "thresholdsStyle": { "mode": "line+area" }
+            "thresholdsStyle": { "mode": "off" },
+            "axisSoftMax": 1,
+            "axisSoftMin": 0
           },
           "links": [],
           "mappings": [],
@@ -446,7 +512,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "rate(etcd_server_heartbeat_send_failures_total{namespace=\"$namespace\", pod=~\"$pod\"}[5m])",
+          "expr": "max by (pod) (rate(etcd_server_heartbeat_send_failures_total{namespace=\"$namespace\", pod=~\"$pod\"}[5m]))",
           "refId": "A",
           "legendFormat": "{{pod}}"
         }
@@ -457,7 +523,7 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-      "description": "Peer round-trip latency p99. High values indicate network issues between etcd members, which can precede instability.",
+      "description": "Peer round-trip latency p99. High values indicate network issues between etcd members, which can precede instability. Uses an explicit [5m] window rather than $__rate_interval: the chart scrapes every 60s, and $__rate_interval resolves to ~60-75s, which is too few samples for rate()/increase() to return anything.",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -503,7 +569,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "histogram_quantile(0.99, rate(etcd_network_peer_round_trip_time_seconds_bucket{namespace=\"$namespace\", pod=~\"$pod\"}[$__rate_interval]))",
+          "expr": "histogram_quantile(0.99, sum by (le, pod) (rate(etcd_network_peer_round_trip_time_seconds_bucket{namespace=\"$namespace\", pod=~\"$pod\"}[5m])))",
           "legendFormat": "{{pod}}",
           "refId": "A"
         }
@@ -522,7 +588,7 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-      "description": "WAL fsync latency p99. Values above 10ms indicate disk pressure and can cause etcd to become unhealthy.",
+      "description": "WAL fsync latency p99. Values above 10ms indicate disk pressure and can cause etcd to become unhealthy. Uses an explicit [5m] window rather than $__rate_interval: the chart scrapes every 60s, and $__rate_interval resolves to ~60-75s, which is too few samples for rate()/increase() to return anything.",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -572,7 +638,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "histogram_quantile(0.99, rate(etcd_disk_wal_fsync_duration_seconds_bucket{namespace=\"$namespace\", pod=~\"$pod\"}[$__rate_interval]))",
+          "expr": "histogram_quantile(0.99, sum by (le, pod) (rate(etcd_disk_wal_fsync_duration_seconds_bucket{namespace=\"$namespace\", pod=~\"$pod\"}[5m])))",
           "legendFormat": "{{pod}}",
           "refId": "A"
         }
@@ -582,7 +648,7 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-      "description": "Backend commit latency p99. High values indicate MVCC/snapshot pressure.",
+      "description": "p99 latency of etcd backend commits. etcd batches commits heavily -- on an idle cluster this can be as little as one commit every couple of minutes -- so many rate windows contain no observations at all and histogram_quantile returns NaN. Gaps therefore mean 'no commits in this window', not missing metrics, and are bridged rather than drawn as holes. Uses an explicit [5m] window rather than $__rate_interval: the chart scrapes every 60s, and $__rate_interval resolves to ~60-75s, which is too few samples for rate()/increase() to return anything.",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -603,7 +669,7 @@
             "pointSize": 5,
             "scaleDistribution": { "type": "linear" },
             "showPoints": "auto",
-            "spanNulls": false,
+            "spanNulls": true,
             "stacking": { "group": "A", "mode": "none" },
             "thresholdsStyle": { "mode": "off" }
           },
@@ -632,7 +698,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "histogram_quantile(0.99, rate(etcd_disk_backend_commit_duration_seconds_bucket{namespace=\"$namespace\", pod=~\"$pod\"}[$__rate_interval]))",
+          "expr": "histogram_quantile(0.99, sum by (le, pod) (rate(etcd_disk_backend_commit_duration_seconds_bucket{namespace=\"$namespace\", pod=~\"$pod\"}[5m])))",
           "legendFormat": "{{pod}}",
           "refId": "A"
         }
@@ -688,13 +754,13 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "etcd_mvcc_db_total_size_in_bytes{namespace=\"$namespace\", pod=~\"$pod\"}",
+          "expr": "max by (pod) (etcd_mvcc_db_total_size_in_bytes{namespace=\"$namespace\", pod=~\"$pod\"})",
           "legendFormat": "{{pod}} allocated",
           "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "etcd_mvcc_db_total_size_in_use_in_bytes{namespace=\"$namespace\", pod=~\"$pod\"}",
+          "expr": "max by (pod) (etcd_mvcc_db_total_size_in_use_in_bytes{namespace=\"$namespace\", pod=~\"$pod\"})",
           "legendFormat": "{{pod}} in-use",
           "refId": "B"
         }
@@ -745,13 +811,13 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "rate(etcd_network_client_grpc_received_bytes_total{namespace=\"$namespace\", pod=~\"$pod\"}[5m])",
+          "expr": "max by (pod) (rate(etcd_network_client_grpc_received_bytes_total{namespace=\"$namespace\", pod=~\"$pod\"}[5m]))",
           "refId": "A",
           "legendFormat": "{{pod}} received"
         },
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "rate(etcd_network_client_grpc_sent_bytes_total{namespace=\"$namespace\", pod=~\"$pod\"}[5m])",
+          "expr": "max by (pod) (rate(etcd_network_client_grpc_sent_bytes_total{namespace=\"$namespace\", pod=~\"$pod\"}[5m]))",
           "refId": "B",
           "legendFormat": "{{pod}} sent"
         }
@@ -773,11 +839,13 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
+              { "color": "text", "value": null },
+              { "color": "green", "value": 0 },
               { "color": "yellow", "value": 0.3 },
               { "color": "red", "value": 0.5 }
             ]
-          }
+          },
+          "noValue": "n/a (DB < 512 MiB)"
         },
         "overrides": []
       },
@@ -795,14 +863,14 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "1 - (etcd_mvcc_db_total_size_in_use_in_bytes{namespace=\"$namespace\", pod=~\"$pod\"} / etcd_mvcc_db_total_size_in_bytes{namespace=\"$namespace\", pod=~\"$pod\"})",
+          "expr": "(1 - (max by (pod) (etcd_mvcc_db_total_size_in_use_in_bytes{namespace=\"$namespace\", pod=~\"$pod\"}) / max by (pod) (etcd_mvcc_db_total_size_in_bytes{namespace=\"$namespace\", pod=~\"$pod\"}))) and on (pod) (max by (pod) (etcd_mvcc_db_total_size_in_bytes{namespace=\"$namespace\", pod=~\"$pod\"}) > 536870912)",
           "refId": "A",
           "legendFormat": "{{pod}}"
         }
       ],
       "title": "DB Fragmentation Ratio",
       "type": "gauge",
-      "description": "Fraction of the allocated DB file no longer in use. Auto-compaction reclaims logical space but does not shrink the file, so a high ratio means a defrag is needed to return disk."
+      "description": "Fraction of the allocated DB file no longer in use. Auto-compaction reclaims logical space but does not shrink the file, so a high ratio means a defrag would return disk. Only evaluated once the database exceeds 512 MiB: below that the ratio is meaningless -- etcd pre-allocates, so a mostly-empty small file reads as ~90% fragmented while the reclaimable space is only a few MiB. Shows n/a rather than a false alarm on small clusters."
     }
   ],
   "refresh": "30s",
@@ -813,7 +881,7 @@
       {
         "current": {},
         "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-        "definition": "label_values(etcd_server_has_leader, namespace)",
+        "definition": "label_values(kube_pod_status_ready{pod=~\".*-etcd-[0-9]+\"}, namespace)",
         "hide": 0,
         "includeAll": false,
         "label": "Namespace",
@@ -821,7 +889,7 @@
         "name": "namespace",
         "options": [],
         "query": {
-          "query": "label_values(etcd_server_has_leader, namespace)",
+          "query": "label_values(kube_pod_status_ready{pod=~\".*-etcd-[0-9]+\"}, namespace)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 2,
@@ -832,7 +900,7 @@
       {
         "current": {},
         "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-        "definition": "label_values(etcd_server_has_leader{namespace=\"$namespace\"}, pod)",
+        "definition": "label_values(kube_pod_status_ready{namespace=\"$namespace\", pod=~\".*-etcd-[0-9]+\"}, pod)",
         "hide": 0,
         "includeAll": true,
         "allValue": ".*",
@@ -841,7 +909,7 @@
         "name": "pod",
         "options": [],
         "query": {
-          "query": "label_values(etcd_server_has_leader{namespace=\"$namespace\"}, pod)",
+          "query": "label_values(kube_pod_status_ready{namespace=\"$namespace\", pod=~\".*-etcd-[0-9]+\"}, pod)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 2,

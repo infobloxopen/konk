@@ -23,12 +23,21 @@ spec:
         {{- with .Values.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
-      {{- if or .Values.podAnnotations (and .Values.metrics.enabled .Values.metrics.podAnnotations) }}
+      {{- /*
+      metrics.podAnnotations (prometheus.io/scrape) and the PodMonitor are two
+      competing discovery mechanisms. Collectors that honour both -- Grafana
+      Alloy's annotation discovery alongside prometheus.operator.podmonitors,
+      for one -- scrape each pod TWICE, producing duplicate series per pod that
+      differ only in job/instance. Emit the annotations only when the PodMonitor
+      is not doing the job.
+      */}}
+      {{- $scrapeAnnotations := and .Values.metrics.enabled (not .Values.metrics.podMonitor.enabled) .Values.metrics.podAnnotations }}
+      {{- if or .Values.podAnnotations $scrapeAnnotations }}
       annotations:
         {{- with .Values.podAnnotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
-        {{- if .Values.metrics.enabled }}
+        {{- if $scrapeAnnotations }}
         {{- with .Values.metrics.podAnnotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
