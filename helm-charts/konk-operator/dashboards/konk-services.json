@@ -2102,7 +2102,7 @@
         "regex": "",
         "sort": 1,
         "type": "query",
-        "allValue": ".*"
+        "allValue": "aggregate|ddi|atcapi|hostapp|ngp-cp|ntp|tagging-v2|redirect|endpoints"
       },
       {
         "current": {},
@@ -2127,7 +2127,7 @@
       {
         "current": {},
         "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-        "definition": "label_values(container_memory_working_set_bytes{namespace=~\"$namespace\", container=~\"kubeconfig|apiservice|apiservice-test\"}, container)",
+        "definition": "label_values(container_memory_working_set_bytes{namespace=~\"$namespace\", pod=~\".*konk-service.*\"}, container)",
         "hide": 0,
         "includeAll": true,
         "label": "Container (Row 6)",
@@ -2135,7 +2135,7 @@
         "name": "container",
         "options": [],
         "query": {
-          "query": "label_values(container_memory_working_set_bytes{namespace=~\"$namespace\", container=~\"kubeconfig|apiservice|apiservice-test\"}, container)",
+          "query": "label_values(container_memory_working_set_bytes{namespace=~\"$namespace\", pod=~\".*konk-service.*\"}, container)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 2,
@@ -2147,7 +2147,7 @@
       {
         "current": {},
         "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-        "definition": "label_values(container_memory_working_set_bytes{namespace=~\"$namespace\", container=~\"$container\"}, pod)",
+        "definition": "label_values(container_memory_working_set_bytes{namespace=~\"$namespace\", container=~\"$container\", pod=~\".*konk-service.*\"}, pod)",
         "hide": 0,
         "includeAll": true,
         "label": "Pod (Row 6)",
@@ -2155,14 +2155,14 @@
         "name": "pod",
         "options": [],
         "query": {
-          "query": "label_values(container_memory_working_set_bytes{namespace=~\"$namespace\", container=~\"$container\"}, pod)",
+          "query": "label_values(container_memory_working_set_bytes{namespace=~\"$namespace\", container=~\"$container\", pod=~\".*konk-service.*\"}, pod)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 2,
         "regex": "",
         "sort": 1,
         "type": "query",
-        "allValue": ".*"
+        "allValue": ".*konk-service.*"
       }
     ]
   },
