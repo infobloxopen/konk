@@ -1,0 +1,31 @@
+{{- /*
+Scrapes the operator's own /metrics endpoint.
+
+A PodMonitor rather than a Service + ServiceMonitor because it needs no extra
+Service, and because this is the pattern already proven on these clusters: the
+etcd chart's PodMonitor is discovered by infra-monitoring-alloy, whose
+prometheus.operator.podmonitors component carries no selector and so picks up
+every PodMonitor regardless of labels.
+
+Without this, resource_created_at_seconds / rest_client_requests_total /
+process_start_time_seconds are never collected and the operator-sourced panels
+on the konk-operator dashboard are permanently empty.
+*/}}
+{{- if and .Values.metrics.enabled .Values.metrics.podMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: {{ include "konk-operator.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "konk-operator.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "konk-operator.selectorLabels" . | nindent 6 }}
+  podMetricsEndpoints:
+    - port: metrics
+      path: /metrics
+      interval: {{ .Values.metrics.podMonitor.interval }}
+      scrapeTimeout: {{ .Values.metrics.podMonitor.scrapeTimeout }}
+{{- end }}

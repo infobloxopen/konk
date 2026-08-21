@@ -32,6 +32,12 @@ spec:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            # operator-sdk framework metrics, plain HTTP. Named so the
+            # PodMonitor can reference it; 8081 is the probe port.
+            - name: metrics
+              containerPort: {{ .Values.metrics.port }}
+              protocol: TCP
           env:
             - name: AUTH_URL
               value: {{ .Values.authURL | default "" }}
