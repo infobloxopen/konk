@@ -370,13 +370,15 @@
               "container": false,
               "uid": true,
               "prometheus": true,
-              "service": true
+              "service": true,
+              "cluster": true,
+              "env": true
             },
             "includeByName": {},
             "renameByName": {
               "Value": "replicas",
               "deployment": "Deployment",
-              "namespace": "ns"
+              "namespace": "namespace"
             }
           }
         }
@@ -431,6 +433,7 @@
       ],
       "title": "Deployment desired vs available",
       "transformations": [
+        { "id": "merge", "options": {} },
         {
           "id": "organize",
           "options": {
@@ -443,14 +446,16 @@
               "container": false,
               "uid": true,
               "prometheus": true,
-              "service": true
+              "service": true,
+              "cluster": true,
+              "env": true
             },
             "includeByName": {},
             "renameByName": {
               "Value #A": "desired",
               "Value #B": "available",
               "deployment": "Deployment",
-              "namespace": "ns"
+              "namespace": "namespace"
             }
           }
         }
@@ -564,10 +569,12 @@
               "container": false,
               "uid": true,
               "prometheus": true,
-              "service": true
+              "service": true,
+              "cluster": true,
+              "env": true
             },
             "includeByName": {},
-            "renameByName": { "Value": "missing", "namespace": "ns" }
+            "renameByName": { "Value": "missing", "namespace": "namespace" }
           }
         }
       ],
@@ -900,10 +907,12 @@
               "container": false,
               "uid": true,
               "prometheus": true,
-              "service": true
+              "service": true,
+              "cluster": true,
+              "env": true
             },
             "includeByName": {},
-            "renameByName": { "Value": "age", "pod": "Pod", "namespace": "ns" }
+            "renameByName": { "Value": "age", "pod": "Pod", "namespace": "namespace" }
           }
         },
         {
@@ -1074,13 +1083,15 @@
               "prometheus": true,
               "service": true,
               "condition": true,
-              "exported_namespace": true
+              "exported_namespace": true,
+              "cluster": true,
+              "env": true
             },
             "includeByName": {},
             "renameByName": {
               "Value": "not ready",
               "name": "certificate",
-              "namespace": "ns"
+              "namespace": "namespace"
             }
           }
         }
@@ -1254,13 +1265,15 @@
               "container": false,
               "uid": true,
               "prometheus": true,
-              "service": true
+              "service": true,
+              "cluster": true,
+              "env": true
             },
             "includeByName": {},
             "renameByName": {
               "Value": "ready addresses",
               "endpoint": "Service",
-              "namespace": "ns"
+              "namespace": "namespace"
             }
           }
         }
@@ -1719,10 +1732,12 @@
               "container": false,
               "uid": true,
               "prometheus": true,
-              "service": true
+              "service": true,
+              "cluster": true,
+              "env": true
             },
             "includeByName": {},
-            "renameByName": { "Value": "peak", "pod": "Pod", "namespace": "ns" }
+            "renameByName": { "Value": "peak", "pod": "Pod", "namespace": "namespace" }
           }
         },
         {
@@ -1785,10 +1800,16 @@
               "uid": true,
               "prometheus": true,
               "service": true,
-              "reason": true
+              "reason": true,
+              "cluster": true,
+              "env": true
             },
             "includeByName": {},
-            "renameByName": { "Value": "oomkilled", "pod": "Pod", "namespace": "ns" }
+            "renameByName": {
+              "Value": "oomkilled",
+              "pod": "Pod",
+              "namespace": "namespace"
+            }
           }
         }
       ],

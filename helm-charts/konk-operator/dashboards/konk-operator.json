@@ -1601,13 +1601,15 @@
               "prometheus": true,
               "service": true,
               "condition": true,
-              "exported_namespace": true
+              "exported_namespace": true,
+              "cluster": true,
+              "env": true
             },
             "includeByName": {},
             "renameByName": {
               "Value": "not ready",
               "name": "certificate",
-              "namespace": "ns"
+              "namespace": "namespace"
             }
           }
         }
