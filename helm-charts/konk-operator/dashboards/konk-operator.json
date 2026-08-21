@@ -215,7 +215,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS_UID}"
           },
-          "expr": "sum(rate(rest_client_requests_total{app_kubernetes_io_instance=\"konk-operator\"}[2m])) by (method, code)",
+          "expr": "sum(rate(rest_client_requests_total{namespace=\"konk\"}[5m])) by (method, code)",
           "legendFormat": "{{method}} {{ code}}",
           "refId": "A"
         }
@@ -288,7 +288,8 @@
           "placement": "bottom",
           "showLegend": true
         }
-      }
+      },
+      "description": "Kube API requests the operator makes, split by method and response code. Scoped by namespace rather than app_kubernetes_io_instance: that pod label is not mapped into the metric by either annotation discovery or the PodMonitor, so selecting on it matches nothing. Requires the operator to be scraped via its PodMonitor (metrics.enabled + metrics.podMonitor.enabled), which is what supplies the namespace label. Window widened from 2m to 5m: at a 60s scrape 2m holds only the two samples rate() minimally needs, so a single missed scrape empties the panel."
     },
     {
       "datasource": {
@@ -837,14 +838,14 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS_UID}"
           },
-          "expr": "sum by (code) (rate(rest_client_requests_total{app_kubernetes_io_instance=\"konk-operator\",code=~\"5..\"}[5m]))",
+          "expr": "sum by (code) (rate(rest_client_requests_total{namespace=\"konk\",code=~\"5..\"}[5m]))",
           "refId": "A",
           "legendFormat": "{{code}}"
         }
       ],
       "title": "Operator 5xx error rate",
       "type": "timeseries",
-      "description": "Operator reconcile failures against the parent Kube API. Sustained non-zero means reconciliation is failing."
+      "description": "Operator reconcile failures against the parent Kube API. Sustained non-zero means reconciliation is failing. Reads \"No data\" rather than 0 while healthy: Prometheus only creates series for response codes actually observed, so with no 5xx ever returned there is no series to rate. Scoped by namespace rather than app_kubernetes_io_instance: that pod label is not mapped into the metric by either annotation discovery or the PodMonitor, so selecting on it matches nothing. Requires the operator to be scraped via its PodMonitor (metrics.enabled + metrics.podMonitor.enabled), which is what supplies the namespace label."
     },
     {
       "datasource": {
