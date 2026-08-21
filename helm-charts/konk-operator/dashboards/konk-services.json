@@ -587,15 +587,32 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "count by (namespace) (resource_created_at_seconds{group=\"konk.infoblox.com\",kind=\"KonkService\", namespace=~\"$namespace\"}) - on(namespace) (count by (namespace) (kube_deployment_spec_replicas{namespace=~\"$namespace\", deployment=~\".*-kubeconfig\"}) or vector(0))",
-          "refId": "A",
+          "expr": "count by (namespace) (max by (namespace, name) (resource_created_at_seconds{group=\"konk.infoblox.com\",kind=\"KonkService\", namespace=~\"$namespace\"}))",
+          "format": "table",
           "instant": true,
           "range": false,
-          "format": "table"
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
+          "expr": "count by (namespace) (max by (namespace, deployment) (kube_deployment_spec_replicas{namespace=~\"$namespace\", deployment=~\".*-kubeconfig\"}))",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "refId": "B"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
+          "expr": "count by (namespace) (max by (namespace, name) (resource_created_at_seconds{group=\"konk.infoblox.com\",kind=\"KonkService\", namespace=~\"$namespace\"})) - (count by (namespace) (max by (namespace, deployment) (kube_deployment_spec_replicas{namespace=~\"$namespace\", deployment=~\".*-kubeconfig\"})) or (count by (namespace) (max by (namespace, name) (resource_created_at_seconds{group=\"konk.infoblox.com\",kind=\"KonkService\", namespace=~\"$namespace\"})) * 0))",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "refId": "C"
         }
       ],
-      "title": "Missing component Deployments",
+      "title": "kubeconfig Deployments vs KonkServices (per namespace)",
       "transformations": [
+        { "id": "merge", "options": {} },
         {
           "id": "organize",
           "options": {
@@ -613,12 +630,17 @@
               "env": true
             },
             "includeByName": {},
-            "renameByName": { "Value": "missing", "namespace": "namespace" }
+            "renameByName": {
+              "Value #A": "KonkServices",
+              "Value #B": "kubeconfig Deployments",
+              "Value #C": "missing",
+              "namespace": "namespace"
+            }
           }
         }
       ],
       "type": "table",
-      "description": "KonkService count minus kubeconfig-Deployment count, per namespace. Any non-zero value means a KonkService is missing a required Deployment."
+      "description": "Every KonkService should have exactly one kubeconfig Deployment. A shortfall means the Deployment was never created, so nothing renews the 12h client cert. Reported per NAMESPACE, not per KonkService: mapping a CR name to its Deployment name is not possible from these metrics because Kubernetes truncates to 63 characters (konk-service can be cut to 'k'), so the namespace is as precise as this can honestly get -- use it to narrow where to look. Counts dedupe per object with max by(...) before counting, so a double-scraped operator cannot inflate the KonkService side and fabricate a deficit. The 'missing' column uses a label-preserving zero rather than `or vector(0)`, which is unlabelled and so could never match the `- on(namespace)` join -- the previous form returned nothing in exactly the case this panel exists to catch."
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
