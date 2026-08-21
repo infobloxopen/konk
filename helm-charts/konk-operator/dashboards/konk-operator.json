@@ -1360,7 +1360,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS_UID}"
           },
-          "expr": "(certmanager_certificate_expiration_timestamp_seconds{namespace=\"aggregate\", name!~\".*kubeconfig.*\"} - time()) / 86400",
+          "expr": "(max by (name) (certmanager_certificate_expiration_timestamp_seconds{namespace=\"aggregate\", name!~\".*kubeconfig.*\"}) - time()) / 86400",
           "refId": "A",
           "legendFormat": "{{name}}"
         }
@@ -1508,14 +1508,14 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS_UID}"
           },
-          "expr": "min((certmanager_certificate_expiration_timestamp_seconds{name=~\".*bulk-konk-ca\"} - time()) / 86400)",
+          "expr": "min((max by (name) (certmanager_certificate_expiration_timestamp_seconds{namespace=\"aggregate\", name=~\".*requestheader-self-signed\"}) - time()) / 86400)",
           "refId": "A",
           "legendFormat": "days"
         }
       ],
-      "title": "CA cert expiry (days)",
+      "title": "Self-signed issuer cert expiry (days)",
       "type": "stat",
-      "description": "bulk-konk-ca is long-lived and annotated helm.sh/resource-policy=keep. Alert below 30 days."
+      "description": "Expiry of bulk-konk-requestheader-self-signed, the long-lived (~2 year) self-signed issuer cert managed by cert-manager. NOTE: this panel previously tracked bulk-konk-ca, which cannot work -- that is a raw kubernetes.io/tls Secret created by provision/kubeadm, not a cert-manager Certificate, so cert-manager exports no metric for it. Cluster-CA expiry needs a different source (x509 parsing or a custom exporter); see spec 4.2."
     },
     {
       "datasource": {
@@ -1544,7 +1544,8 @@
                 "value": null
               }
             ]
-          }
+          },
+          "noValue": "all Ready"
         },
         "overrides": []
       },
@@ -1574,7 +1575,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS_UID}"
           },
-          "expr": "certmanager_certificate_ready_status{namespace=\"aggregate\", condition=\"True\"} == 0",
+          "expr": "max by (namespace, name) (certmanager_certificate_ready_status{namespace=\"aggregate\", condition=\"True\"}) == 0",
           "format": "table",
           "instant": true,
           "range": false,

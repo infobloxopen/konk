@@ -963,7 +963,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "(certmanager_certificate_expiration_timestamp_seconds{namespace=~\"$namespace\", name=~\".*kubeconfig.*\"} - time()) / 3600",
+          "expr": "(max by (namespace, name) (certmanager_certificate_expiration_timestamp_seconds{namespace=~\"$namespace\", name=~\".*kubeconfig.*\"}) - time()) / 3600",
           "refId": "A",
           "legendFormat": "{{namespace}}/{{name}}"
         }
@@ -1011,7 +1011,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "(certmanager_certificate_expiration_timestamp_seconds{namespace=~\"$namespace\", name=~\".*konk-service-server\"} - time()) / 86400",
+          "expr": "(max by (namespace, name) (certmanager_certificate_expiration_timestamp_seconds{namespace=~\"$namespace\", name=~\".*konk-service-server\"}) - time()) / 86400",
           "refId": "A",
           "legendFormat": "{{namespace}}/{{name}}"
         }
@@ -1035,7 +1035,8 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [{ "color": "red", "value": null }]
-          }
+          },
+          "noValue": "all Ready"
         },
         "overrides": []
       },
@@ -1050,7 +1051,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "certmanager_certificate_ready_status{namespace=~\"$namespace\", condition=\"True\"} == 0",
+          "expr": "max by (namespace, name) (certmanager_certificate_ready_status{namespace=~\"$namespace\", condition=\"True\"}) == 0",
           "refId": "A",
           "instant": true,
           "range": false,
@@ -1133,7 +1134,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "changes(certmanager_certificate_expiration_timestamp_seconds{namespace=~\"$namespace\", name=~\".*kubeconfig.*\"}[24h])",
+          "expr": "max by (namespace, name) (changes(certmanager_certificate_expiration_timestamp_seconds{namespace=~\"$namespace\", name=~\".*kubeconfig.*\"}[24h]))",
           "refId": "A",
           "legendFormat": "{{namespace}}/{{name}}"
         }
@@ -1191,7 +1192,7 @@
       ],
       "title": "★ CA rotated without propagation",
       "type": "stat",
-      "description": "Highest-value alert in the spec. Catches the us-dev-5 outage: the CA rotated but the per-namespace kubeconfig certs were never re-issued. Fires ~20 min BEFORE pods start failing TLS, so it is a warning rather than a post-mortem."
+      "description": "Highest-value alert in the spec. Catches the us-dev-5 outage: the CA rotated but the per-namespace kubeconfig certs were never re-issued. Fires ~20 min BEFORE pods start failing TLS, so it is a warning rather than a post-mortem. CAVEAT: inert as written. It keys off bulk-konk-ca, which is a raw Secret from provision/kubeadm rather than a cert-manager Certificate, so no certmanager_certificate_expiration_timestamp_seconds series exists for it and the left-hand side is always empty. Deliberately not repointed at another cert -- that would make a security-relevant detector look functional while watching the wrong thing. Needs CA expiry exported first; see spec 4.2."
     },
     {
       "collapsed": false,
