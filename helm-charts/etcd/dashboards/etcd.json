@@ -208,7 +208,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 10 },
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 10 },
       "id": 14,
       "options": {
         "colorMode": "background",
@@ -272,7 +272,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 10 },
+      "gridPos": { "h": 8, "w": 6, "x": 6, "y": 10 },
       "id": 11,
       "options": {
         "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
@@ -292,7 +292,7 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-      "description": "Failed Raft proposals (new failures in window) and pending proposals (current gauge). Non-zero sustained failed values indicate write failures during a restart window. Uses an explicit [5m] window rather than $__rate_interval: the chart scrapes every 60s, and $__rate_interval resolves to ~60-75s, which is too few samples for rate()/increase() to return anything.",
+      "description": "Raft proposals that failed to commit, as an increase over a 5m window. Should stay flat at zero; any sustained non-zero means proposals are being rejected, which accompanies leader elections or lost quorum. Uses an explicit [5m] window rather than $__rate_interval: the chart scrapes every 60s, and $__rate_interval resolves to ~60-75s, which is too few samples for rate()/increase() to return anything.",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -329,7 +329,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 10 },
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 10 },
       "id": 12,
       "options": {
         "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
@@ -340,17 +340,72 @@
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
           "expr": "max by (pod) (increase(etcd_server_proposals_failed_total{namespace=\"$namespace\", pod=~\"$pod\"}[5m]))",
-          "legendFormat": "{{pod}} failed",
+          "legendFormat": "{{pod}}",
           "refId": "A"
+        }
+      ],
+      "title": "Proposals Failed",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
+      "description": "Proposals queued awaiting commit, sampled instantaneously. Brief non-zero values are normal under write load; a sustained backlog points at slow disk or a struggling quorum. Unlike Proposals Failed this is a gauge, not a windowed delta, which is why the two are separate panels.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "off" },
+            "axisSoftMax": 5,
+            "axisSoftMin": 0
+          },
+          "links": [],
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "red", "value": 10 }
+            ]
+          }
         },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 10 },
+      "id": 17,
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      },
+      "pluginVersion": "10.4.19",
+      "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
           "expr": "max by (pod) (etcd_server_proposals_pending{namespace=\"$namespace\", pod=~\"$pod\"})",
-          "legendFormat": "{{pod}} pending",
-          "refId": "B"
+          "legendFormat": "{{pod}}",
+          "refId": "A"
         }
       ],
-      "title": "Proposals Failed / Pending",
+      "title": "Proposals Pending",
       "type": "timeseries"
     },
     {
