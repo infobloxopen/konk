@@ -102,7 +102,7 @@
           "decimals": 0,
           "thresholds": {
             "mode": "absolute",
-            "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }]
+            "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }]
           }
         },
         "overrides": [
@@ -130,9 +130,9 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "count(kube_deployment_spec_replicas{deployment=~\".*-(kubeconfig|konk-service-apiservice|kubectl-apiservice|apiservice-test)\"} == 0) or vector(0)",
-          "refId": "A",
-          "legendFormat": "scaled to 0"
+          "expr": "count(kube_deployment_spec_replicas{deployment=~\".*-(kubeconfig|konk-service-apiservice|kubectl-apiservice|apiservice-test)\"} > 0) or vector(0)",
+          "legendFormat": "scaled up",
+          "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
@@ -141,9 +141,9 @@
           "refId": "B"
         }
       ],
-      "title": "Deployments scaled to 0",
+      "title": "Deployments scaled up",
       "type": "stat",
-      "description": "Any konk-service Deployment with replicas=0. A scaled-to-0 kubeconfig Deployment silently expires the client cert within 12h. Shown against the total population it was counted from, so a 0 is distinguishable from a query that matched nothing."
+      "description": "konk-service Deployments with at least one desired replica, against the total. A shortfall means a Deployment is scaled to 0 -- for kubeconfig that silently expires the 12h client cert. Row 2 lists exactly which."
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
@@ -154,7 +154,7 @@
           "decimals": 0,
           "thresholds": {
             "mode": "absolute",
-            "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }]
+            "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }]
           }
         },
         "overrides": [
@@ -182,9 +182,9 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "count(kube_deployment_status_replicas_available{deployment=~\".*-(kubeconfig|konk-service-apiservice|kubectl-apiservice)\"} < 1) or vector(0)",
-          "refId": "A",
-          "legendFormat": "unavailable"
+          "expr": "count(kube_deployment_status_replicas_available{deployment=~\".*-(kubeconfig|konk-service-apiservice|kubectl-apiservice)\"} >= 1) or vector(0)",
+          "legendFormat": "available",
+          "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
@@ -193,9 +193,9 @@
           "refId": "B"
         }
       ],
-      "title": "Deployments with 0 available",
+      "title": "Deployments available",
       "type": "stat",
-      "description": "kubeconfig or apiservice Deployments with no available replica. Shown against the total population it was counted from, so a 0 is distinguishable from a query that matched nothing."
+      "description": "kubeconfig and apiservice Deployments with at least one available replica, against the total. apiservice-test is excluded -- the spec treats it as optional. Row 2 lists any shortfall."
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
@@ -252,7 +252,7 @@
           "decimals": 0,
           "thresholds": {
             "mode": "absolute",
-            "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }]
+            "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }]
           }
         },
         "overrides": [
@@ -280,20 +280,20 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "count(sum by (namespace, endpoint) (kube_endpoint_info{namespace=~\"aggregate|ddi|atcapi|hostapp|ngp-cp|ntp|tagging-v2|redirect|endpoints\"}) unless sum by (namespace, endpoint) (kube_endpoint_address{namespace=~\"aggregate|ddi|atcapi|hostapp|ngp-cp|ntp|tagging-v2|redirect|endpoints\", ready=\"true\"})) or vector(0)",
-          "refId": "A",
-          "legendFormat": "no endpoints"
+          "expr": "count(sum by (namespace, endpoint) (kube_endpoint_address{namespace=~\"aggregate|ddi|atcapi|hostapp|ngp-cp|ntp|tagging-v2|redirect|endpoints\", endpoint=~\".*-apiservice\", ready=\"true\"})) or vector(0)",
+          "legendFormat": "with endpoints",
+          "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "count(sum by (namespace, endpoint) (kube_endpoint_info{namespace=~\"aggregate|ddi|atcapi|hostapp|ngp-cp|ntp|tagging-v2|redirect|endpoints\"})) or vector(0)",
+          "expr": "count(sum by (namespace, endpoint) (kube_endpoint_info{namespace=~\"aggregate|ddi|atcapi|hostapp|ngp-cp|ntp|tagging-v2|redirect|endpoints\", endpoint=~\".*-apiservice\"})) or vector(0)",
           "legendFormat": "of total",
           "refId": "B"
         }
       ],
-      "title": "Backends with no endpoints",
+      "title": "Backends with endpoints",
       "type": "stat",
-      "description": "APIService backends that have an Endpoints object but zero ready addresses -- the backend is completely down. Uses kube_endpoint_info UNLESS kube_endpoint_address{ready=\"true\"}: kube_endpoint_address_available was removed in kube-state-metrics v2.10+, and a plain sum over ready=\"true\" cannot detect the failure because a backend with no ready addresses has no such series to sum. Shown against the total population it was counted from, so a 0 is distinguishable from a query that matched nothing."
+      "description": "APIService backend Services with at least one ready endpoint address, against the total. Scoped to endpoint=~\".*-apiservice\", the naming of every backend declared in a KonkService spec.service.name -- without that scope this counted all 276 Endpoints objects in the konk namespaces and reported unrelated workloads as failures."
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
@@ -305,7 +305,7 @@
           "decimals": 0,
           "thresholds": {
             "mode": "absolute",
-            "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }]
+            "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }]
           }
         },
         "overrides": []
@@ -328,26 +328,26 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "count(kube_deployment_status_replicas_available{deployment=~\".*-kubeconfig\"} < 1) or vector(0)",
+          "expr": "count(kube_deployment_status_replicas_available{deployment=~\".*-kubeconfig\"} >= 1) or vector(0)",
           "refId": "A",
           "legendFormat": "kubeconfig"
         },
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "count(kube_deployment_status_replicas_available{deployment=~\".*-(kubectl-apiservice|konk-service-apiservice)\"} < 1) or vector(0)",
+          "expr": "count(kube_deployment_status_replicas_available{deployment=~\".*-(kubectl-apiservice|konk-service-apiservice)\"} >= 1) or vector(0)",
           "refId": "B",
           "legendFormat": "apiservice"
         },
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "count(kube_deployment_status_replicas_available{deployment=~\".*-(kubectl-apiservice|konk-service-apiservice)-test\"} < 1) or vector(0)",
+          "expr": "count(kube_deployment_status_replicas_available{deployment=~\".*-(kubectl-apiservice|konk-service-apiservice)-test\"} >= 1) or vector(0)",
           "refId": "C",
           "legendFormat": "apiservice-test"
         }
       ],
-      "title": "Not available by component",
+      "title": "Components available",
       "type": "bargauge",
-      "description": "konk-service Deployments with no available replica, split by component. Measured at the Deployment level because pod names cannot identify the component: Kubernetes truncates the ReplicaSet name before appending the pod hash, so apiservice and apiservice-test become indistinguishable. Deployment names keep their suffix. Denominator is the KonkService count in the first tile -- one Deployment of each component per KonkService, so each bar is out of that same total. Kept as three bars rather than six: adding per-component totals would double the bars in this width."
+      "description": "Deployments with an available replica, per component. One Deployment of each component per KonkService, so a healthy fleet shows the KonkService count from the first tile on every bar. A bar falling below that count is the signal; Row 3 shows which Deployment."
     },
     {
       "collapsed": false,
@@ -1350,7 +1350,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "sum by (namespace, endpoint) (kube_endpoint_info{namespace=~\"$namespace\"}) unless sum by (namespace, endpoint) (kube_endpoint_address{namespace=~\"$namespace\", ready=\"true\"})",
+          "expr": "sum by (namespace, endpoint) (kube_endpoint_info{namespace=~\"$namespace\", endpoint=~\".*-apiservice\"}) unless sum by (namespace, endpoint) (kube_endpoint_address{namespace=~\"$namespace\", endpoint=~\".*-apiservice\", ready=\"true\"})",
           "refId": "A",
           "instant": true,
           "range": false,
@@ -1385,7 +1385,7 @@
         }
       ],
       "type": "table",
-      "description": "The e2e script's harshest failure: an APIService backend with an Endpoints object but no ready addresses. Alert on any row. Set difference rather than a comparison because a backend with zero ready addresses produces no ready=\"true\" series at all, so `== 0` would never fire."
+      "description": "APIService backends with an Endpoints object but no ready address -- the backend is completely down. Alert on any row. Scoped to the backend naming from KonkService spec.service.name so unrelated services in these shared namespaces are not reported."
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
@@ -1433,14 +1433,14 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "sum by (namespace, endpoint) (kube_endpoint_address{namespace=~\"$namespace\", ready=\"true\"})",
+          "expr": "sum by (namespace, endpoint) (kube_endpoint_address{namespace=~\"$namespace\", endpoint=~\".*-apiservice\", ready=\"true\"})",
           "refId": "A",
           "legendFormat": "{{namespace}}/{{endpoint}}"
         }
       ],
       "title": "Ready endpoint count per backend",
       "type": "timeseries",
-      "description": "Ready endpoint addresses per backend service. Watch for drops to 0. kube_endpoint_address replaces kube_endpoint_address_available, removed in kube-state-metrics v2.10+."
+      "description": "Ready endpoint addresses per APIService backend. Watch for drops to 0."
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
@@ -1472,14 +1472,14 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "count(count by (namespace, service) (kube_service_info{namespace=~\"$namespace\"}) unless on (namespace) count by (namespace) (kube_endpoint_info{namespace=~\"$namespace\"})) or vector(0)",
+          "expr": "count(count by (namespace, service) (kube_service_info{namespace=~\"$namespace\", service=~\".*-apiservice\"}) unless on (namespace) count by (namespace) (kube_endpoint_info{namespace=~\"$namespace\", endpoint=~\".*-apiservice\"})) or vector(0)",
           "refId": "A",
           "legendFormat": "absent"
         }
       ],
       "title": "Backends with no Endpoints object",
       "type": "stat",
-      "description": "Services with no Endpoints object at all, as distinct from an Endpoints object holding zero ready addresses. Catches the e2e check for a backend service that was never wired up."
+      "description": "Backend Services with no Endpoints object at all, as distinct from one holding zero ready addresses. Catches a backend that was never wired up."
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
