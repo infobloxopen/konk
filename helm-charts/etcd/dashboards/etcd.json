@@ -648,7 +648,7 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-      "description": "Backend commit latency p99. High values indicate MVCC/snapshot pressure. Uses an explicit [5m] window rather than $__rate_interval: the chart scrapes every 60s, and $__rate_interval resolves to ~60-75s, which is too few samples for rate()/increase() to return anything.",
+      "description": "p99 latency of etcd backend commits. etcd batches commits heavily -- on an idle cluster this can be as little as one commit every couple of minutes -- so many rate windows contain no observations at all and histogram_quantile returns NaN. Gaps therefore mean 'no commits in this window', not missing metrics, and are bridged rather than drawn as holes. Uses an explicit [5m] window rather than $__rate_interval: the chart scrapes every 60s, and $__rate_interval resolves to ~60-75s, which is too few samples for rate()/increase() to return anything.",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -669,7 +669,7 @@
             "pointSize": 5,
             "scaleDistribution": { "type": "linear" },
             "showPoints": "auto",
-            "spanNulls": false,
+            "spanNulls": true,
             "stacking": { "group": "A", "mode": "none" },
             "thresholdsStyle": { "mode": "off" }
           },
@@ -839,11 +839,13 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
+              { "color": "text", "value": null },
+              { "color": "green", "value": 0 },
               { "color": "yellow", "value": 0.3 },
               { "color": "red", "value": 0.5 }
             ]
-          }
+          },
+          "noValue": "n/a (DB < 512 MiB)"
         },
         "overrides": []
       },
@@ -861,14 +863,14 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "1 - (max by (pod) (etcd_mvcc_db_total_size_in_use_in_bytes{namespace=\"$namespace\", pod=~\"$pod\"}) / max by (pod) (etcd_mvcc_db_total_size_in_bytes{namespace=\"$namespace\", pod=~\"$pod\"}))",
+          "expr": "(1 - (max by (pod) (etcd_mvcc_db_total_size_in_use_in_bytes{namespace=\"$namespace\", pod=~\"$pod\"}) / max by (pod) (etcd_mvcc_db_total_size_in_bytes{namespace=\"$namespace\", pod=~\"$pod\"}))) and on (pod) (max by (pod) (etcd_mvcc_db_total_size_in_bytes{namespace=\"$namespace\", pod=~\"$pod\"}) > 536870912)",
           "refId": "A",
           "legendFormat": "{{pod}}"
         }
       ],
       "title": "DB Fragmentation Ratio",
       "type": "gauge",
-      "description": "Fraction of the allocated DB file no longer in use. Auto-compaction reclaims logical space but does not shrink the file, so a high ratio means a defrag is needed to return disk."
+      "description": "Fraction of the allocated DB file no longer in use. Auto-compaction reclaims logical space but does not shrink the file, so a high ratio means a defrag would return disk. Only evaluated once the database exceeds 512 MiB: below that the ratio is meaningless -- etcd pre-allocates, so a mostly-empty small file reads as ~90% fragmented while the reclaimable space is only a few MiB. Shows n/a rather than a false alarm on small clusters."
     }
   ],
   "refresh": "30s",
