@@ -510,7 +510,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS_UID}"
       },
-      "description": "Readiness of each konk (kube-apiserver) pod. Positive is ready, negative is not ready, so a pod flipping shows as a spike through zero. One series per pod, so pods replaced during the window each keep their own line -- repeated replacements of a single-replica Deployment show up here as a staircase.",
+      "description": "Readiness of each konk (kube-apiserver) pod: 1 = Ready, 0 = Not Ready, one series per pod.\n\nPreviously plotted two series per pod -- condition=\"true\" as positive and condition=\"false\" negated -- which made a single pod look like two entries in the legend. The second series carried no information: kube-state-metrics emits condition true/false/unknown for every pod, and condition=\"false\" is simply the inverse of condition=\"true\" for a binary readiness signal, so it contributed a permanent flat line at zero for every healthy pod.\n\nAxis pinned to 0..1. With only a flat zero series visible the axis previously auto-scaled to 0-100. Aggregated with max by(...) so a double-scraped pod cannot produce duplicate lines.",
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -524,22 +524,9 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS_UID}"
           },
-          "editorMode": "code",
-          "expr": "sum(kube_pod_status_ready{pod=~\".*-konk-[a-f0-9]+-[a-z0-9]+$\",condition=\"true\"}) by (namespace, pod)",
-          "range": true,
-          "refId": "A",
-          "legendFormat": "{{namespace}}/{{pod}}"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS_UID}"
-          },
-          "editorMode": "code",
-          "expr": "sum(kube_pod_status_ready{pod=~\".*-konk-[a-f0-9]+-[a-z0-9]+$\",condition=\"false\"}) by (namespace, pod) * -1",
-          "range": true,
-          "refId": "B",
-          "legendFormat": "{{namespace}}/{{pod}} not ready"
+          "expr": "max by (namespace, pod) (kube_pod_status_ready{pod=~\".*-konk-[a-f0-9]+-[a-z0-9]+$\",condition=\"true\"})",
+          "legendFormat": "{{namespace}}/{{pod}}",
+          "refId": "A"
         }
       ],
       "title": "konks ready",
@@ -566,7 +553,7 @@
               "viz": false
             },
             "insertNulls": false,
-            "lineInterpolation": "linear",
+            "lineInterpolation": "stepAfter",
             "lineWidth": 1,
             "pointSize": 5,
             "scaleDistribution": {
@@ -579,11 +566,27 @@
               "mode": "normal"
             },
             "thresholdsStyle": {
-              "mode": "area"
+              "mode": "off"
             }
           },
           "links": [],
-          "mappings": [],
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "color": "red",
+                  "index": 1,
+                  "text": "Not Ready"
+                },
+                "1": {
+                  "color": "green",
+                  "index": 0,
+                  "text": "Ready"
+                }
+              },
+              "type": "value"
+            }
+          ],
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -593,10 +596,13 @@
               },
               {
                 "color": "green",
-                "value": 0
+                "value": 1
               }
             ]
-          }
+          },
+          "min": 0,
+          "max": 1,
+          "decimals": 0
         },
         "overrides": []
       },
