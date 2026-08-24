@@ -296,7 +296,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS_UID}"
       },
-      "description": "When the operator process started. A jump means it restarted; eviction-based recreates show here even though Container Restarts stays 0, because a new pod starts with RESTARTS=0. Selects on app_kubernetes_io_instance, which is present under BOTH collection paths: Alloy's annotation discovery labelmaps pod labels in automatically, and the chart's PodMonitor carries it via podTargetLabels. Selecting on namespace would break under annotation discovery, which sets kubernetes_namespace rather than namespace.",
+      "description": "How long the konk-operator pod has been running. A drop to zero is a pod recreate -- the case Container Restarts cannot see, because a fresh pod starts with RESTARTS=0. Shown as uptime rather than an absolute start timestamp: with a single flat series and a datetime unit, Grafana padded the axis from 1970 to 2080.",
       "gridPos": {
         "h": 9,
         "w": 12,
@@ -310,12 +310,12 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS_UID}"
           },
-          "expr": "process_start_time_seconds{app_kubernetes_io_instance=\"konk-operator\"} * 1000",
+          "expr": "time() - process_start_time_seconds{app_kubernetes_io_instance=\"konk-operator\"}",
           "legendFormat": "{{pod}}",
           "refId": "A"
         }
       ],
-      "title": "Operator Start Time",
+      "title": "Operator uptime",
       "type": "timeseries",
       "pluginVersion": "10.4.19",
       "fieldConfig": {
@@ -323,7 +323,7 @@
           "color": {
             "mode": "palette-classic"
           },
-          "unit": "dateTimeAsLocal",
+          "unit": "s",
           "custom": {
             "axisBorderShow": false,
             "axisCenteredZero": false,
@@ -354,7 +354,8 @@
             },
             "thresholdsStyle": {
               "mode": "off"
-            }
+            },
+            "axisSoftMin": 0
           },
           "links": [],
           "mappings": [],
@@ -366,7 +367,8 @@
                 "value": null
               }
             ]
-          }
+          },
+          "min": 0
         },
         "overrides": []
       },
@@ -387,7 +389,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS_UID}"
       },
-      "description": "Counts OOMKill and crash-loop restarts within the same pod. Eviction-based recreates show as 0 here because a new pod starts with RESTARTS=0 — use Operator Start Time to catch those.",
+      "description": "Restarts of the konk-operator container. Counts OOMKill and crash-loop restarts within the same pod; an eviction-based recreate reads 0 here because a new pod starts with RESTARTS=0 -- Operator uptime catches those. Uses an explicit [5m] window rather than $__rate_interval: the PodMonitor scrapes every 60s and $__rate_interval resolves to ~60-75s, too few samples for increase() to return anything.",
       "gridPos": {
         "h": 9,
         "w": 12,
@@ -401,7 +403,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS_UID}"
           },
-          "expr": "increase(kube_pod_container_status_restarts_total{namespace=\"konk\", pod=~\"konk-operator-.*\"}[$__rate_interval])",
+          "expr": "increase(kube_pod_container_status_restarts_total{namespace=\"konk\", pod=~\"konk-operator-.*\"}[5m])",
           "legendFormat": "{{pod}} / {{container}}",
           "refId": "A"
         }
@@ -508,7 +510,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS_UID}"
       },
-      "description": "Readiness of each konk (kube-apiserver) pod. Positive is ready, negative is not ready, so a pod flipping shows as a spike through zero. One series per pod, so pods replaced during the window each keep their own line -- repeated replacements of a single-replica Deployment show up here as a staircase.",
+      "description": "Readiness of each konk (kube-apiserver) pod: 1 = Ready, 0 = Not Ready, one series per pod.\n\nPreviously plotted two series per pod -- condition=\"true\" as positive and condition=\"false\" negated -- which made a single pod look like two entries in the legend. The second series carried no information: kube-state-metrics emits condition true/false/unknown for every pod, and condition=\"false\" is simply the inverse of condition=\"true\" for a binary readiness signal, so it contributed a permanent flat line at zero for every healthy pod.\n\nAxis pinned to 0..1. With only a flat zero series visible the axis previously auto-scaled to 0-100. Aggregated with max by(...) so a double-scraped pod cannot produce duplicate lines.",
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -522,22 +524,9 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS_UID}"
           },
-          "editorMode": "code",
-          "expr": "sum(kube_pod_status_ready{pod=~\".*-konk-[a-f0-9]+-[a-z0-9]+$\",condition=\"true\"}) by (namespace, pod)",
-          "range": true,
-          "refId": "A",
-          "legendFormat": "{{namespace}}/{{pod}}"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS_UID}"
-          },
-          "editorMode": "code",
-          "expr": "sum(kube_pod_status_ready{pod=~\".*-konk-[a-f0-9]+-[a-z0-9]+$\",condition=\"false\"}) by (namespace, pod) * -1",
-          "range": true,
-          "refId": "B",
-          "legendFormat": "{{namespace}}/{{pod}} not ready"
+          "expr": "max by (namespace, pod) (kube_pod_status_ready{pod=~\".*-konk-[a-f0-9]+-[a-z0-9]+$\",condition=\"true\"})",
+          "legendFormat": "{{namespace}}/{{pod}}",
+          "refId": "A"
         }
       ],
       "title": "konks ready",
@@ -564,7 +553,7 @@
               "viz": false
             },
             "insertNulls": false,
-            "lineInterpolation": "linear",
+            "lineInterpolation": "stepAfter",
             "lineWidth": 1,
             "pointSize": 5,
             "scaleDistribution": {
@@ -577,11 +566,27 @@
               "mode": "normal"
             },
             "thresholdsStyle": {
-              "mode": "area"
+              "mode": "off"
             }
           },
           "links": [],
-          "mappings": [],
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "color": "red",
+                  "index": 1,
+                  "text": "Not Ready"
+                },
+                "1": {
+                  "color": "green",
+                  "index": 0,
+                  "text": "Ready"
+                }
+              },
+              "type": "value"
+            }
+          ],
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -591,10 +596,13 @@
               },
               {
                 "color": "green",
-                "value": 0
+                "value": 1
               }
             ]
-          }
+          },
+          "min": 0,
+          "max": 1,
+          "decimals": 0
         },
         "overrides": []
       },
@@ -790,8 +798,10 @@
               "mode": "none"
             },
             "thresholdsStyle": {
-              "mode": "line+area"
-            }
+              "mode": "off"
+            },
+            "axisSoftMax": 1,
+            "axisSoftMin": 0
           },
           "links": [],
           "mappings": [],
@@ -809,7 +819,8 @@
                 "value": 0.01
               }
             ]
-          }
+          },
+          "noValue": "no 5xx"
         },
         "overrides": []
       },
@@ -845,7 +856,7 @@
       ],
       "title": "Operator 5xx error rate",
       "type": "timeseries",
-      "description": "Operator reconcile failures against the parent Kube API. Sustained non-zero means reconciliation is failing. Reads \"No data\" rather than 0 while healthy: Prometheus only creates series for response codes actually observed, so with no 5xx ever returned there is no series to rate. Selects on app_kubernetes_io_instance, which is present under BOTH collection paths: Alloy's annotation discovery labelmaps pod labels in automatically, and the chart's PodMonitor carries it via podTargetLabels. Selecting on namespace would break under annotation discovery, which sets kubernetes_namespace rather than namespace."
+      "description": "Operator reconcile failures against the parent Kube API. Sustained non-zero means reconciliation is failing. Threshold area shading is off and the axis has a soft max: with shading on and an unbounded axis, a panel reading zero was rendered almost entirely red. Reads \"no 5xx\" when empty, which is the healthy state: Prometheus only creates series for response codes actually observed, and an operator that has never received a 5xx has no series to rate."
     },
     {
       "datasource": {
@@ -886,8 +897,10 @@
               "mode": "none"
             },
             "thresholdsStyle": {
-              "mode": "line+area"
-            }
+              "mode": "off"
+            },
+            "axisSoftMax": 5,
+            "axisSoftMin": 0
           },
           "links": [],
           "mappings": [],
@@ -944,7 +957,7 @@
       ],
       "title": "Konk pod restart count (1h)",
       "type": "timeseries",
-      "description": "kube-apiserver restarts per konk instance over the trailing hour."
+      "description": "kube-apiserver restarts per konk instance over the trailing hour. Threshold area shading is off and the axis has a soft max: with shading on and an unbounded axis, a panel reading zero was rendered almost entirely red."
     },
     {
       "collapsed": false,
@@ -1234,7 +1247,9 @@
             },
             "thresholdsStyle": {
               "mode": "off"
-            }
+            },
+            "axisSoftMax": 5,
+            "axisSoftMin": 0
           },
           "links": [],
           "mappings": [],
@@ -1274,7 +1289,7 @@
       ],
       "title": "Provision restart history",
       "type": "timeseries",
-      "description": "Correlate restart spikes with cert renewal windows."
+      "description": "Correlate restart spikes with cert renewal windows. Soft max keeps a single restart visible; the axis previously auto-scaled to 0-100 for a metric that sits at zero."
     },
     {
       "collapsed": false,
@@ -1440,7 +1455,7 @@
           "legendFormat": "days"
         }
       ],
-      "title": "Next provision wake-up (days)",
+      "title": "Next provision wake-up (d)",
       "type": "stat",
       "description": "Days until provision should next act. Below 0 means provision is overdue to renew."
     },
@@ -1516,7 +1531,7 @@
           "legendFormat": "days"
         }
       ],
-      "title": "Self-signed issuer cert expiry (days)",
+      "title": "Self-signed CA expiry (d)",
       "type": "stat",
       "description": "Expiry of bulk-konk-requestheader-self-signed, the long-lived (~2 year) self-signed issuer cert managed by cert-manager. NOTE: this panel previously tracked bulk-konk-ca, which cannot work -- that is a raw kubernetes.io/tls Secret created by provision/kubeadm, not a cert-manager Certificate, so cert-manager exports no metric for it. Cluster-CA expiry needs a different source (x509 parsing or a custom exporter); see spec 4.2."
     },
@@ -1798,14 +1813,14 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS_UID}"
           },
-          "expr": "count(kube_deployment_status_replicas_available{deployment=~\".*-(kubeconfig|konk-service-apiservice|kubectl-apiservice)\"} < 1)",
+          "expr": "count(kube_deployment_status_replicas_available{deployment=~\".*-(kubeconfig|konk-service-apiservice|kubectl-apiservice)\"} < 1) or vector(0)",
           "refId": "A",
           "legendFormat": "unavailable"
         }
       ],
       "title": "Deployments unavailable",
       "type": "stat",
-      "description": "kubeconfig or apiservice Deployments with no available replica.",
+      "description": "kubeconfig or apiservice Deployments with no available replica. Reads 0 when healthy rather than \"No data\": count() over an empty set returns no series at all, so without the vector(0) fallback a healthy fleet is indistinguishable from a broken query.",
       "links": [
         {
           "title": "Drill down: konk-services",
@@ -1872,14 +1887,14 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS_UID}"
           },
-          "expr": "count(kube_pod_status_ready{pod=~\".*konk-service.*\", condition=\"true\"} == 0)",
+          "expr": "count(kube_pod_status_ready{pod=~\".*konk-service.*\", condition=\"true\"} == 0) or vector(0)",
           "refId": "A",
           "legendFormat": "not ready"
         }
       ],
       "title": "konk-service pods not Ready",
       "type": "stat",
-      "description": "konk-service pods failing their readiness probe. Matches '.*konk-service.*'; the previous component-suffix regex missed pods whose names Kubernetes truncated.",
+      "description": "konk-service pods failing their readiness probe. Reads 0 when healthy rather than \"No data\": count() over an empty set returns no series at all, so without the vector(0) fallback a healthy fleet is indistinguishable from a broken query.",
       "links": [
         {
           "title": "Drill down: konk-services",
