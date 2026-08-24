@@ -559,7 +559,9 @@
             "showPoints": "auto",
             "spanNulls": false,
             "stacking": { "group": "A", "mode": "none" },
-            "thresholdsStyle": { "mode": "line+area" }
+            "thresholdsStyle": { "mode": "off" },
+            "axisSoftMax": 5,
+            "axisSoftMin": 0
           },
           "links": [],
           "mappings": [],
@@ -588,7 +590,7 @@
       ],
       "title": "Unavailable replicas over time",
       "type": "timeseries",
-      "description": "Shows how long a component has been degraded, not just that it is degraded now."
+      "description": "Shows how long a component has been degraded, not just that it is degraded now. Threshold area shading is off and the axis has a soft max: with shading on and an unbounded axis, a panel reading zero rendered almost entirely red."
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
@@ -662,7 +664,7 @@
       ],
       "title": "kubeconfig Deployments vs KonkServices (per namespace)",
       "transformations": [
-        { "id": "merge", "options": {} },
+        { "id": "joinByField", "options": { "byField": "namespace", "mode": "outer" } },
         {
           "id": "organize",
           "options": {
@@ -677,7 +679,10 @@
               "prometheus": true,
               "service": true,
               "cluster": true,
-              "env": true
+              "env": true,
+              "Time 1": true,
+              "Time 2": true,
+              "Time 3": true
             },
             "includeByName": {},
             "renameByName": {
@@ -690,7 +695,7 @@
         }
       ],
       "type": "table",
-      "description": "Every KonkService should have exactly one kubeconfig Deployment. A shortfall means the Deployment was never created, so nothing renews the 12h client cert. Reported per NAMESPACE, not per KonkService: mapping a CR name to its Deployment name is not possible from these metrics because Kubernetes truncates to 63 characters (konk-service can be cut to 'k'), so the namespace is as precise as this can honestly get -- use it to narrow where to look. Counts dedupe per object with max by(...) before counting, so a double-scraped operator cannot inflate the KonkService side and fabricate a deficit. The 'missing' column uses a label-preserving zero rather than `or vector(0)`, which is unlabelled and so could never match the `- on(namespace)` join -- the previous form returned nothing in exactly the case this panel exists to catch."
+      "description": "Every KonkService should have exactly one kubeconfig Deployment. A shortfall means the Deployment was never created, so nothing renews the 12h client cert. Reported per NAMESPACE, not per KonkService: mapping a CR name to its Deployment name is not possible from these metrics because Kubernetes truncates to 63 characters (konk-service can be cut to 'k'), so the namespace is as precise as this can honestly get -- use it to narrow where to look. Counts dedupe per object with max by(...) before counting, so a double-scraped operator cannot inflate the KonkService side and fabricate a deficit. The 'missing' column uses a label-preserving zero rather than `or vector(0)`, which is unlabelled and so could never match the `- on(namespace)` join -- the previous form returned nothing in exactly the case this panel exists to catch. Joined with joinByField on namespace: merge matches on every shared field including Time, and three instant queries resolve at different timestamps, so the frames never joined and the 'missing' column stayed empty."
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
@@ -828,12 +833,12 @@
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
           "expr": "max by (namespace, deployment) (kube_deployment_status_replicas_available{namespace=~\"$namespace\", deployment=~\".*-(kubectl-apiservice|konk-service-apiservice)-test\"})",
           "refId": "A",
-          "legendFormat": "{{namespace}}/{{deployment}}"
+          "legendFormat": "{{deployment}}"
         }
       ],
       "title": "★ apiservice-test availability (ground truth)",
       "type": "state-timeline",
-      "description": "GROUND TRUTH. This component's probe passes only when the APIService exists and its API group lists resources inside konk. If this is red the API is not serving, whatever the other panels say. Tracked per Deployment rather than per pod: with replicaCount 1 '0 available' is exactly 'its pod is not ready', and pod names are truncated so they cannot identify the component. Placed third by preference: apiservice is the component that serves traffic, so it is read first. Note the spec asks for this panel to be MOST prominent -- it is the only signal that the API is actually serving, because its probe passes only when the APIService exists AND its API group lists resources inside konk. apiservice being available only means the reconciler pod is running."
+      "description": "GROUND TRUTH. This component's probe passes only when the APIService exists and its API group lists resources inside konk. If this is red the API is not serving, whatever the other panels say. Tracked per Deployment rather than per pod: with replicaCount 1 '0 available' is exactly 'its pod is not ready', and pod names are truncated so they cannot identify the component. Placed third by preference: apiservice is the component that serves traffic, so it is read first. Note the spec asks for this panel to be MOST prominent -- it is the only signal that the API is actually serving, because its probe passes only when the APIService exists AND its API group lists resources inside konk. apiservice being available only means the reconciler pod is running. Row labels show the deployment name only; the namespace prefix pushed them past the available width and Grafana truncated from the left. The panel is already scoped by $namespace."
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
@@ -881,12 +886,12 @@
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
           "expr": "max by (namespace, deployment) (kube_deployment_status_replicas_available{namespace=~\"$namespace\", deployment=~\".*-kubeconfig\"})",
           "refId": "A",
-          "legendFormat": "{{namespace}}/{{deployment}}"
+          "legendFormat": "{{deployment}}"
         }
       ],
       "title": "kubeconfig availability",
       "type": "state-timeline",
-      "description": "Not available for more than 12h means the client cert has already expired. Tracked per Deployment rather than per pod: with replicaCount 1 '0 available' is exactly 'its pod is not ready', and pod names are truncated so they cannot identify the component."
+      "description": "Not available for more than 12h means the client cert has already expired. Tracked per Deployment rather than per pod: with replicaCount 1 '0 available' is exactly 'its pod is not ready', and pod names are truncated so they cannot identify the component. Row labels show the deployment name only; the namespace prefix pushed them past the available width and Grafana truncated from the left. The panel is already scoped by $namespace."
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
@@ -934,12 +939,12 @@
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
           "expr": "max by (namespace, deployment) (kube_deployment_status_replicas_available{namespace=~\"$namespace\", deployment=~\".*-(kubectl-apiservice|konk-service-apiservice)\"})",
           "refId": "A",
-          "legendFormat": "{{namespace}}/{{deployment}}"
+          "legendFormat": "{{deployment}}"
         }
       ],
       "title": "apiservice availability",
       "type": "state-timeline",
-      "description": "Covers both the v1 (kubectl-apiservice) and v2 (konk-service-apiservice) names. Tracked per Deployment rather than per pod: with replicaCount 1 '0 available' is exactly 'its pod is not ready', and pod names are truncated so they cannot identify the component."
+      "description": "Covers both the v1 (kubectl-apiservice) and v2 (konk-service-apiservice) names. Tracked per Deployment rather than per pod: with replicaCount 1 '0 available' is exactly 'its pod is not ready', and pod names are truncated so they cannot identify the component. Row labels show the deployment name only; the namespace prefix pushed them past the available width and Grafana truncated from the left. The panel is already scoped by $namespace."
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
@@ -1011,7 +1016,9 @@
             "showPoints": "auto",
             "spanNulls": false,
             "stacking": { "group": "A", "mode": "none" },
-            "thresholdsStyle": { "mode": "line+area" }
+            "thresholdsStyle": { "mode": "off" },
+            "axisSoftMax": 5,
+            "axisSoftMin": 0
           },
           "links": [],
           "mappings": [],
@@ -1044,7 +1051,7 @@
       ],
       "title": "Readiness flapping (6h transitions)",
       "type": "timeseries",
-      "description": "Metric-native equivalent of the e2e script's 'recently recovered' warning. More than 2 transitions in 6h means flapping, which distinguishes a transient blip from sustained instability. Matches pods by '.*konk-service.*', which covers all konk-service pods (51/51 on us-dev-5); the previous component-suffix regex missed pods whose names were truncated by Kubernetes."
+      "description": "Metric-native equivalent of the e2e script's 'recently recovered' warning. More than 2 transitions in 6h means flapping, which distinguishes a transient blip from sustained instability. Matches pods by '.*konk-service.*', which covers all konk-service pods (51/51 on us-dev-5); the previous component-suffix regex missed pods whose names were truncated by Kubernetes. Threshold area shading is off and the axis has a soft max: with shading on and an unbounded axis, a panel reading zero rendered almost entirely red."
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
@@ -1341,7 +1348,9 @@
             "showPoints": "auto",
             "spanNulls": false,
             "stacking": { "group": "A", "mode": "none" },
-            "thresholdsStyle": { "mode": "line+area" }
+            "thresholdsStyle": { "mode": "off" },
+            "axisSoftMax": 5,
+            "axisSoftMin": 0
           },
           "links": [],
           "mappings": [],
@@ -1370,7 +1379,7 @@
       ],
       "title": "Cert renewal activity (24h)",
       "type": "timeseries",
-      "description": "A 12h cert should re-issue roughly twice a day. Zero changes over 24h means the renewal loop is stuck even though the pod may look Ready."
+      "description": "A 12h cert should re-issue roughly twice a day. Zero changes over 24h means the renewal loop is stuck even though the pod may look Ready. Threshold area shading is off and the axis has a soft max: with shading on and an unbounded axis, a panel reading zero rendered almost entirely red."
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
@@ -1394,7 +1403,8 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }]
-          }
+          },
+          "noValue": "OK"
         },
         "overrides": []
       },
@@ -1537,7 +1547,9 @@
             "showPoints": "auto",
             "spanNulls": false,
             "stacking": { "group": "A", "mode": "none" },
-            "thresholdsStyle": { "mode": "line+area" }
+            "thresholdsStyle": { "mode": "off" },
+            "axisSoftMax": 5,
+            "axisSoftMin": 0
           },
           "links": [],
           "mappings": [],
@@ -1566,7 +1578,7 @@
       ],
       "title": "Ready endpoint count per backend",
       "type": "timeseries",
-      "description": "Ready endpoint addresses per APIService backend. Watch for drops to 0."
+      "description": "Ready endpoint addresses per APIService backend. Watch for drops to 0. Threshold area shading is off and the axis has a soft max: with shading on and an unbounded axis, a panel reading zero rendered almost entirely red."
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
@@ -1655,14 +1667,14 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "count by (namespace) (kube_pod_status_ready{namespace=~\"$namespace\", namespace=~\"aggregate|ddi|atcapi|hostapp|ngp-cp|ntp|tagging-v2|redirect|endpoints\", condition=\"true\"} == 0)",
+          "expr": "count by (namespace) ((kube_pod_status_ready{namespace=~\"$namespace\", namespace=~\"aggregate|ddi|atcapi|hostapp|ngp-cp|ntp|tagging-v2|redirect|endpoints\", condition=\"true\"} == 0) * on (namespace, pod) group_left () (kube_pod_status_phase{namespace=~\"$namespace\", namespace=~\"aggregate|ddi|atcapi|hostapp|ngp-cp|ntp|tagging-v2|redirect|endpoints\", phase=\"Running\"} == 1))",
           "legendFormat": "{{namespace}}",
           "refId": "A"
         }
       ],
       "title": "Not-ready pods per namespace",
       "type": "timeseries",
-      "description": "Count of pods failing readiness in each konk namespace, over time. Was a per-pod state timeline, which tried to draw one row per pod -- 512 pods across these namespaces on us-dev-5, 319 in ddi alone -- so the labels collapsed into an illegible block. Counting per namespace bounds it to at most nine series, and only namespaces with a problem appear at all. Reads \"all pods ready\" when empty. This is the broad backend view; the endpoint panels above give the per-Service signal, and Row 3 covers the konk-service components specifically."
+      "description": "Count of RUNNING pods failing readiness in each konk namespace, over time. Restricted to phase=\"Running\": a completed Job reports ready=0, so without that filter CronJob pods and delete-apiservice hooks made a healthy namespace look degraded -- on us-dev-5 all 7 \"not ready\" pods in tagging-v2 were Completed. Counted per namespace rather than per pod because the per-pod form drew one row per pod: 512 across these namespaces, 319 in ddi alone. Reads \"all pods ready\" when empty."
     },
     {
       "collapsed": false,
@@ -1819,7 +1831,9 @@
             "showPoints": "auto",
             "spanNulls": false,
             "stacking": { "group": "A", "mode": "none" },
-            "thresholdsStyle": { "mode": "line+area" }
+            "thresholdsStyle": { "mode": "off" },
+            "axisSoftMax": 1,
+            "axisSoftMin": 0
           },
           "links": [],
           "mappings": [],
@@ -1853,7 +1867,7 @@
       ],
       "title": "CPU throttling",
       "type": "timeseries",
-      "description": "Sustained throttling means the CPU limit is too low for the 30s reconcile loops."
+      "description": "Sustained throttling means the CPU limit is too low for the 30s reconcile loops. Threshold area shading is off and the axis has a soft max: with shading on and an unbounded axis, a panel reading zero rendered almost entirely red."
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
@@ -1932,7 +1946,8 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [{ "color": "text", "value": null }]
-          }
+          },
+          "noValue": "no data for this selection"
         },
         "overrides": [
           {
@@ -2012,7 +2027,8 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [{ "color": "red", "value": null }]
-          }
+          },
+          "noValue": "no OOMKills"
         },
         "overrides": [
           {
