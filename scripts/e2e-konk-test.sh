@@ -40,16 +40,21 @@
 #   ./e2e-konk-test.sh --skip-exec            # skip kubectl exec tests (read-only)
 #   ./e2e-konk-test.sh --skip-ca              # skip CA chain validation
 #   ./e2e-konk-test.sh --skip-trigger-registration # section 8: skip default registration trigger test
+#   ./e2e-konk-test.sh --read-only            # suppress every cluster/API write (any cluster)
 #   ./e2e-konk-test.sh -v                     # verbose (show all passing details)
 #   ./e2e-konk-test.sh -d                     # debug (show commands + full output)
 #   ./e2e-konk-test.sh --context us-stg-1            # target a specific cluster context
 #   ./e2e-konk-test.sh --csp-url URL --token TOKEN  # for section 14 (external API)
 #
+# --read-only suppresses every write the script can make, on any cluster; use it
+# to rehearse the production path from a lower environment.
+#
 # Production clusters (us-com-1, eu-com-1, gov-prd-2) are detected automatically
-# and forced read-only: section 8.4's trigger test is disabled (it deletes a live
-# konk-service pod and a live APIService) and section 14's product-API write tests
-# self-skip. The banner's "Mode:" line always states which applies. Everything
-# else in the script is read-only on every cluster.
+# and forced read-only, implying --read-only. In read-only mode section 8.4's
+# trigger test is disabled (it deletes a live konk-service pod and a live
+# APIService) and section 14's product-API write tests are skipped (they create
+# a tag and start a bulk export). The banner's "Mode:" line always states which
+# applies. Everything else in the script is read-only on every cluster.
 #
 
 # Environment variables:
@@ -70,6 +75,7 @@ SKIP_BULK=false
 SKIP_EXEC=false
 SKIP_CA=false
 TRIGGER_REGISTRATION=true
+READ_ONLY=false           # --read-only: suppress every cluster/API write
 CHECK_HOOKS=false
 VERBOSE=false
 DEBUG=false
@@ -110,13 +116,14 @@ while [[ $# -gt 0 ]]; do
     --skip-exec)   SKIP_EXEC=true; shift ;;
     --skip-ca)     SKIP_CA=true;   shift ;;
     --skip-trigger-registration) TRIGGER_REGISTRATION=false; shift ;;
+    --read-only|--readonly) READ_ONLY=true; shift ;;
     --hook|--hooks) CHECK_HOOKS=true; shift ;;
     --token)       CSP_TOKEN="$2"; shift 2 ;;
     --csp-url)     CSP_URL="$2"; shift 2 ;;
     -v|--verbose)  VERBOSE=true;   shift ;;
     -d|--debug)    DEBUG=true; VERBOSE=true; shift ;;
     --help|-h)
-      sed -n '2,52p' "$0" | sed 's/^# \?//'
+      sed -n '2,57p' "$0" | sed 's/^# \?//'
       exit 0
       ;;
     *)
@@ -362,13 +369,15 @@ KONK_CTX="${KUBE_CONTEXT:-$(kubectl config current-context 2>/dev/null || echo '
 # re-registered. Section 14 additionally writes through the product API, and
 # self-skips on prod using the same helper.
 IS_PROD=false
-PROD_FORCED_READONLY=false
 if is_prod_cluster "$KONK_CTX"; then
   IS_PROD=true
-  if [[ "$TRIGGER_REGISTRATION" == true ]]; then
-    TRIGGER_REGISTRATION=false
-    PROD_FORCED_READONLY=true
-  fi
+  READ_ONLY=true          # production is always read-only, regardless of flags
+fi
+
+FORCED_READONLY=false
+if [[ "$READ_ONLY" == true && "$TRIGGER_REGISTRATION" == true ]]; then
+  TRIGGER_REGISTRATION=false
+  FORCED_READONLY=true
 fi
 
 echo -e "  Cluster:      ${KONK_CTX}"
@@ -381,6 +390,8 @@ if [[ "$TRIGGER_REGISTRATION" != true ]]; then
 fi
 if [[ "$IS_PROD" == true ]]; then
   RUN_MODE="${GREEN}READ-ONLY${RESET} (production cluster detected — cluster writes disabled)"
+elif [[ "$READ_ONLY" == true ]]; then
+  RUN_MODE="${GREEN}READ-ONLY${RESET} (--read-only)"
 elif [[ "$TRIGGER_REGISTRATION" == true ]]; then
   RUN_MODE="${YELLOW}DESTRUCTIVE${RESET} — section 8.4 will delete a konk-service pod and a live APIService"
 else
@@ -393,8 +404,12 @@ if [[ ${#RUN_SECTIONS[@]} -gt 0 ]]; then
   echo -e "  Sections:     ${RUN_SECTIONS[*]}"
 fi
 echo ""
-if [[ "$PROD_FORCED_READONLY" == true ]]; then
-  info "production cluster — section 8.4 trigger test disabled automatically"
+if [[ "$FORCED_READONLY" == true ]]; then
+  if [[ "$IS_PROD" == true ]]; then
+    info "production cluster — section 8.4 trigger test disabled automatically"
+  else
+    info "--read-only — section 8.4 trigger test disabled"
+  fi
   info "  (it deletes a live konk-service pod and a live APIService; deleting the"
   info "   APIService takes that aggregated API group offline until re-registered)"
 fi
@@ -2919,8 +2934,12 @@ if should_run 14; then
 
 # Skip on production clusters: this section writes through the product API
 # (creates a tag, starts a bulk export). Uses the shared detection helper.
-if is_prod_cluster "$KONK_CTX"; then
-  skip "production cluster detected (${KONK_CTX}) — skipping external API write tests"
+if [[ "$READ_ONLY" == true ]]; then
+  if [[ "$IS_PROD" == true ]]; then
+    skip "production cluster detected (${KONK_CTX}) — skipping external API write tests"
+  else
+    skip "--read-only — skipping external API write tests (creates a tag, starts a bulk export)"
+  fi
 else
 
 # Auto-detect CSP URL from cluster context using CLUSTER_KEYS/CLUSTER_URLS
