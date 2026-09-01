@@ -1080,6 +1080,73 @@ else
     fi
   fi
 fi
+
+# ── 5.x Sibling KonkService CA sharing ────────────────────────────────────────
+# konk mints a CA + serving cert per KonkService. When several KonkServices back
+# the SAME Service (one per API version), they must all resolve to one serving
+# secret via spec.service.caSecretName — the backend Deployment can only present
+# one certificate. If a sibling omits caSecretName it gets its own CA, konk
+# publishes that CA as the APIService caBundle, and the aggregator then cannot
+# verify the cert the backend actually serves: every request to that group
+# version returns 503 x509 "certificate signed by unknown authority", while the
+# APIService still reports Available=True.
+#
+# This is config drift and is detectable long before any pod goes unhealthy.
+KSVC_CA_JSON=$(kc get konkservice -A -o json 2>/dev/null)
+if [[ -z "$KSVC_CA_JSON" ]]; then
+  warn "sibling CA check: could not list KonkServices"
+else
+  CA_LINT_OUT=$(echo "$KSVC_CA_JSON" | python3 -c '
+import sys, json, collections
+try:
+    items = json.load(sys.stdin).get("items", [])
+except Exception:
+    sys.exit(0)
+groups = collections.defaultdict(list)
+for it in items:
+    md, spec = it.get("metadata", {}), it.get("spec", {})
+    ns, name = md.get("namespace", "?"), md.get("name", "?")
+    svc = (spec.get("service") or {})
+    svc_name = svc.get("name") or name
+    # Resolved serving secret: explicit caSecretName, else the per-KonkService default.
+    resolved = svc.get("caSecretName") or (name + "-konk-service-server")
+    groups[(ns, svc_name)].append((name, spec.get("version", "?"), resolved,
+                                   svc.get("caSecretName")))
+for (ns, svc_name), members in sorted(groups.items()):
+    if len(members) < 2:
+        continue
+    if len({m[2] for m in members}) == 1:
+        print("OK\t%s/%s\t%d siblings share %s" % (ns, svc_name, len(members), members[0][2]))
+        continue
+    offenders = [m for m in members if not m[3]]
+    print("BAD\t%s/%s\t%d siblings resolve to %d different serving secrets"
+          % (ns, svc_name, len(members), len({m[2] for m in members})))
+    for name, ver, resolved, explicit in sorted(members):
+        mark = "  <- no service.caSecretName" if not explicit else ""
+        print("DTL\t%s\tversion=%s resolves to %s%s" % (name, ver, resolved, mark))
+' 2>/dev/null || true)
+
+  if [[ -z "$CA_LINT_OUT" ]]; then
+    info "sibling CA check: no Service is backed by more than one KonkService"
+  else
+    _ca_bad=$(echo "$CA_LINT_OUT" | grep -c '^BAD' || true)
+    _ca_ok=$(echo "$CA_LINT_OUT" | grep -c '^OK' || true)
+    if [[ "${_ca_bad:-0}" -eq 0 ]]; then
+      pass "all ${_ca_ok} multi-KonkService Service(s) share one serving secret across siblings"
+      [[ "$VERBOSE" == true ]] && echo "$CA_LINT_OUT" | awk -F'\t' '$1=="OK"{printf "           %s: %s\n", $2, $3}'
+    else
+      while IFS=$'\t' read -r _tag _a _b; do
+        case "$_tag" in
+          BAD) fail "${_a}: ${_b}" ;;
+          DTL) echo "             ${_a}  ${_b}" ;;
+        esac
+      done <<< "$CA_LINT_OUT"
+      info "Fix: set spec.service.caSecretName on the sibling KonkService(s) to the"
+      info "primary's <service>-konk-service-server secret, then delete the orphan CA."
+    fi
+  fi
+fi
+
 fi  # section 5
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1569,56 +1636,85 @@ else
       pass "all ${KC_TOTAL} kubeconfig client certs (tls.crt) are valid and not expiring soon"
     fi
 
-    # Stale secret mount check: CA on secrets is correct but kubectl-apiservice
-    # pods are still 0/1 — pod hasn't picked up the rotated secret yet.
-    # Only runs when CA chain is clean (mismatch would be a different root cause).
+    # Mounted-secret currency check.
+    #
+    # Section 6 already reports konk-service pods stuck at 0/1 — this check does
+    # NOT re-diagnose them. It answers exactly one question: is a stale mounted
+    # secret the explanation?
+    #
+    # It used to assert "stale secret mount, pod needs restart" from the symptom
+    # alone (0/1 + a valid kubeconfig CA). That inference was wrong. kubelet
+    # refreshes projected secret volumes within ~60s, and the failure that
+    # prompted this check was a mismatched APIService caBundle — a different PKI
+    # entirely, which this section never looks at. So prove it instead: compare
+    # the client cert on disk inside the pod against the live Secret. Equal means
+    # the mount is current and the cause is elsewhere; only a genuine difference
+    # justifies a restart.
     if [[ $CA_MISMATCH -eq 0 && $CA_MISSING -eq 0 ]]; then
-      STALE_MOUNT_NS=()
-      STALE_MOUNT_DEPLOYS=()
-      while read -r ns _secret; do
-        [[ -z "$ns" ]] && continue
-        # Avoid duplicate namespace entries (one kubeconfig secret per KonkService,
-        # so a namespace with several KonkServices shows up more than once).
-        already=false
-        for _existing in "${STALE_MOUNT_NS[@]+"${STALE_MOUNT_NS[@]}"}"; do
-          [[ "$_existing" == "$ns" ]] && already=true && break
-        done
-        $already && continue
+      NOTREADY_PODS=""
+      for _comp in apiservice apiservice-test; do
+        _np=$(konk_pods "$_comp" | awk '$3 ~ /^0\//' || true)
+        [[ -n "$_np" ]] && NOTREADY_PODS="${NOTREADY_PODS}${_np}"$'\n'
+      done
+      NOTREADY_PODS=$(echo "$NOTREADY_PODS" | sed '/^$/d')
 
-        # Detection and remediation must cover the SAME components. The probe
-        # (apiservice-test) deployments are usually the ones sitting at 0/1;
-        # excluding them from the fix list produced restart commands aimed at
-        # deployments that were already healthy.
-        count=0
-        _failed_components=()
-        for _comp in apiservice apiservice-test; do
-          _bad=$(konk_pods "$_comp" "$ns" | awk '$3 ~ /^0\//' || true)
-          [[ -z "$_bad" ]] && continue
-          _failed_components+=("$_comp")
-          count=$(( count + $(echo "$_bad" | wc -l | tr -d ' ') ))
-        done
-        [[ $count -eq 0 ]] && continue
-
-        STALE_MOUNT_NS+=("$ns")
-        for _comp in "${_failed_components[@]}"; do
-          while IFS= read -r d; do
-            [[ -z "$d" ]] && continue
-            STALE_MOUNT_DEPLOYS+=("${ns}/${d}")
-          done <<< "$(konk_deploys "$_comp" "$ns")"
-        done
-        warn "stale secret mount: ${ns} — ${count} konk-service pod(s) still 0/1 (CA correct, pod needs restart)"
-      done <<< "$KC_SECRETS"
-
-      if [[ ${#STALE_MOUNT_NS[@]} -eq 0 ]]; then
-        pass "no stale secret mount issues (all konk-service pods ready)"
+      if [[ -z "$NOTREADY_PODS" ]]; then
+        pass "no konk-service pods at 0/1 — mounted-secret currency not in question"
+      elif [[ "$SKIP_EXEC" == true ]]; then
+        _n=$(echo "$NOTREADY_PODS" | wc -l | tr -d ' ')
+        skip "mounted-secret currency for ${_n} pod(s) at 0/1 (--skip-exec); cause unverified"
       else
-        warn "${#STALE_MOUNT_NS[@]} namespace(s) have konk-service pods stuck at 0/1"
-        info "Fix — restart the affected deployments:"
-        for _dep in "${STALE_MOUNT_DEPLOYS[@]+"${STALE_MOUNT_DEPLOYS[@]}"}"; do
-          _dep_ns="${_dep%%/*}"
-          _dep_name="${_dep#*/}"
-          info "  kubectl rollout restart deploy/${_dep_name} -n ${_dep_ns}"
-        done
+        STALE_MOUNTS=()
+        CURRENT_MOUNTS=0
+        UNVERIFIED=0
+        while IFS= read -r _line; do
+          [[ -z "$_line" ]] && continue
+          _pns=$(echo "$_line" | awk '{print $1}')
+          _ppod=$(echo "$_line" | awk '{print $2}')
+
+          # Fingerprint the cert the pod actually has mounted.
+          _in_pod=$(kubectl exec "$_ppod" -n "$_pns" -- \
+            openssl x509 -in /etc/kubernetes/tls.crt -noout -fingerprint -sha256 2>/dev/null \
+            | cut -d= -f2 || true)
+          if [[ -z "$_in_pod" ]]; then
+            ((UNVERIFIED++)) || true
+            vinfo "mount check: ${_pns}/${_ppod} — could not read mounted cert"
+            continue
+          fi
+
+          # Fingerprint the live Secret backing that mount.
+          _sec=$(kubectl get pod "$_ppod" -n "$_pns" \
+            -o jsonpath='{range .spec.volumes[?(@.secret)]}{.secret.secretName}{"\n"}{end}' 2>/dev/null \
+            | grep 'konk-service-kubeconfig$' | head -1 || true)
+          [[ -z "$_sec" ]] && { ((UNVERIFIED++)) || true; continue; }
+          _live=$(kc get secret "$_sec" -n "$_pns" -o jsonpath='{.data.tls\.crt}' \
+            | base64 -d 2>/dev/null | openssl x509 -noout -fingerprint -sha256 2>/dev/null \
+            | cut -d= -f2 || true)
+          [[ -z "$_live" ]] && { ((UNVERIFIED++)) || true; continue; }
+
+          if [[ "$_in_pod" == "$_live" ]]; then
+            ((CURRENT_MOUNTS++)) || true
+            vinfo "mount current: ${_pns}/${_ppod} (${_in_pod:0:20}...)"
+          else
+            STALE_MOUNTS+=("${_pns}/${_ppod}|${_in_pod:0:20}|${_live:0:20}")
+          fi
+        done <<< "$NOTREADY_PODS"
+
+        _checked=$(( CURRENT_MOUNTS + ${#STALE_MOUNTS[@]} ))
+        if [[ ${#STALE_MOUNTS[@]} -gt 0 ]]; then
+          fail "${#STALE_MOUNTS[@]}/${_checked} pod(s) at 0/1 have a STALE mounted secret:"
+          for _sm in "${STALE_MOUNTS[@]}"; do
+            echo "           ${_sm%%|*}"
+            echo "             in pod: $(echo "$_sm" | cut -d'|' -f2)..."
+            echo "             secret: $(echo "$_sm" | cut -d'|' -f3)..."
+          done
+          info "Fix — restart these pods so kubelet re-projects the volume."
+        elif [[ $_checked -gt 0 ]]; then
+          pass "all ${_checked} pod(s) at 0/1 have a CURRENT mounted secret — not a mount problem"
+          info "Their 0/1 has another cause; section 8 probes each aggregated"
+          info "group-version and will name it. Do NOT restart these pods."
+        fi
+        [[ $UNVERIFIED -gt 0 ]] && warn "${UNVERIFIED} pod(s) at 0/1 could not be checked for mount currency"
       fi
     fi
   fi
@@ -1809,6 +1905,82 @@ EOF
       fi
     else
       warn "no bulk.infoblox.com API versions found in konk"
+    fi
+
+
+    # 7.3b: Per-group-version discovery probe.
+    # `kubectl api-resources` aggregates every group and exits non-zero if ANY of
+    # them fails, so one broken group-version fails discovery cluster-wide and
+    # every konk-service readiness probe with it. Probe each group-version on its
+    # own so the report names the one that is actually broken instead of listing
+    # every namespace that noticed.
+    GV_LIST=$($KONK_KUBECTL get apiservice \
+      -o jsonpath='{range .items[?(@.spec.service)]}{.spec.group}/{.spec.version}{"\t"}{.metadata.name}{"\n"}{end}' 2>/dev/null || true)
+
+    if [[ -z "$GV_LIST" ]]; then
+      warn "could not enumerate aggregated group-versions from konk"
+    else
+      GV_OK=()
+      GV_FAIL=()
+      GV_FAIL_MSG=()
+      GV_FAIL_AVAIL=()
+      while IFS=$'\t' read -r _gv _apisvc; do
+        [[ -z "$_gv" ]] && continue
+        if _body=$($KONK_KUBECTL get --raw "/apis/${_gv}" --request-timeout=15s 2>&1); then
+          GV_OK+=("$_gv")
+        else
+          GV_FAIL+=("$_gv")
+          # `get --raw` alone only reports "ServiceUnavailable"; the aggregator's
+          # real reason (x509, connection refused, timeout) is in the response
+          # body, which needs -v=8. The body carries a generic outer "message"
+          # plus a specific nested one, and kubectl versions format the log line
+          # differently ("Response Body:" vs "Response Body" body=<), so key off
+          # the JSON field and keep the longest — that is the specific one.
+          _detail=$($KONK_KUBECTL get --raw "/apis/${_gv}" --request-timeout=15s -v=8 2>&1 \
+            | grep -oE '"message": *"(\\.|[^"\\])*"' \
+            | sed 's/^"message": *"//; s/"$//; s/\\"/"/g' \
+            | awk '{ if (length($0) > length(best)) best = $0 } END { print best }' \
+            | cut -c1-220 || true)
+          if [[ -n "$_detail" ]]; then
+            GV_FAIL_MSG+=("$_detail")
+          else
+            GV_FAIL_MSG+=("$(echo "$_body" | tr '\n' ' ' | sed 's/  */ /g' | cut -c1-220)")
+          fi
+          # An APIService can report Available=True while its discovery 503s: the
+          # availability controller only does a reachability check, not a real
+          # request. Record it so the contradiction is visible.
+          GV_FAIL_AVAIL+=("$($KONK_KUBECTL get apiservice "$_apisvc" \
+            -o jsonpath='{range .status.conditions[?(@.type=="Available")]}{.status}{end}' 2>/dev/null || echo '?')")
+        fi
+      done <<< "$GV_LIST"
+
+      _gv_total=$(( ${#GV_OK[@]} + ${#GV_FAIL[@]} ))
+      if [[ ${#GV_FAIL[@]} -eq 0 ]]; then
+        pass "all ${_gv_total} aggregated group-versions are reachable"
+      else
+        fail "${#GV_FAIL[@]}/${_gv_total} aggregated group-versions unreachable"
+        for _i in "${!GV_FAIL[@]}"; do
+          echo "           FAIL ${GV_FAIL[$_i]}"
+          echo "                ${GV_FAIL_MSG[$_i]}"
+          if [[ "${GV_FAIL_AVAIL[$_i]}" == "True" ]]; then
+            echo "                NOTE: its APIService still reports Available=True —"
+            echo "                      the availability controller only probes reachability."
+          fi
+        done
+      fi
+      # Always print the OK set: it is the evidence that the failure is isolated.
+      if [[ ${#GV_OK[@]} -gt 0 ]]; then
+        printf '%s\n' "${GV_OK[@]}" | sort | awk '
+          { a[NR] = $0 }
+          END {
+            half = int((NR + 1) / 2)
+            for (i = 1; i <= half; i++) {
+              left  = "OK   " a[i]
+              right = (i + half <= NR) ? "OK   " a[i + half] : ""
+              printf "           %-47s %s\n", left, right
+            }
+          }'
+      fi
     fi
 
     # 7.4: Optional trigger test — restart one existing registration pod and verify reconcile
