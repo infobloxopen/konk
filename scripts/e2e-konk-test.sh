@@ -645,6 +645,46 @@ else
   assert_equals "bulk-konk-etcd replicas ready" "${ETCD_READY:-0}" "$ETCD_DESIRED"
 fi
 
+# --- etcd pods on stable nodes ---
+_stable_nodes=()
+while IFS= read -r _n; do
+  [[ -n "$_n" ]] && _stable_nodes+=("$_n")
+done < <(kc get nodes -l node-group-type=stable --no-headers \
+  -o custom-columns='NAME:.metadata.name' 2>/dev/null || true)
+
+if [[ ${#_stable_nodes[@]} -eq 0 ]]; then
+  warn "etcd stable-node check: no nodes with node-group-type=stable found (node pool label absent?)"
+else
+  vinfo "stable nodes (${#_stable_nodes[@]}): ${_stable_nodes[*]}"
+  _etcd_all_stable=true
+  _etcd_not_stable=()
+  while IFS= read -r _line; do
+    [[ -z "$_line" ]] && continue
+    _epod=$(echo "$_line"   | awk '{print $1}')
+    _estatus=$(echo "$_line" | awk '{print $3}')
+    _enode=$(echo "$_line"  | awk '{print $7}')
+    _is_stable=false
+    for _sn in "${_stable_nodes[@]}"; do
+      [[ "$_enode" == "$_sn" ]] && { _is_stable=true; break; }
+    done
+    if $_is_stable; then
+      vinfo "etcd pod ${_epod}: ${_estatus} on ${_enode} (stable ✓)"
+    else
+      _etcd_all_stable=false
+      _etcd_not_stable+=("${_epod} → ${_enode}")
+    fi
+  done < <(kc get pods -n "$AGGREGATE_NAMESPACE" -o wide --no-headers \
+    | grep "${KONK_CR_NAME}-etcd" || true)
+
+  if $_etcd_all_stable; then
+    pass "all bulk-konk-etcd pods are on stable-node-pool nodes"
+  else
+    for _entry in "${_etcd_not_stable[@]}"; do
+      fail "etcd pod NOT on stable node (at risk of Karpenter eviction): ${_entry}"
+    done
+  fi
+fi
+
 # --- bulk-konk service + endpoints ---
 KONK_SVC_IP=$(kc get svc "$KONK_CR_NAME" -n "$AGGREGATE_NAMESPACE" \
   -o jsonpath='{.spec.clusterIP}')
