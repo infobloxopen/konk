@@ -1862,8 +1862,10 @@ users:
     client-key: ${KONK_TMPDIR}/tls.key
 EOF
       # Verify connectivity
-      if kubectl --kubeconfig="$KONK_TMPDIR/kubeconfig" get --raw /healthz >/dev/null 2>&1; then
-        KONK_KUBECTL="kubectl --kubeconfig=${KONK_TMPDIR}/kubeconfig"
+      # `command` bypasses the kubectl() wrapper: it would inject --context
+      # "$KUBE_CONTEXT", which is not defined in this generated kubeconfig.
+      if command kubectl --kubeconfig="$KONK_TMPDIR/kubeconfig" get --raw /healthz >/dev/null 2>&1; then
+        KONK_KUBECTL="command kubectl --kubeconfig=${KONK_TMPDIR}/kubeconfig"
         info "connected to konk API via port-forward (localhost:${LOCAL_PORT})"
       else
         warn "port-forward established but konk API not reachable (TLS handshake or auth failed)"
@@ -2140,6 +2142,16 @@ EOF
         fi  # deploy ready check
       fi
       fi  # if TARGET_POD not empty
+    else
+      # Say so here, not just in the pre-flight banner: a reader looking at
+      # section 8 needs to see that the write test was skipped and why.
+      if [[ "$IS_PROD" == true ]]; then
+        skip "8.4 trigger test — production cluster (${KONK_CTX}); no pod or APIService deleted"
+      elif [[ "$READ_ONLY" == true ]]; then
+        skip "8.4 trigger test — --read-only; no pod or APIService deleted"
+      else
+        skip "8.4 trigger test — --skip-trigger-registration; no pod or APIService deleted"
+      fi
     fi
   fi
 fi
@@ -2825,8 +2837,8 @@ users:
     client-certificate: ${KONK_TMPDIR}/tls.crt
     client-key: ${KONK_TMPDIR}/tls.key
 EOF
-          if kubectl --kubeconfig="$KONK_TMPDIR/kubeconfig" get --raw /healthz >/dev/null 2>&1; then
-            KONK_KUBECTL="kubectl --kubeconfig=${KONK_TMPDIR}/kubeconfig"
+          if command kubectl --kubeconfig="$KONK_TMPDIR/kubeconfig" get --raw /healthz >/dev/null 2>&1; then
+            KONK_KUBECTL="command kubectl --kubeconfig=${KONK_TMPDIR}/kubeconfig"
           fi
         fi
       fi
