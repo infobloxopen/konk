@@ -241,6 +241,63 @@ kc() {
   fi
 }
 
+# ── konk-service workload selection ───────────────────────────────────────────
+# NEVER match konk-service pods by name. Kubernetes truncates generated pod names
+# at 63 chars, which silently eats the trailing component words. Real examples:
+#
+#   bootstrap-app-aggregate-api-apiservice-konk-service-kubectslzwz
+#   dns-config-importexport-apiservice-konk-service-kubectl-apth2gd
+#   dns-config-importexport-apiservice-v2-konk-service-kubectl2xccf
+#   dns-data-importexport-apiservice-v2-konk-service-kubectl-apkc5r
+#
+# None of those match 'kubectl-apiservice' or 'apiservice-test'. A name grep
+# therefore undercounts and drops whole namespaces from the result — on us-dev-2
+# it reported 16 failing pods across 7 namespaces when the true figure was 20
+# across 8 (ngp-cp vanished entirely). Always select on the component label,
+# which the konk-service chart sets on apiservice, apiservice-test and
+# kubeconfig deployments alike.
+
+# konk_pods COMPONENT [NAMESPACE] — list konk-service pods for one component.
+# Output shape matches `kubectl get pods -A --no-headers`: NS NAME READY STATUS ...
+konk_pods() {
+  local component="$1" ns="${2:-}"
+  local out
+  out=$(kc get pods -A --no-headers -l "app.kubernetes.io/component=${component}" \
+    | grep -v "Completed" || true)
+
+  if [[ -z "$out" ]]; then
+    # Label-less fallback (charts predating the component label): identify by
+    # container name, which the chart fixes per component and never truncates.
+    # Resolve to ns/name keys first, then filter the standard listing so the
+    # output shape stays identical to the labelled path.
+    local keys
+    keys=$(kc get pods -A --no-headers \
+      -o custom-columns='K:.metadata.namespace,N:.metadata.name,C:.spec.containers[*].name' \
+      | awk -v c="$component" '$3 == c {print $1"/"$2}' || true)
+    if [[ -n "$keys" ]]; then
+      out=$(kc get pods -A --no-headers | grep -v "Completed" \
+        | awk -v k="$keys" 'BEGIN{n=split(k,a,"\n"); for(i=1;i<=n;i++) m[a[i]]=1} m[$1"/"$2]' || true)
+    fi
+  fi
+
+  if [[ -n "$ns" ]]; then
+    echo "$out" | awk -v n="$ns" '$1 == n'
+  else
+    echo "$out"
+  fi
+}
+
+# konk_deploys COMPONENT NAMESPACE — list konk-service Deployment names for one
+# component. The chart puts app.kubernetes.io/component on the pod template, not
+# on the Deployment's own metadata, so `-l` cannot select it — read the template
+# label directly. Deployment names are not truncated, unlike pod names.
+konk_deploys() {
+  local component="$1" ns="$2"
+  kc get deploy -n "$ns" --no-headers \
+    -o custom-columns='NAME:.metadata.name,C:.spec.template.metadata.labels.app\.kubernetes\.io/component' \
+    | awk -v c="$component" '$2 == c {print $1}' || true
+}
+
 # Return namespaced Kubernetes resource refs from a live Helm release manifest.
 # This avoids flagging runtime-generated resources (for example cert-manager,
 # provision, kubeconfig, or Space-created Secrets) as Helm ownership issues.
@@ -1031,17 +1088,9 @@ section "konk-service pods health (all namespaces)"
 if should_run 6; then
 
 # --- kubectl-apiservice pods ---
-APISERVICE_PODS=$(kc get pods -A --no-headers -l app.kubernetes.io/component=apiservice \
-  | grep -v "Completed" || true)
+APISERVICE_PODS=$(konk_pods apiservice)
 APISERVICE_TOTAL=0
 APISERVICE_BAD=0
-
-if [[ -z "$APISERVICE_PODS" ]]; then
-  # Fallback: search by name pattern (some clusters may not have labels)
-  # v2 chart names pods as *-konk-service-apiservice-*; v1 used *-kubectl-apiservice-*
-  APISERVICE_PODS=$(kc get pods -A --no-headers | grep -E "konk-service-apiservice|kubectl-apiservice" \
-    | grep -v "\-test" | grep -v "Completed" || true)
-fi
 
 if [[ -z "$APISERVICE_PODS" ]]; then
   warn "no kubectl-apiservice pods found"
@@ -1119,15 +1168,9 @@ print(to_epoch(start), to_epoch(ready_trans))
 fi
 
 # --- kubeconfig (reconcile-kubeconfig) pods ---
-KUBECONFIG_PODS=$(kc get pods -A --no-headers -l app.kubernetes.io/component=kubeconfig \
-  | grep -v "Completed" || true)
+KUBECONFIG_PODS=$(konk_pods kubeconfig)
 KUBECONFIG_TOTAL=0
 KUBECONFIG_BAD=0
-
-if [[ -z "$KUBECONFIG_PODS" ]]; then
-  KUBECONFIG_PODS=$(kc get pods -A --no-headers | grep "konk-service-kubeconfig" \
-    | grep -v "Completed" || true)
-fi
 
 if [[ -z "$KUBECONFIG_PODS" ]]; then
   warn "no kubeconfig pods found"
@@ -1208,15 +1251,7 @@ fi
 # These pods have a readiness probe that checks APIService availability.
 # 0/1 Running means the probe is currently failing — flag it, then check events
 # for historical Unhealthy counts to distinguish a transient blip from sustained flapping.
-TEST_PODS=$(kc get pods -A --no-headers -l app.kubernetes.io/component=apiservice-test \
-  | grep -v "Completed" || true)
-
-if [[ -z "$TEST_PODS" ]]; then
-  # Fallback: shell-image pods (release/upgrade-etcd) don't carry the component label;
-  # match by name suffix instead (kubectl-apiservice-test).
-  TEST_PODS=$(kc get pods -A --no-headers | grep -E "apiservice-test|kubectl-apiservice-test" \
-    | grep -v "Completed" || true)
-fi
+TEST_PODS=$(konk_pods apiservice-test)
 
 TEST_TOTAL=0
 TEST_CRASH=0
@@ -1541,35 +1576,44 @@ else
       STALE_MOUNT_DEPLOYS=()
       while read -r ns _secret; do
         [[ -z "$ns" ]] && continue
-        failing=$(kc get pods -n "$ns" --no-headers 2>/dev/null \
-          | grep -E 'kubectl-api|konk-service-apiservice' \
-          | grep '0/1' || true)
-        [[ -z "$failing" ]] && continue
-        # Avoid duplicate namespace entries
+        # Avoid duplicate namespace entries (one kubeconfig secret per KonkService,
+        # so a namespace with several KonkServices shows up more than once).
         already=false
         for _existing in "${STALE_MOUNT_NS[@]+"${STALE_MOUNT_NS[@]}"}"; do
           [[ "$_existing" == "$ns" ]] && already=true && break
         done
         $already && continue
+
+        # Detection and remediation must cover the SAME components. The probe
+        # (apiservice-test) deployments are usually the ones sitting at 0/1;
+        # excluding them from the fix list produced restart commands aimed at
+        # deployments that were already healthy.
+        count=0
+        _failed_components=()
+        for _comp in apiservice apiservice-test; do
+          _bad=$(konk_pods "$_comp" "$ns" | awk '$3 ~ /^0\//' || true)
+          [[ -z "$_bad" ]] && continue
+          _failed_components+=("$_comp")
+          count=$(( count + $(echo "$_bad" | wc -l | tr -d ' ') ))
+        done
+        [[ $count -eq 0 ]] && continue
+
         STALE_MOUNT_NS+=("$ns")
-        count=$(echo "$failing" | wc -l | tr -d ' ')
-        deploys=$(kc get deploy -n "$ns" --no-headers \
-          -o custom-columns='NAME:.metadata.name' 2>/dev/null \
-          | grep -E 'kubectl-apiservice|konk-service-apiservice' \
-          | grep -v 'test' || true)
-        while IFS= read -r d; do
-          [[ -z "$d" ]] && continue
-          STALE_MOUNT_DEPLOYS+=("${ns}/${d}")
-        done <<< "$deploys"
-        warn "stale secret mount: ${ns} — ${count} kubectl-apiservice pod(s) still 0/1 (CA correct, pod needs restart)"
+        for _comp in "${_failed_components[@]}"; do
+          while IFS= read -r d; do
+            [[ -z "$d" ]] && continue
+            STALE_MOUNT_DEPLOYS+=("${ns}/${d}")
+          done <<< "$(konk_deploys "$_comp" "$ns")"
+        done
+        warn "stale secret mount: ${ns} — ${count} konk-service pod(s) still 0/1 (CA correct, pod needs restart)"
       done <<< "$KC_SECRETS"
 
       if [[ ${#STALE_MOUNT_NS[@]} -eq 0 ]]; then
-        pass "no stale secret mount issues (all kubectl-apiservice pods ready)"
+        pass "no stale secret mount issues (all konk-service pods ready)"
       else
-        warn "${#STALE_MOUNT_NS[@]} namespace(s) have kubectl-apiservice pods stuck on stale secret mount"
+        warn "${#STALE_MOUNT_NS[@]} namespace(s) have konk-service pods stuck at 0/1"
         info "Fix — restart the affected deployments:"
-        for _dep in "${STALE_MOUNT_DEPLOYS[@]}"; do
+        for _dep in "${STALE_MOUNT_DEPLOYS[@]+"${STALE_MOUNT_DEPLOYS[@]}"}"; do
           _dep_ns="${_dep%%/*}"
           _dep_name="${_dep#*/}"
           info "  kubectl rollout restart deploy/${_dep_name} -n ${_dep_ns}"
@@ -1771,8 +1815,7 @@ EOF
       info "trigger-registration enabled: forcing reconcile for an existing APIService"
 
       # Find a kubectl-apiservice (or konk-service-apiservice) pod to restart
-      TARGET_LINE=$(kc get pods -A --no-headers 2>/dev/null \
-        | grep -E "konk-service-apiservice|kubectl-ap" | grep -v "test" \
+      TARGET_LINE=$(konk_pods apiservice \
         | awk '$4=="Running"{split($3,a,"/"); if(a[1]==a[2]) print}' | head -1 || true)
       TARGET_NS=$(echo "$TARGET_LINE" | awk '{print $1}')
       TARGET_POD=$(echo "$TARGET_LINE" | awk '{print $2}')
@@ -1893,17 +1936,13 @@ else
 fi
 
 # 8b. kubectl-apiservice pod is Running
-SAMPLE_APIPOD=$(kc get pods -n "$SAMPLE_NS" --no-headers \
-  -l app.kubernetes.io/component=apiservice | grep "Running" | head -1 || true)
-if [[ -z "$SAMPLE_APIPOD" ]]; then
-  # Fallback: v2 chart uses *-konk-service-apiservice-*, v1 used *-kubectl-apiservice-*
-  SAMPLE_APIPOD=$(kc get pods -n "$SAMPLE_NS" --no-headers \
-    | grep -E "konk-service-apiservice|kubectl-apiservice" | grep -v "\-test" | grep "Running" | head -1 || true)
-fi
+# konk_pods emits the namespace as column 1, so fields here are shifted by one
+# relative to a namespace-scoped `kubectl get pods` listing.
+SAMPLE_APIPOD=$(konk_pods apiservice "$SAMPLE_NS" | awk '$4=="Running"' | head -1 || true)
 
-SAMPLE_APIPOD_NAME=$(echo "$SAMPLE_APIPOD" | awk '{print $1}')
-SAMPLE_APIPOD_READY=$(echo "$SAMPLE_APIPOD" | awk '{print $2}')
-SAMPLE_APIPOD_STATUS=$(echo "$SAMPLE_APIPOD" | awk '{print $3}')
+SAMPLE_APIPOD_NAME=$(echo "$SAMPLE_APIPOD" | awk '{print $2}')
+SAMPLE_APIPOD_READY=$(echo "$SAMPLE_APIPOD" | awk '{print $3}')
+SAMPLE_APIPOD_STATUS=$(echo "$SAMPLE_APIPOD" | awk '{print $4}')
 
 if [[ -z "$SAMPLE_APIPOD_NAME" ]]; then
   fail "no kubectl-apiservice pod found running in ${SAMPLE_NS}"
@@ -1918,7 +1957,7 @@ else
   fi
 
   # Check no restarts (indicates stability)
-  SAMPLE_APIPOD_RESTARTS=$(echo "$SAMPLE_APIPOD" | awk '{print $4}')
+  SAMPLE_APIPOD_RESTARTS=$(echo "$SAMPLE_APIPOD" | awk '{print $5}')
   if [[ "${SAMPLE_APIPOD_RESTARTS:-0}" -eq 0 ]]; then
     pass "${SAMPLE_NS} kubectl-apiservice pod: 0 restarts"
   else
@@ -2115,8 +2154,7 @@ _unhealthy_tot=$(echo "$SAMPLE_APIPOD_READY" | cut -d/ -f2)
 if [[ -z "$SAMPLE_APIPOD_NAME" ]] || ! [[ "$_unhealthy_num" == "$_unhealthy_tot" && "$_unhealthy_num" -gt 0 ]] 2>/dev/null; then
   TARGET_POD=${SAMPLE_APIPOD_NAME:-}
   if [[ -z "$TARGET_POD" ]]; then
-    TARGET_POD=$(kc get pods -n "$SAMPLE_NS" --no-headers \
-      | grep "konk-service-kubectl-apiservice" | head -1 | awk '{print $1}')
+    TARGET_POD=$(konk_pods apiservice "$SAMPLE_NS" | head -1 | awk '{print $2}')
   fi
   if [[ -n "$TARGET_POD" ]]; then
     info "${SAMPLE_NS} pod '${TARGET_POD}' is unhealthy — showing events:"
@@ -3046,8 +3084,8 @@ if should_run 17; then
   else
     # On pre-j191 operators, pods should only have /node: image, NOT /konk-service: image
     # The /konk-service: container is a ghost from Helm strategic merge after chart change
-    BAD_IMG_PODS=$(kubectl get pods -A -o custom-columns='NAMESPACE:.metadata.namespace,NAME:.metadata.name,READY:.status.containerStatuses[*].ready,IMAGES:.spec.containers[*].image' --no-headers 2>/dev/null \
-      | grep "konk-service-kubeconfig" | grep "/konk-service:" || true)
+    BAD_IMG_PODS=$(kubectl get pods -A -l app.kubernetes.io/component=kubeconfig -o custom-columns='NAMESPACE:.metadata.namespace,NAME:.metadata.name,READY:.status.containerStatuses[*].ready,IMAGES:.spec.containers[*].image' --no-headers 2>/dev/null \
+      | grep "/konk-service:" || true)
 
     if [[ -z "$BAD_IMG_PODS" ]]; then
       pass "no konk-service-kubeconfig pods with stale /konk-service: container image"
