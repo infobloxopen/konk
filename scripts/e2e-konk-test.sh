@@ -45,6 +45,12 @@
 #   ./e2e-konk-test.sh --context us-stg-1            # target a specific cluster context
 #   ./e2e-konk-test.sh --csp-url URL --token TOKEN  # for section 14 (external API)
 #
+# Production clusters (us-com-1, eu-com-1, gov-prd-2) are detected automatically
+# and forced read-only: section 8.4's trigger test is disabled (it deletes a live
+# konk-service pod and a live APIService) and section 14's product-API write tests
+# self-skip. The banner's "Mode:" line always states which applies. Everything
+# else in the script is read-only on every cluster.
+#
 
 # Environment variables:
 #   KONK_E2E_TOKEN   — Bearer token for CSP API calls (section 14). Avoids --token flag.
@@ -110,7 +116,7 @@ while [[ $# -gt 0 ]]; do
     -v|--verbose)  VERBOSE=true;   shift ;;
     -d|--debug)    DEBUG=true; VERBOSE=true; shift ;;
     --help|-h)
-      sed -n '2,46p' "$0" | sed 's/^# \?//'
+      sed -n '2,52p' "$0" | sed 's/^# \?//'
       exit 0
       ;;
     *)
@@ -224,6 +230,15 @@ assert_ge() {
 
 # Check if a command exists
 has_cmd() { command -v "$1" &>/dev/null; }
+
+# is_prod_cluster CONTEXT — true when the context targets a production cluster.
+# Commercial prod is us-com-1 / eu-com-1; gov prod is gov-prd-2. The surrounding
+# hyphens are load-bearing: every Teleport context contains "infoblox.com-", so a
+# bare "com" substring test would classify us-dev-2 as production.
+is_prod_cluster() {
+  local ctx="$1"
+  [[ "$ctx" == *"-com-"* || "$ctx" == *"-prd-"* ]]
+}
 
 # Safe kubectl that never fails the script
 kc() {
@@ -340,7 +355,23 @@ echo ""
 echo -e "${BOLD}================================================================${RESET}"
 echo -e "${BOLD} Konk End-to-End Health Validation${RESET}"
 echo -e "${BOLD}================================================================${RESET}"
-echo -e "  Cluster:      ${KUBE_CONTEXT:-$(kubectl config current-context 2>/dev/null || echo 'unknown')}"
+KONK_CTX="${KUBE_CONTEXT:-$(kubectl config current-context 2>/dev/null || echo 'unknown')}"
+
+# Production clusters are read-only: section 8.4 deletes a live konk-service pod
+# and a live APIService, which takes an aggregated API group offline until it is
+# re-registered. Section 14 additionally writes through the product API, and
+# self-skips on prod using the same helper.
+IS_PROD=false
+PROD_FORCED_READONLY=false
+if is_prod_cluster "$KONK_CTX"; then
+  IS_PROD=true
+  if [[ "$TRIGGER_REGISTRATION" == true ]]; then
+    TRIGGER_REGISTRATION=false
+    PROD_FORCED_READONLY=true
+  fi
+fi
+
+echo -e "  Cluster:      ${KONK_CTX}"
 echo -e "  Date (UTC):   $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
 echo -e "  Date (IST):   $(TZ=Asia/Kolkata date '+%Y-%m-%d %H:%M:%S IST')"
 echo -e "  Sample NS:    ${SAMPLE_NS}"
@@ -348,12 +379,25 @@ SKIP_TRIGGER_DISPLAY="false"
 if [[ "$TRIGGER_REGISTRATION" != true ]]; then
   SKIP_TRIGGER_DISPLAY="true"
 fi
+if [[ "$IS_PROD" == true ]]; then
+  RUN_MODE="${GREEN}READ-ONLY${RESET} (production cluster detected — cluster writes disabled)"
+elif [[ "$TRIGGER_REGISTRATION" == true ]]; then
+  RUN_MODE="${YELLOW}DESTRUCTIVE${RESET} — section 8.4 will delete a konk-service pod and a live APIService"
+else
+  RUN_MODE="${GREEN}read-only${RESET}"
+fi
+echo -e "  Mode:         ${RUN_MODE}"
 _ctx_display="${KUBE_CONTEXT:+ context=${KUBE_CONTEXT}}"
 echo -e "  Flags:        skip-bulk=${SKIP_BULK} skip-exec=${SKIP_EXEC} skip-ca=${SKIP_CA} skip-trigger-registration=${SKIP_TRIGGER_DISPLAY} debug=${DEBUG}${_ctx_display}"
 if [[ ${#RUN_SECTIONS[@]} -gt 0 ]]; then
   echo -e "  Sections:     ${RUN_SECTIONS[*]}"
 fi
 echo ""
+if [[ "$PROD_FORCED_READONLY" == true ]]; then
+  info "production cluster — section 8.4 trigger test disabled automatically"
+  info "  (it deletes a live konk-service pod and a live APIService; deleting the"
+  info "   APIService takes that aggregated API group offline until re-registered)"
+fi
 
 if ! kubectl cluster-info &>/dev/null; then
   echo -e "${RED}ERROR: Cannot connect to Kubernetes cluster. Check kubeconfig.${RESET}"
@@ -2873,10 +2917,10 @@ fi  # section 13
 section "External API integration (tagging + bulk via CSP)"
 if should_run 14; then
 
-# Skip on production clusters (com-prod, gov-prd)
-_ctx_14=$(kubectl config current-context 2>/dev/null || echo "")
-if [[ "$_ctx_14" == *"-com-"* || "$_ctx_14" == *"-prd-"* ]]; then
-  skip "production cluster detected (${_ctx_14}) — skipping external API tests"
+# Skip on production clusters: this section writes through the product API
+# (creates a tag, starts a bulk export). Uses the shared detection helper.
+if is_prod_cluster "$KONK_CTX"; then
+  skip "production cluster detected (${KONK_CTX}) — skipping external API write tests"
 else
 
 # Auto-detect CSP URL from cluster context using CLUSTER_KEYS/CLUSTER_URLS
