@@ -26,6 +26,7 @@
 #   17. Stale konk-service container image (ghost detection)
 #   18. Stale KonkService deployments (old chart names with kubectl)
 #   19. Excluded bulk-konk resources (not Helm-managed)
+#   20. konk-service workload inventory & rollout health (stuck rollouts, orphans)
 #
 # Usage:
 #   ./e2e-konk-test.sh                        # full run (sample ns = tagging-v2)
@@ -67,7 +68,7 @@ CHECK_HOOKS=false
 VERBOSE=false
 DEBUG=false
 RUN_SECTIONS=()          # empty = run all
-LAST_SECTION=19          # update when adding new sections
+LAST_SECTION=20          # update when adding new sections
 CSP_URL="${KONK_E2E_CSP_URL:-}"
 CSP_TOKEN="${KONK_E2E_TOKEN:-}"
 TOKEN_FILE="$(cd "$(dirname "$0")" && pwd)/token-file.txt"
@@ -3175,6 +3176,122 @@ section "Excluded bulk-konk resources (not Helm-managed)"
 if should_run 19; then
   skip "excluded bulk-konk resources check disabled"
 fi  # section 19
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SECTION 20: konk-service workload inventory & rollout health
+# ══════════════════════════════════════════════════════════════════════════════
+# One place that lists every konk-service-managed pod, then calls out the two
+# states that are otherwise invisible:
+#
+#   * stuck rolling updates — the Deployment is at spec.replicas but carries
+#     surplus pods because the old ReplicaSet cannot be scaled down until the
+#     new pod reports Ready. With maxUnavailable 25% on a 1-replica Deployment
+#     that rounds to 0, so a failing readiness probe pins both revisions at 1
+#     and the pod count silently exceeds the Deployment count.
+#   * orphaned pods — no ownerReferences at all, or an owner ReplicaSet that no
+#     longer exists. These are never reconciled and never cleaned up.
+#
+# Section 6 iterates the same pods but only prints failures, so a healthy-looking
+# run gave you no inventory. Section 15 covers the APIService *backend* pods, a
+# different set entirely.
+section "konk-service workload inventory & rollout health"
+if should_run 20; then
+
+KONK_COMPONENTS=(apiservice apiservice-test kubeconfig)
+
+# ── 20.1 Inventory ────────────────────────────────────────────────────────────
+INV_TOTAL=0
+INV_NOTREADY=0
+for _comp in "${KONK_COMPONENTS[@]}"; do
+  _pods=$(konk_pods "$_comp")
+  if [[ -z "$_pods" ]]; then
+    warn "component=${_comp}: no pods found"
+    continue
+  fi
+  _n=$(echo "$_pods" | wc -l | tr -d ' ')
+  _bad=$(echo "$_pods" | awk '$3 ~ /^0\// || $4 != "Running"' || true)
+  _nbad=0
+  [[ -n "$_bad" ]] && _nbad=$(echo "$_bad" | wc -l | tr -d ' ')
+  INV_TOTAL=$(( INV_TOTAL + _n ))
+  INV_NOTREADY=$(( INV_NOTREADY + _nbad ))
+
+  info "component=${_comp}: ${_n} pod(s), ${_nbad} not ready"
+  # RESTARTS may render as "1 (6h ago)", so age is the last field, not $6.
+  echo "$_pods" | sort | awk '{printf "           %-11s %-64s %-6s %-9s restarts=%-3s age=%s\n", $1, $2, $3, $4, $5, $NF}'
+done
+
+if [[ $INV_NOTREADY -eq 0 ]]; then
+  pass "all ${INV_TOTAL} konk-service pods are ready"
+else
+  fail "${INV_NOTREADY}/${INV_TOTAL} konk-service pods are not ready"
+fi
+
+# ── 20.2 Stuck rolling updates ────────────────────────────────────────────────
+# Surplus pods = .status.replicas exceeds .spec.replicas.
+STUCK_ROLLOUTS=$(kc get deploy -A --no-headers \
+  -o custom-columns='NS:.metadata.namespace,NAME:.metadata.name,C:.spec.template.metadata.labels.app\.kubernetes\.io/component,SPEC:.spec.replicas,TOTAL:.status.replicas,READY:.status.readyReplicas' \
+  | awk '$3=="apiservice" || $3=="apiservice-test" || $3=="kubeconfig"' \
+  | awk '{ spec = ($4=="<none>" ? 0 : $4); tot = ($5=="<none>" ? 0 : $5); if (tot > spec) print }' || true)
+
+if [[ -z "$STUCK_ROLLOUTS" ]]; then
+  pass "no konk-service Deployment has surplus pods (all rollouts settled)"
+else
+  _nstuck=$(echo "$STUCK_ROLLOUTS" | wc -l | tr -d ' ')
+  warn "${_nstuck} konk-service Deployment(s) with a stuck rolling update:"
+  while IFS= read -r _line; do
+    [[ -z "$_line" ]] && continue
+    _sns=$(echo "$_line"   | awk '{print $1}')
+    _sname=$(echo "$_line" | awk '{print $2}')
+    _sspec=$(echo "$_line" | awk '{print $4}')
+    _stot=$(echo "$_line"  | awk '{print $5}')
+    _sready=$(echo "$_line"| awk '{print $6}')
+    [[ "$_sready" == "<none>" ]] && _sready=0
+    echo "           ${_sns}/${_sname}"
+    echo "             spec=${_sspec} total=${_stot} ready=${_sready}"
+    # Show why the Deployment controller is holding the old ReplicaSet.
+    _reason=$(kc get deploy "$_sname" -n "$_sns" \
+      -o jsonpath='{range .status.conditions[?(@.type=="Progressing")]}{.reason}{end}')
+    [[ -n "$_reason" ]] && echo "             Progressing: ${_reason}"
+    # List the competing ReplicaSets, newest revision last.
+    kc get rs -n "$_sns" --no-headers \
+      -o custom-columns='NAME:.metadata.name,SPEC:.spec.replicas,READY:.status.readyReplicas,OWNER:.metadata.ownerReferences[0].name,REV:.metadata.annotations.deployment\.kubernetes\.io/revision' \
+      | awk -v d="$_sname" '$4 == d && $2 > 0 {printf "             rev %-3s %-70s spec=%s ready=%s\n", $5, $1, $2, ($3=="<none>"?0:$3)}' \
+      | sort -k2
+  done <<< "$STUCK_ROLLOUTS"
+  info "Surplus pods are a symptom, not a leak — the old ReplicaSet scales down"
+  info "automatically once the new pod's readiness probe passes. Fix the probe."
+fi
+
+# ── 20.3 Orphaned pods ────────────────────────────────────────────────────────
+# A pod is orphaned if it has no ownerReferences, or its owner ReplicaSet is gone.
+ALL_RS=$(kc get rs -A --no-headers -o custom-columns='NS:.metadata.namespace,N:.metadata.name' \
+  | awk 'NF==2 {print $1"/"$2}')
+ORPHANS=""
+for _comp in "${KONK_COMPONENTS[@]}"; do
+  # The ReplicaSet list is multi-line, so it must be read as a first input file —
+  # `awk -v` cannot carry embedded newlines.
+  _o=$(kc get pods -A -l "app.kubernetes.io/component=${_comp}" --no-headers \
+    -o custom-columns='NS:.metadata.namespace,NAME:.metadata.name,RS:.metadata.ownerReferences[0].name' \
+    | awk -v c="$_comp" '
+        NR == FNR { if (NF) have[$0] = 1; next }
+        NF >= 2 {
+          if ($3 == "<none>" || $3 == "")      { print $1"/"$2"  ("c") no ownerReferences" }
+          else if (!(($1"/"$3) in have))       { print $1"/"$2"  ("c") owner ReplicaSet "$3" is gone" }
+        }' <(printf '%s\n' "$ALL_RS") - || true)
+  [[ -n "$_o" ]] && ORPHANS="${ORPHANS}${_o}"$'\n'
+done
+ORPHANS=$(echo "$ORPHANS" | sed '/^$/d')
+
+if [[ -z "$ORPHANS" ]]; then
+  pass "no orphaned konk-service pods (every pod has a live owning ReplicaSet)"
+else
+  _norph=$(echo "$ORPHANS" | wc -l | tr -d ' ')
+  fail "${_norph} orphaned konk-service pod(s) — not managed by any ReplicaSet:"
+  echo "$ORPHANS" | sed 's/^/           /'
+  info "Orphans are never reconciled or cleaned up; delete them explicitly."
+fi
+
+fi  # section 20
 
 # ══════════════════════════════════════════════════════════════════════════════
 # SUMMARY
