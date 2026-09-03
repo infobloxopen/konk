@@ -1,0 +1,46 @@
+1. 
+
+
+--- #22 Recent Warning events:
+
+--- #22 Recent Warning events:
+2m14s       Warning   SyncError                    ingress/bulk-storage-proxy-mirror   Sync error: sync hook failed: can't unmarshal webhookResponse: unexpected end of JSON input
+2m14s       Warning   SyncError                    ingress/bulk-mirror                 Sync error: sync hook failed: can't unmarshal webhookResponse: unexpected end of JSON input
+2m14s       Warning   SyncError                    ingress/test-bulk                   Sync error: can't reconcile children for Ingress aggregate/test-bulk: Space.spacecontroller.infoblox-cto.github.com "stage.csp.infoblox.com-tls-mirror" is invalid: metadata.ownerReferences: Invalid value: []v1.OwnerReference{v1.OwnerReference{APIVersion:"networking.k8s.io/v1", Kind:"Ingress", Name:"bulk", UID:"f485fc73-6fae-4656-8263-375c6658aa9a", Controller:(*bool)(0x402f93189c), BlockOwnerDeletion:(*bool)(0x402f93189d)}, v1.OwnerReference{APIVersion:"networking.k8s.io/v1", Kind:"Ingress", Name:"test-bulk", UID:"35b81a91-6157-4668-b208-186c609204ae", Controller:(*bool)(0x402f93189e), BlockOwnerDeletion:(*bool)(0x402f93189f)}}: Only one reference can have Controller set to true. Found "true" in references for Ingress/bulk and Ingress/test-bulk
+2m13s       Warning   SyncError                    ingress/bulk                        Sync error: can't reconcile children for Ingress aggregate/bulk: resourceVersion should not be set on objects to be created
+2m13s       Warning   SyncError                    ingress/bulk-storage-proxy          Sync error: can't reconcile children for Ingress aggregate/bulk-storage-proxy: resourceVersion should not be set on objects to be created
+
+i ran post upgrade script for us-stg-1
+
+
+
+This warning means one Kubernetes object is being written with two controlling owners, which is not allowed.
+
+What the message says:
+1. The object has ownerReferences to Ingress bulk and Ingress test-bulk.
+2. Both owner references have Controller=true.
+3. Kubernetes allows only one controlling owner per object.
+4. So validation rejects that write.
+
+Why this matters:
+1. The specific create or update operation for that object fails.
+2. It is usually unrelated to etcd health itself.
+3. In your post-upgrade script, step 22 shows recent warning events, so it can include unrelated cluster issues.
+
+Most likely root cause:
+1. Two controllers or templates are trying to manage the same child resource.
+2. Or one automation copied ownerReferences from another object without clearing the previous controller owner.
+
+How to triage quickly:
+1. Get recent warnings and find the involved object name and kind around that timestamp.
+2. Inspect that object ownerReferences and confirm both Ingress owners are marked as controller.
+3. Trace which controller last updated it from managedFields or controller logs.
+
+How to fix:
+1. Keep only one controller ownerReference on that child object.
+2. If shared ownership is needed, keep one controller owner and make others non-controller references.
+3. Ensure charts/operators do not generate duplicate controller ownerRefs for the same target.
+
+Bottom line for your run:
+1. This is a real warning, but not automatically a failure of the etcd migration.
+2. Treat it as a separate ingress/controller ownership bug unless it is directly blocking your upgraded workload behavior.

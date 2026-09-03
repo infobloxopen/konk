@@ -1,0 +1,140 @@
+========================================================
+  bulk-konk-etcd POD RECREATION — ROOT CAUSE EVENTS
+  Cluster: us-dev-2 | Namespace: aggregate
+  Captured: 2026-08-13
+========================================================
+
+----- ETCD POD CURRENT STATE -----
+
+  NAME                 AGE (at time of capture)   STATUS
+  bulk-konk-etcd-0    5h50m                       Running  (stable, not recreated)
+  bulk-konk-etcd-1    51m                          Running  (recreated ~52 min ago)
+  bulk-konk-etcd-2    102m                         Running  (recreated ~103 min ago)
+
+Recreation cadence: staggered ~50 min apart (Karpenter disruption budget: 1 node at a time for Underutilized)
+
+----- KARPENTER NODE DISRUPTION (default namespace) -----
+
+52m   Normal   DisruptionTerminating   nodeclaim/nodescaling-node-pool-9jzxd
+      Disrupting NodeClaim: Underutilized
+
+52m   Normal   DisruptionTerminating   node/ip-172-19-200-79.ec2.internal
+      Disrupting Node: Underutilized
+
+----- ETCD POD EVICTION EVENTS (aggregate namespace) -----
+
+52m   Normal    Killing    pod/bulk-konk-etcd-1
+      Stopping container etcd
+
+52m   Normal    Evicted    pod/bulk-konk-etcd-1
+      Evicted pod: Underutilized
+
+52m   Warning   Unhealthy  pod/bulk-konk-etcd-1
+      Readiness probe errored and resulted in unknown state:
+      rpc error: code = Canceled desc = context canceled
+
+52m   Warning   FailedAttachVolume   pod/bulk-konk-etcd-1
+      Multi-Attach error for volume "pvc-8c732ee7-c7f2-43be-89c1-7c67a1579a3a"
+      Volume is already exclusively attached to one node and can't be attached to another
+
+----- ETCD POD RESCHEDULING EVENTS (aggregate namespace) -----
+
+52m   Normal   InjectionSkipped   statefulset/bulk-konk-etcd
+      Linkerd sidecar proxy injection skipped: neither the namespace nor the pod
+      have the annotation "linkerd.io/inject:enabled"
+
+52m   Normal   Scheduled   pod/bulk-konk-etcd-1
+      Successfully assigned aggregate/bulk-konk-etcd-1 to ip-172-19-200-199.ec2.internal
+
+51m   Normal   SuccessfulAttachVolume   pod/bulk-konk-etcd-1
+      AttachVolume.Attach succeeded for volume "pvc-8c732ee7-c7f2-43be-89c1-7c67a1579a3a"
+
+51m   Normal   Pulled    pod/bulk-konk-etcd-1
+      Successfully pulled image "harbor.services.sdp.infoblox.com/cgr-proxy/infoblox.com/etcd:3.7.0"
+      in 6.777s. Image size: 27293425 bytes.
+
+51m   Normal   Created   pod/bulk-konk-etcd-1   Container created
+51m   Normal   Started   pod/bulk-konk-etcd-1   Container started
+
+----- TOPOLOGY WARNINGS (aggregate namespace) -----
+
+52m   Warning   TopologyAwareHintsDisabled   service/bulk-konk-etcd-headless
+      Insufficient number of endpoints (2 endpoints, 3 zones), addressType: IPv4
+      (fired during eviction when cluster had only 2 members)
+
+51m   Warning   TopologyAwareHintsDisabled   service/bulk-konk-etcd
+      Unable to allocate minimum required endpoints to each zone without exceeding
+      overload threshold (3 endpoints, 3 zones), addressType: IPv4
+
+51m   Warning   TopologyAwareHintsDisabled   service/bulk-konk-etcd-headless
+      Unable to allocate minimum required endpoints to each zone without exceeding
+      overload threshold (3 endpoints, 3 zones), addressType: IPv4
+
+----- OTHER AGGREGATE NAMESPACE WARNINGS -----
+
+57m   Warning   ProcessingError   grafanadashboard/bulk-dashboard
+      unexpected end of JSON input
+
+6m    Warning   SyncError   ingress/bulk-storage-proxy-mirror
+      Sync error: sync hook failed: can't unmarshal webhookResponse: unexpected end of JSON input
+
+6m    Warning   SyncError   ingress/bulk-mirror
+      Sync error: sync hook failed: can't unmarshal webhookResponse: unexpected end of JSON input
+
+6m    Warning   SyncError   ingress/bulk-storage-proxy
+      Sync error: can't reconcile children for Ingress aggregate/bulk-storage-proxy:
+      resourceVersion should not be set on objects to be created
+
+6m    Warning   SyncError   ingress/bulk
+      Sync error: can't reconcile children for Ingress aggregate/bulk:
+      resourceVersion should not be set on objects to be created
+
+57s   Warning   SyncError   deployment/bulk
+      Sync error: sync hook failed: unsupported status code: 400 body: {"error":"VPA creation aborted"}
+
+2m    Warning   ProcessingError   grafanadashboard/bulk-dashboard
+      unexpected end of JSON input
+
+----- bulk-hr-watcher CRONJOB FAILURES (aggregate namespace) -----
+
+  The bulk-hr-watcher cronjob is repeatedly failing with BackoffLimitExceeded every ~3 minutes:
+  (jobs: 29776674, 29776677, 29776680, 29776683, 29776686, 29776689, 29776692,
+         29776695, 29776698, 29776701, 29776704, 29776707, 29776710, 29776713,
+         29776716, 29776719, 29776722, 29776725, 29776728, 29776731 ...)
+  This is a separate ongoing issue — likely related to the etcd instability
+  (hr-watcher queries the inner konk apiserver backed by etcd).
+
+----- ETCD RESOURCE CONFIGURATION -----
+
+  StatefulSet: bulk-konk-etcd (3 replicas)
+  Image: harbor.services.sdp.infoblox.com/cgr-proxy/infoblox.com/etcd:3.7.0
+  Node pool: nodescaling-node-pool (consolidationPolicy: WhenEmptyOrUnderutilized)
+  PodDisruptionBudget: NONE
+
+  Resources per pod:
+    requests:
+      cpu:    57m   ← (was 10m earlier; appears updated)
+      memory: 128Mi
+    limits:
+      memory: 4Gi
+
+----- ROOT CAUSE SUMMARY -----
+
+  1. Karpenter consolidation (WhenEmptyOrUnderutilized) terminated node
+     nodescaling-node-pool-9jzxd (~52 min ago) and an earlier node (~103 min ago).
+
+  2. etcd pods have no PodDisruptionBudget — Karpenter can evict them freely
+     as long as its own disruption budget (nodes: 1 for Underutilized) allows.
+
+  3. Low CPU requests make the host node appear underutilized to Karpenter
+     within the consolidateAfter: 1h window, triggering the cycle repeatedly.
+
+  4. EBS volume Multi-Attach error on each eviction adds extra delay before
+     the pod can start on the new node.
+
+----- RECOMMENDED FIXES -----
+
+  1. Add PodDisruptionBudget (minAvailable: 2) for bulk-konk-etcd.
+  2. Increase CPU requests to >= 200m so nodes don't appear underutilized.
+  3. OR add annotation karpenter.sh/do-not-disrupt: "true" to etcd pod template
+     as an immediate stopgap.

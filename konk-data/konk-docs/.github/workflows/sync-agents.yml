@@ -1,0 +1,28 @@
+name: Sync Architecture Agents
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"  # Monday 6am UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate app token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.AGENTS_SYNC_APP_ID }}
+          private-key: ${{ secrets.AGENTS_SYNC_APP_KEY }}
+          owner: Infoblox-CTO
+          repositories: architecture-shared-agents
+
+      - uses: Infoblox-CTO/architecture-shared-agents/.github/actions/sync-agents@main
+        with:
+          fetch-token: ${{ steps.app-token.outputs.token }}
+          repo-token: ${{ secrets.GITHUB_TOKEN }}

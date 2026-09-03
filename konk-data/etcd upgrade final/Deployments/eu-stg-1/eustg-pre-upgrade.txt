@@ -1,0 +1,283 @@
+git show etcd-upgrade-tests:scripts/e2e-konk-test.sh | bash -s -- --section 0-
+
+================================================================
+ Konk End-to-End Health Validation
+================================================================
+  Cluster:      teleport.services.eu.sdp.infoblox.com-eu-stg-1
+  Date (UTC):   2026-09-02 11:47:01 UTC
+  Date (IST):   2026-09-02 17:17:01 IST
+  Sample NS:    tagging-v2
+  Mode:         DESTRUCTIVE — section 8.4 will delete a konk-service pod and a live APIService
+  Flags:        skip-bulk=false skip-exec=false skip-ca=false skip-trigger-registration=false debug=false
+  Sections:     0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
+
+
+── 1. konk-operator (namespace: konk) ──
+  [PASS] konk-operator replicas ready
+  [PASS] konk-operator pod phase
+  [PASS] konk-operator pod Ready condition
+  [PASS] konk-operator HelmRelease Ready: Helm upgrade succeeded for release konk/konk-operator.v4 with chart konk-operator@v0.2.1-138-g8b64bf7-j170
+
+── 2. Core infrastructure (namespace: aggregate) ──
+  [PASS] bulk-konk apiserver replicas ready
+  [PASS] bulk-konk-init replicas ready
+  [PASS] bulk-konk-etcd replicas ready
+  [WARN] etcd stable-node check: no nodes with node-group-type=stable found (node pool label absent?)
+  [PASS] bulk-konk service exists (ClusterIP: 10.100.236.46)
+  [PASS] bulk-konk has ready endpoints (100.64.162.243)
+  [PASS] no pods in error state in aggregate namespace
+  [PASS] bulk HelmRelease Ready: Helm upgrade succeeded for release aggregate/bulk.v8 with chart bulk@v2.5.0-75-g9c9a1de3-j180
+
+── 3. Image version consistency ──
+  [INFO] konk-operator          : v0.2.1-138-g8b64bf7-j170
+
+── 4. Konk CR + Etcd CR status (bulk-konk) ──
+  [PASS] Konk CR reason=Successful
+  [PASS] Konk CR Deployed=True
+  [PASS] Konk CR: no helm InstallError/UpgradeError in status message
+  [PASS] Konk ownership check: all 4 Helm-managed bulk-konk resources have Helm annotations
+  [PASS] Etcd CR reason=Successful
+  [PASS] Etcd CR Deployed=True
+  [PASS] Etcd CR 'bulk-konk-etcd': no ReleaseFailed condition
+  [PASS] Konk CR 'bulk-konk': no ReleaseFailed condition
+
+── 5. KonkService CRs (all namespaces) ──
+  [INFO] fetching KonkService CRs and Deployments...
+  [PASS] all 16 KonkService CRs report Successful with no ReleaseFailed and kubeconfig Deployments scaled up
+  [PASS] Konk ownership check: all current Helm-managed konk-service Deployments have Helm ownership annotations
+  [PASS] all 4 multi-KonkService Service(s) share one serving secret across siblings
+
+── 6. konk-service pods health (all namespaces) ──
+  [PASS] all 16 kubectl-apiservice pods are Running and all containers ready
+  [PASS] all 16 kubeconfig (reconcile) pods are Running and all containers ready
+  [FAIL] apiservice-test atcapi/atcapi-apiservice-konk-service-kubectl-apiservice-test-54bpsb4p: 0/1 Running — readiness probe failing (APIService unavailable)
+  [FAIL] apiservice-test ddi/dns-config-importexport-apiservice-konk-service-kubectl-apmd7vf: 0/1 Running — readiness probe failing (APIService unavailable)
+  [FAIL] apiservice-test ddi/dns-config-importexport-apiservice-v2-konk-service-kubectl6bn9m: 0/1 Running — readiness probe failing (APIService unavailable)
+  [FAIL] apiservice-test ddi/dns-config-importexport-apiservice-v2-konk-service-kubectls5nvp: 0/1 Running — readiness probe failing (APIService unavailable)
+  [FAIL] apiservice-test ddi/dns-data-importexport-apiservice-konk-service-kubectl-apishw7dc: 0/1 Running — readiness probe failing (APIService unavailable)
+  [FAIL] apiservice-test ddi/dns-data-importexport-apiservice-v2-konk-service-kubectl-a6zj7b: 0/1 Running — readiness probe failing (APIService unavailable)
+  [FAIL] apiservice-test ddi/ipam-importexport-apiservice-konk-service-kubectl-apiservirbjw4: 0/1 Running — readiness probe failing (APIService unavailable)
+  [FAIL] apiservice-test ddi/ipam-importexport-apiservice-v2-konk-service-kubectl-apised2g2l: 0/1 Running — readiness probe failing (APIService unavailable)
+  [FAIL] apiservice-test ddi/ipam-importexport-apiservice-v2-konk-service-kubectl-apisexvh5g: 0/1 Running — readiness probe failing (APIService unavailable)
+  [FAIL] apiservice-test ddi/ipam-importexport-apiservice-v3-konk-service-kubectl-apiserpbfs: 0/1 Running — readiness probe failing (APIService unavailable)
+  [FAIL] apiservice-test ddi/keys-importexport-apiservice-konk-service-kubectl-apiservilcdnd: 0/1 Running — readiness probe failing (APIService unavailable)
+  [FAIL] apiservice-test endpoints/endpoints-api-service-apiservice-konk-service-kubectl-apisjlq9x: 0/1 Running — readiness probe failing (APIService unavailable)
+  [FAIL] apiservice-test hostapp/hostapp-aggregate-api-apiservice-konk-service-kubectl-apiskfcs6: 0/1 Running — readiness probe failing (APIService unavailable)
+  [FAIL] apiservice-test hostapp/hostapp-aggregate-api-infra-konk-service-kubectl-apiservickxhjb: 0/1 Running — readiness probe failing (APIService unavailable)
+  [FAIL] apiservice-test ngp-cp/bootstrap-app-aggregate-api-apiservice-konk-service-kubect7s9d9: 0/1 Running — readiness probe failing (APIService unavailable)
+  [FAIL] apiservice-test ntp/ntp-aggregate-api-apiservice-konk-service-kubectl-apiservibv5mh: 0/1 Running — readiness probe failing (APIService unavailable)
+  [FAIL] apiservice-test redirect/redirect-apiservice-konk-service-kubectl-apiservice-test-5w7fgg: 0/1 Running — readiness probe failing (APIService unavailable)
+  [FAIL] apiservice-test tagging-v2/tagging-aggregate-api-apiservice-konk-service-kubectl-apisptcmd: 0/1 Running — readiness probe failing (APIService unavailable)
+  [PASS] all 16 KonkServices have their required konk-service Deployments running (kubeconfig + kubectl-apiservice)
+
+── 7. CA trust chain (bulk-konk CA vs kubeconfig secrets) ──
+  [PASS] bulk-konk CA fingerprint readable
+  [PASS] bulk-konk CA certificate is not expired
+  [PASS] all 16 kubeconfig secrets have correct bulk-konk CA
+  [PASS] all 16 kubeconfig client certs (tls.crt) are valid and not expiring soon
+  [PASS] all 18 pod(s) at 0/1 have a CURRENT mounted secret — not a mount problem
+  [INFO] Their 0/1 has another cause; section 8 probes each aggregated
+  [INFO] group-version and will name it. Do NOT restart these pods.
+
+── 8. APIServices registered in konk ──
+  [INFO] connected to konk API via port-forward (localhost:36222)
+  [WARN] errors while querying APIServices from konk:
+       E0902 17:23:43.478463   58548 memcache.go:287] "Unhandled Error" err="couldn't get resource list for bootstrap.bulk.infoblox.com/v1alpha1: the server is currently unable to handle the request"
+       E0902 17:23:43.640590   58548 memcache.go:121] "Unhandled Error" err="couldn't get resource list for bootstrap.bulk.infoblox.com/v1alpha1: the server is currently unable to handle the request"
+       E0902 17:23:43.805089   58548 memcache.go:121] "Unhandled Error" err="couldn't get resource list for bootstrap.bulk.infoblox.com/v1alpha1: the server is currently unable to handle the request"
+       E0902 17:23:43.963855   58548 memcache.go:121] "Unhandled Error" err="couldn't get resource list for bootstrap.bulk.infoblox.com/v1alpha1: the server is currently unable to handle the request"
+  [PASS] all 16 non-Local APIServices in konk are Available=True
+  [WARN] errors while querying api-resources from konk:
+       error: unable to retrieve the complete list of server APIs: bootstrap.bulk.infoblox.com/v1alpha1: the server is currently unable to handle the request
+  [PASS] konk serves 16 bulk.infoblox.com API version(s)
+  [FAIL] 1/16 aggregated group-versions unreachable
+           FAIL bootstrap.bulk.infoblox.com/v1alpha1
+                error trying to reach service: x509: certificate has expired or is not yet valid: current time 2026-09-02T11:53:55Z is after 2025-09-26T22:28:11Z
+                NOTE: its APIService still reports Available=True —
+                      the availability controller only probes reachability.
+           OK   atcapi.bulk.infoblox.com/v1alpha1          OK   ipamdhcp.bulk.infoblox.com/v2
+           OK   dnsconfig.bulk.infoblox.com/v1             OK   ipamdhcp.bulk.infoblox.com/v3
+           OK   dnsconfig.bulk.infoblox.com/v2             OK   keys.bulk.infoblox.com/v1
+           OK   dnsdata.bulk.infoblox.com/v1               OK   ntp.bulk.infoblox.com/v1alpha1
+           OK   dnsdata.bulk.infoblox.com/v2               OK   onprem.bulk.infoblox.com/v1alpha1
+           OK   endpoints.bulk.infoblox.com/v1alpha1       OK   redirect.bulk.infoblox.com/v1alpha1
+           OK   infrastructure.bulk.infoblox.com/v1alpha1  OK   tagging.bulk.infoblox.com/v1alpha1
+           OK   ipamdhcp.bulk.infoblox.com/v1              
+  [INFO] trigger-registration enabled: forcing reconcile for an existing APIService
+  [INFO] deleted pod atcapi/atcapi-apiservice-konk-service-kubectl-apiservice-7bb799d6tstdd; waiting for deployment/atcapi-apiservice-konk-service-kubectl-apiservice rollout
+  [PASS] trigger reconcile: deployment/atcapi-apiservice-konk-service-kubectl-apiservice restarted cleanly — all APIServices already registered, no re-apply needed
+  [INFO] deleting konk APIService v1.dnsconfig.bulk.infoblox.com to trigger re-registration ...
+  [PASS] APIService v1.dnsconfig.bulk.infoblox.com re-registered by konk-service after deletion (state: ddi/dns-config-importexport-apiservice)
+
+── 9. Deep test: tagging-v2 namespace ──
+  [PASS] KonkService tagging-v2/tagging-aggregate-api-apiservice deployed
+  [PASS] tagging-v2 kubectl-apiservice pod ready (1/1)
+  [PASS] tagging-v2 kubectl-apiservice pod: 0 restarts
+  [PASS] tagging-v2 kubeconfig CA matches bulk-konk
+  [PASS] tagging-v2 kubectl-apiservice logs: no x509/TLS errors
+  [WARN] tagging-v2 kubectl-apiservice: no recent reconciliation log entry
+  [WARN] tagging-v2 konk-service pod: no recent APIService apply log entries (pod may not have reconciled yet)
+  [PASS] tagging-v2 TLS server secret 'tagging-aggregate-api-apiservice-konk-service-server': has tls.crt + tls.key
+  [PASS] all 11 APIService backend endpoints have ready addresses (no 503 risk)
+
+── 10. Bulk (atlas.bulk) integration with konk ──
+  [PASS] bulk deployment replicas ready
+  [PASS] bulk pod ready (2/2)
+  [PASS] konk apiserver /healthz returns 'ok' (via port-forward)
+  [PASS] bulk-konk proxy-client secret exists (keys: ca.crt tls.crt tls.key)
+  [PASS] bulk --konk.host points to konk apiserver: bulk-konk.aggregate:6443
+  [WARN] bulk pod logs: 6 potential error(s) in last 50 lines
+  [FAIL] bulk-konk apiserver: 1 'certificate has expired' rejection(s) in last 2 min — clients holding stale certs
+  [INFO]   Run: ./konk/scripts/fix-missing-certificates.sh --apply
+  [INFO]   This restores any missing Certificate CRs and restarts konk-service and app deployments holding stale certs
+
+── 11. konk-operator log health ──
+  [PASS] konk-operator: no errors in last 100 log lines
+  [PASS] konk-operator: release 'bulk-konk' — no 'Release failed' errors
+  [PASS] konk-operator: release 'bulk-konk-etcd' — no 'Release failed' errors
+  [PASS] bulk-konk (aggregate)                                   —  deployed   — updated 2026-06-24 09:59:19
+  [PASS] bulk-konk-etcd (aggregate)                              —  deployed   — updated 2026-06-24 09:59:25
+  [PASS] atcapi-apiservice (atcapi)                              —  deployed   — updated 2026-03-03 12:42:30
+  [PASS] dns-config-importexport-apiservice (ddi)                —  deployed   — updated 2026-03-03 12:44:24
+  [PASS] dns-config-importexport-apiservice-v2 (ddi)             —  deployed   — updated 2026-09-02 10:31:05
+  [PASS] dns-data-importexport-apiservice (ddi)                  —  deployed   — updated 2026-03-03 12:44:14
+  [PASS] dns-data-importexport-apiservice-v2 (ddi)               —  deployed   — updated 2026-03-03 12:44:14
+  [PASS] ipam-importexport-apiservice (ddi)                      —  deployed   — updated 2026-08-21 06:20:02
+  [PASS] ipam-importexport-apiservice-v2 (ddi)                   —  deployed   — updated 2026-08-21 06:20:02
+  [PASS] ipam-importexport-apiservice-v3 (ddi)                   —  deployed   — updated 2026-08-21 06:20:02
+  [PASS] keys-importexport-apiservice (ddi)                      —  deployed   — updated 2026-03-03 12:36:59
+  [PASS] endpoints-api-service-apiservice (endpoints)            —  deployed   — updated 2026-06-08 15:52:46
+  [PASS] hostapp-aggregate-api-apiservice (hostapp)              —  deployed   — updated 2026-03-03 12:38:23
+  [PASS] hostapp-aggregate-api-infra (hostapp)                   —  deployed   — updated 2026-03-03 12:38:23
+  [PASS] bootstrap-app-aggregate-api-apiservice (ngp-cp)         —  deployed   — updated 2026-03-03 12:38:15
+  [PASS] ntp-aggregate-api-apiservice (ntp)                      —  deployed   — updated 2026-03-03 12:38:14
+  [PASS] redirect-apiservice (redirect)                          —  deployed   — updated 2026-03-03 13:28:34
+  [PASS] tagging-aggregate-api-apiservice (tagging-v2)           —  deployed   — updated 2026-03-03 12:40:45
+
+── 12. cert-manager CA integration ──
+  [PASS] cert-manager Issuer bulk-konk-requestheader: Ready=True
+
+── 13. Konk API deep test (query resources inside konk) ──
+  [INFO] using konk API via port-forward for deep queries
+  [PASS] konk api-resources contains group: tagging.bulk.infoblox.com
+  [PASS] konk api-resources contains group: dnsconfig.bulk.infoblox.com
+  [PASS] konk api-resources contains group: dnsdata.bulk.infoblox.com
+  [PASS] konk: tagging API reachable (response: E0902 17:26:38.608710   59909 memcache.go:287] "Unhandled Error" err="couldn't g)
+  [PASS] konk: tagging values API reachable
+  [PASS] konk resource type 'tags' registered (group: Tag)
+  [PASS] konk resource type 'values' registered (group: Value)
+  [PASS] konk resource type 'records' registered (group: Record)
+  [PASS] konk resource type 'hosts' registered (group: Host)
+  [PASS] konk apiserver /livez returns 'ok'
+
+── 14. External API integration (tagging + bulk via CSP) ──
+  [SKIP] secret tagging-v2/tagging-v2-k6-smoke-test-credentials not found on this cluster — skipping external API tests (use --token TOKEN)
+
+── 15. Konk APIService backend health ──
+  [PASS] KonkService atcapi/atcapi-apiservice: backend 'atcapi-apiservice' has 1 ready pod(s)
+  [PASS] KonkService ddi/dns-config-importexport-apiservice: backend 'dns-config-importexport-apiservice' has 1 ready pod(s)
+  [PASS] KonkService ddi/dns-config-importexport-apiservice-v2: backend 'dns-config-importexport-apiservice' has 1 ready pod(s)
+  [PASS] KonkService ddi/dns-data-importexport-apiservice: backend 'dns-data-importexport-apiservice' has 1 ready pod(s)
+  [PASS] KonkService ddi/dns-data-importexport-apiservice-v2: backend 'dns-data-importexport-apiservice' has 1 ready pod(s)
+  [PASS] KonkService ddi/ipam-importexport-apiservice: backend 'ipam-importexport-apiservice' has 1 ready pod(s)
+  [PASS] KonkService ddi/ipam-importexport-apiservice-v2: backend 'ipam-importexport-apiservice' has 1 ready pod(s)
+  [PASS] KonkService ddi/ipam-importexport-apiservice-v3: backend 'ipam-importexport-apiservice' has 1 ready pod(s)
+  [PASS] KonkService ddi/keys-importexport-apiservice: backend 'keys-importexport-apiservice' has 1 ready pod(s)
+  [PASS] KonkService endpoints/endpoints-api-service-apiservice: backend 'endpoints-api-service-apiservice' has 1 ready pod(s)
+  [PASS] KonkService hostapp/hostapp-aggregate-api-apiservice: backend 'hostapp-aggregate-api-apiservice' has 2 ready pod(s)
+  [PASS] KonkService hostapp/hostapp-aggregate-api-infra: backend 'hostapp-aggregate-api-apiservice' has 2 ready pod(s)
+  [PASS] KonkService ngp-cp/bootstrap-app-aggregate-api-apiservice: backend 'bootstrap-app-aggregate-api-apiservice' has 1 ready pod(s)
+  [PASS] KonkService ntp/ntp-aggregate-api-apiservice: backend 'ntp-aggregate-api-apiservice' has 1 ready pod(s)
+  [PASS] KonkService redirect/redirect-apiservice: backend 'redirect-apiservice' has 1 ready pod(s)
+  [PASS] KonkService tagging-v2/tagging-aggregate-api-apiservice: backend 'tagging-aggregate-api-apiservice' has 1 ready pod(s)
+  [INFO] 18 backend pod(s) checked across all KonkService APIService endpoints
+
+── 16. Stale node containers (Helm merge ghost detection) ──
+  [SKIP] operator < j191 — still uses kindest/node legitimately; ghost containers not possible
+
+── 17. Stale konk-service container image (ghost detection) ──
+  [SKIP] operator uses git-describe tag (v0.2.1-138) — post-migration; check not applicable
+
+── 18. Stale KonkService deployments (old chart names with kubectl) ──
+  [SKIP] stale KonkService deployment check disabled
+
+── 19. Excluded bulk-konk resources (not Helm-managed) ──
+  [SKIP] excluded bulk-konk resources check disabled
+
+── 20. konk-service workload inventory & rollout health ──
+  [INFO] component=apiservice: 16 pod(s), 0 not ready
+           atcapi      atcapi-apiservice-konk-service-kubectl-apiservice-7bb799d6px8np  1/1    Running   restarts=0   age=3m2s
+           ddi         dns-config-importexport-apiservice-konk-service-kubectl-apwjt8q  1/1    Running   restarts=0   age=109m
+           ddi         dns-config-importexport-apiservice-v2-konk-service-kubectlx5jx4  1/1    Running   restarts=0   age=85m
+           ddi         dns-data-importexport-apiservice-konk-service-kubectl-apissjzzg  1/1    Running   restarts=0   age=3d2h
+           ddi         dns-data-importexport-apiservice-v2-konk-service-kubectl-a6pg9k  1/1    Running   restarts=0   age=3d3h
+           ddi         ipam-importexport-apiservice-konk-service-kubectl-apiservibd6qz  1/1    Running   restarts=0   age=3d3h
+           ddi         ipam-importexport-apiservice-v2-konk-service-kubectl-apise9d9zh  1/1    Running   restarts=0   age=3d4h
+           ddi         ipam-importexport-apiservice-v3-konk-service-kubectl-apisen9cq6  1/1    Running   restarts=0   age=3d5h
+           ddi         keys-importexport-apiservice-konk-service-kubectl-apiservimvcjs  1/1    Running   restarts=0   age=3d6h
+           endpoints   endpoints-api-service-apiservice-konk-service-kubectl-apisr48hh  1/1    Running   restarts=0   age=3d6h
+           hostapp     hostapp-aggregate-api-apiservice-konk-service-kubectl-apisz5n7j  1/1    Running   restarts=0   age=3d5h
+           hostapp     hostapp-aggregate-api-infra-konk-service-kubectl-apiservic2x9c4  1/1    Running   restarts=0   age=3d6h
+           ngp-cp      bootstrap-app-aggregate-api-apiservice-konk-service-kubectsvxzj  1/1    Running   restarts=0   age=3d3h
+           ntp         ntp-aggregate-api-apiservice-konk-service-kubectl-apiserviq4b8h  1/1    Running   restarts=0   age=3d2h
+           redirect    redirect-apiservice-konk-service-kubectl-apiservice-5fd5d898qxk  1/1    Running   restarts=0   age=3d3h
+           tagging-v2  tagging-aggregate-api-apiservice-konk-service-kubectl-apismqsv2  1/1    Running   restarts=0   age=3d2h
+  [INFO] component=apiservice-test: 18 pod(s), 18 not ready
+           atcapi      atcapi-apiservice-konk-service-kubectl-apiservice-test-54bpsb4p  0/1    Running   restarts=0   age=3d2h
+           ddi         dns-config-importexport-apiservice-konk-service-kubectl-apmd7vf  0/1    Running   restarts=0   age=109m
+           ddi         dns-config-importexport-apiservice-v2-konk-service-kubectl6bn9m  0/1    Running   restarts=0   age=109m
+           ddi         dns-config-importexport-apiservice-v2-konk-service-kubectls5nvp  0/1    Running   restarts=0   age=85m
+           ddi         dns-data-importexport-apiservice-konk-service-kubectl-apishw7dc  0/1    Running   restarts=0   age=3d2h
+           ddi         dns-data-importexport-apiservice-v2-konk-service-kubectl-a6zj7b  0/1    Running   restarts=0   age=3d2h
+           ddi         ipam-importexport-apiservice-konk-service-kubectl-apiservirbjw4  0/1    Running   restarts=0   age=3d3h
+           ddi         ipam-importexport-apiservice-v2-konk-service-kubectl-apised2g2l  0/1    Running   restarts=0   age=3d6h
+           ddi         ipam-importexport-apiservice-v2-konk-service-kubectl-apisexvh5g  0/1    Running   restarts=0   age=3d6h
+           ddi         ipam-importexport-apiservice-v3-konk-service-kubectl-apiserpbfs  0/1    Running   restarts=0   age=3d2h
+           ddi         keys-importexport-apiservice-konk-service-kubectl-apiservilcdnd  0/1    Running   restarts=0   age=3d6h
+           endpoints   endpoints-api-service-apiservice-konk-service-kubectl-apisjlq9x  0/1    Running   restarts=0   age=3d6h
+           hostapp     hostapp-aggregate-api-apiservice-konk-service-kubectl-apiskfcs6  0/1    Running   restarts=0   age=3d4h
+           hostapp     hostapp-aggregate-api-infra-konk-service-kubectl-apiservickxhjb  0/1    Running   restarts=0   age=3d3h
+           ngp-cp      bootstrap-app-aggregate-api-apiservice-konk-service-kubect7s9d9  0/1    Running   restarts=0   age=3d2h
+           ntp         ntp-aggregate-api-apiservice-konk-service-kubectl-apiservibv5mh  0/1    Running   restarts=0   age=3d6h
+           redirect    redirect-apiservice-konk-service-kubectl-apiservice-test-5w7fgg  0/1    Running   restarts=0   age=3d3h
+           tagging-v2  tagging-aggregate-api-apiservice-konk-service-kubectl-apisptcmd  0/1    Running   restarts=0   age=3d2h
+  [INFO] component=kubeconfig: 16 pod(s), 0 not ready
+           atcapi      atcapi-apiservice-konk-service-kubeconfig-97f768557-gg45v        1/1    Running   restarts=0   age=3d5h
+           ddi         dns-config-importexport-apiservice-konk-service-kubeconfig2qxvn  1/1    Running   restarts=0   age=109m
+           ddi         dns-config-importexport-apiservice-v2-konk-service-kubeconfm4v8  1/1    Running   restarts=0   age=85m
+           ddi         dns-data-importexport-apiservice-konk-service-kubeconfig-79mdp8  1/1    Running   restarts=0   age=3d3h
+           ddi         dns-data-importexport-apiservice-v2-konk-service-kubeconfik756n  1/1    Running   restarts=0   age=3d2h
+           ddi         ipam-importexport-apiservice-konk-service-kubeconfig-755fd7xvzg  1/1    Running   restarts=0   age=3d4h
+           ddi         ipam-importexport-apiservice-v2-konk-service-kubeconfig-7fk9hpp  1/1    Running   restarts=0   age=3d4h
+           ddi         ipam-importexport-apiservice-v3-konk-service-kubeconfig-f9shfjv  1/1    Running   restarts=0   age=3d4h
+           ddi         keys-importexport-apiservice-konk-service-kubeconfig-7ddbbqmmnv  1/1    Running   restarts=0   age=3d3h
+           endpoints   endpoints-api-service-apiservice-konk-service-kubeconfig-7rwkp8  1/1    Running   restarts=0   age=3d6h
+           hostapp     hostapp-aggregate-api-apiservice-konk-service-kubeconfig-6plckw  1/1    Running   restarts=0   age=3d6h
+           hostapp     hostapp-aggregate-api-infra-konk-service-kubeconfig-86cbbcfr7kl  1/1    Running   restarts=0   age=3d3h
+           ngp-cp      bootstrap-app-aggregate-api-apiservice-konk-service-kubecogv5k5  1/1    Running   restarts=0   age=3d2h
+           ntp         ntp-aggregate-api-apiservice-konk-service-kubeconfig-7d9977ggfh  1/1    Running   restarts=0   age=3d6h
+           redirect    redirect-apiservice-konk-service-kubeconfig-5568ddb4dd-vmwsj     1/1    Running   restarts=0   age=3d3h
+           tagging-v2  tagging-aggregate-api-apiservice-konk-service-kubeconfig-8h75k7  1/1    Running   restarts=0   age=3d3h
+  [FAIL] 18/50 konk-service pods are not ready
+  [WARN] 2 konk-service Deployment(s) with a stuck rolling update:
+           ddi/dns-config-importexport-apiservice-v2-konk-service-kubectl-apiservice-test
+             spec=1 total=2 ready=0
+             Progressing: ProgressDeadlineExceeded
+             rev 8   dns-config-importexport-apiservice-v2-konk-service-kubectl-apiservice-test-685645c955 spec=1 ready=0
+             rev 9   dns-config-importexport-apiservice-v2-konk-service-kubectl-apiservice-test-7dcb9fdcbd spec=1 ready=0
+           ddi/ipam-importexport-apiservice-v2-konk-service-kubectl-apiservice-test
+             spec=1 total=2 ready=0
+             Progressing: ProgressDeadlineExceeded
+             rev 2   ipam-importexport-apiservice-v2-konk-service-kubectl-apiservice-test-784dbc887d spec=1 ready=0
+             rev 3   ipam-importexport-apiservice-v2-konk-service-kubectl-apiservice-test-756b98f5f spec=1 ready=0
+  [INFO] Surplus pods are a symptom, not a leak — the old ReplicaSet scales down
+  [INFO] automatically once the new pod's readiness probe passes. Fix the probe.
+  [PASS] no orphaned konk-service pods (every pod has a live owning ReplicaSet)
+
+================================================================
+ Results
+================================================================
+  Passed:   77
+  Failed:   21
+  Warnings: 7
+  Skipped:  5

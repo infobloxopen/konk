@@ -1,0 +1,84 @@
+========================================================
+  bulk-konk-etcd POD RECREATION — ROUND 2 EVENTS
+  Cluster: us-dev-2 | Namespace: aggregate
+  Captured: 2026-08-13 (second observation, same session)
+========================================================
+
+----- ETCD POD CURRENT STATE -----
+
+  NAME                 AGE (at capture)   STATUS
+  bulk-konk-etcd-0    30m                 Running  (recreated ~30 min ago — THIS round)
+  bulk-konk-etcd-1    144m                Running  (recreated ~2.5h ago — round 1)
+  bulk-konk-etcd-2    5h39m               Running  (recreated ~6h ago — earliest observed)
+
+ROLLING EVICTION PATTERN (all 3 pods cycled through, one at a time):
+  etcd-2  →  evicted ~6h ago
+  etcd-1  →  evicted ~2.5h ago   (~3.5h gap)
+  etcd-0  →  evicted ~30 min ago (~2h gap)
+  etcd-2  →  NEXT TARGET (expected in ~1-1.5h if not fixed)
+
+----- KARPENTER EVICTION EVENTS (aggregate namespace) -----
+
+30m   Normal    Evicted    pod/bulk-konk-etcd-0
+      Evicted pod: Underutilized
+
+30m   Normal    Killing    pod/bulk-konk-etcd-0
+      Stopping container etcd
+
+30m   Warning   Unhealthy  pod/bulk-konk-etcd-0
+      Readiness probe errored and resulted in unknown state:
+      rpc error: code = Canceled desc = context canceled
+
+30m   Warning   FailedAttachVolume   pod/bulk-konk-etcd-0
+      Multi-Attach error for volume "pvc-46931037-59f0-4275-a933-60c6c10a54a6"
+      Volume is already exclusively attached to one node and can't be attached to another
+
+30m   Warning   TopologyAwareHintsDisabled   service/bulk-konk-etcd-headless
+      Insufficient number of endpoints (2 endpoints, 3 zones), addressType: IPv4
+
+30m   Warning   TopologyAwareHintsDisabled   service/bulk-konk-etcd
+      Insufficient number of endpoints (2 endpoints, 3 zones), addressType: IPv4
+
+----- ETCD POD RESCHEDULING EVENTS -----
+
+30m   Normal   InjectionSkipped   statefulset/bulk-konk-etcd
+      Linkerd sidecar proxy injection skipped: neither the namespace nor the pod
+      have the annotation "linkerd.io/inject:enabled"
+
+30m   Normal   Scheduled   pod/bulk-konk-etcd-0
+      Successfully assigned aggregate/bulk-konk-etcd-0 to ip-172-19-204-184.ec2.internal
+
+30m   Normal   SuccessfulCreate   statefulset/bulk-konk-etcd
+      Create Pod bulk-konk-etcd-0 in StatefulSet bulk-konk-etcd successful
+
+30m   Normal   SuccessfulAttachVolume   pod/bulk-konk-etcd-0
+      AttachVolume.Attach succeeded for volume "pvc-46931037-59f0-4275-a933-60c6c10a54a6"
+
+30m   Normal   Pulling   pod/bulk-konk-etcd-0
+      Pulling image "harbor.services.sdp.infoblox.com/cgr-proxy/infoblox.com/etcd:3.7.0"
+
+30m   Normal   Pulled    pod/bulk-konk-etcd-0
+      Successfully pulled image in 9.619s. Image size: 27293425 bytes.
+
+30m   Normal   Created   pod/bulk-konk-etcd-0   Container created
+30m   Normal   Started   pod/bulk-konk-etcd-0   Container started
+
+29m   Normal   TopologyAwareHintsEnabled   service/bulk-konk-etcd
+      Topology Aware Hints has been enabled, addressType: IPv4
+
+29m   Normal   TopologyAwareHintsEnabled   service/bulk-konk-etcd-headless
+      Topology Aware Hints has been enabled, addressType: IPv4
+
+----- CONFIRMATION: INFINITE LOOP -----
+
+  Karpenter has now cycled through ALL 3 etcd pods. The loop will repeat
+  indefinitely — etcd-2 is next, expected eviction in ~1-1.5h.
+
+  Root cause unchanged (see etcd-recreate-events.txt for full analysis):
+  - etcd container cpu request: 10m
+  - No PodDisruptionBudget
+  - nodescaling-node-pool consolidationPolicy: WhenEmptyOrUnderutilized / consolidateAfter: 1h
+
+  Fix required in konk chart:
+  1. Raise etcd cpu requests to >= 200m
+  2. Add PodDisruptionBudget (minAvailable: 2)

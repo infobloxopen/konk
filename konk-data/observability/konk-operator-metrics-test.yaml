@@ -1,0 +1,39 @@
+# Test PodMonitor for the konk-operator's own /metrics endpoint.
+#
+# WHY THIS EXISTS SEPARATELY FROM THE CHART VERSION
+# The chart PodMonitor (PR #689) references a named container port "metrics",
+# which requires the deployment change in the same PR. The operator pod running
+# on the cluster right now declares no ports at all, so a named-port PodMonitor
+# would select the pod but find no matching port and scrape nothing.
+#
+# This test copy uses targetPort: 8080 instead, which addresses the container
+# port by number and needs no change to the running pod. That makes the
+# operator-sourced panels verifiable before the chart change is rolled out:
+#   konk count, kube api client requests, Operator Start Time,
+#   Operator 5xx error rate, KonkService count, Etcd CR count, KonkServices total
+#
+# The endpoint is plain HTTP and unauthenticated -- verified by port-forward,
+# HTTP 200 on :8080, ~82KB of Prometheus text.
+#
+# apply:  kubectl --context=us-dev-5 apply -f konk-operator-metrics-test.yaml
+# remove: kubectl --context=us-dev-5 delete -f konk-operator-metrics-test.yaml
+#
+# Delete this once PR #689 is deployed -- the chart ships the real one, and
+# leaving both would double-scrape the operator.
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: konk-operator-metrics-dashtest
+  namespace: konk
+  labels:
+    konk.infoblox.com/dashboard-test: "true"
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: konk-operator
+      app.kubernetes.io/name: konk-operator
+  podMetricsEndpoints:
+    - targetPort: 8080
+      path: /metrics
+      interval: 60s
+      scrapeTimeout: 10s

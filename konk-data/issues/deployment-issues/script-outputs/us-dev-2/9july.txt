@@ -1,0 +1,239 @@
+./e2e-konk-test.sh --hook             
+
+================================================================
+ Konk End-to-End Health Validation
+================================================================
+  Cluster:      teleport.services.sdp.infoblox.com-us-dev-2
+  Date (UTC):   2026-07-09 11:43:51 UTC
+  Date (IST):   2026-07-09 17:13:51 IST
+  Sample NS:    tagging-v2
+  Flags:        skip-bulk=false skip-exec=false skip-ca=false skip-trigger-registration=false debug=false
+
+
+── 0.1 Helm hook status (all charts) ──
+  [INFO] checking konk-service hooks...
+  [PASS] konk-service pre-install hooks: 5 completed successfully
+  [INFO] checking konk hooks...
+  [INFO] no pre-install/pre-upgrade hook Jobs found for konk (cleaned up or not yet triggered)
+  [INFO] checking etcd hooks...
+  [INFO] no pre-install/pre-upgrade hook Jobs found for etcd (cleaned up or not yet triggered)
+  [INFO] checking post-upgrade hooks (konk-service)...
+  [INFO] no post-upgrade hook Jobs found (cleaned up by hook-delete-policy or not yet triggered)
+  [INFO] checking operator logs for hook failures (last 5min)...
+  [PASS] no hook failures in operator logs (last 5min)
+  [WARN] 5 pre-install hook Job(s) still present (expected: cleaned up by hook-delete-policy)
+
+── 0.2 Init container status (operator pod) ──
+  [PASS] init container 'fix-helm-orphans' completed successfully (exit 0)
+  [INFO] checking init container logs...
+  [PASS] orphan fix: 14 resource(s) patched, 0 errors
+  [PASS] stale CA fix: 17 secret(s) deleted, all re-issued with correct CA
+  [INFO]   STALE:   atcapi/atcapi-apiservice-konk-service-kubeconfig-cert
+  [INFO]   STALE:   atcapi/atcapi-apiservice-v2-konk-service-kubeconfig-cert
+  [INFO]   STALE:   ddi/dns-config-importexport-apiservice-konk-service-kubeconfig-cert
+  [INFO]   STALE:   ddi/dns-config-importexport-apiservice-v2-konk-service-kubeconfig-cert
+  [INFO]   STALE:   ddi/dns-data-importexport-apiservice-konk-service-kubeconfig-cert
+  [INFO]   STALE:   ddi/dns-data-importexport-apiservice-v2-konk-service-kubeconfig-cert
+  [INFO]   STALE:   ddi/ipam-importexport-apiservice-konk-service-kubeconfig-cert
+  [INFO]   STALE:   ddi/ipam-importexport-apiservice-v2-konk-service-kubeconfig-cert
+  [INFO]   STALE:   ddi/ipam-importexport-apiservice-v3-konk-service-kubeconfig-cert
+  [INFO]   STALE:   ddi/keys-importexport-apiservice-konk-service-kubeconfig-cert
+  [INFO]   STALE:   endpoints/endpoints-api-service-apiservice-konk-service-kubeconfig-cert
+  [INFO]   STALE:   hostapp/hostapp-aggregate-api-apiservice-konk-service-kubeconfig-cert
+  [INFO]   STALE:   hostapp/hostapp-aggregate-api-infra-konk-service-kubeconfig-cert
+  [INFO]   STALE:   ngp-cp/bootstrap-app-aggregate-api-apiservice-konk-service-kubeconfig-cert
+  [INFO]   STALE:   ntp/ntp-aggregate-api-apiservice-konk-service-kubeconfig-cert
+  [INFO]   STALE:   redirect/redirect-apiservice-konk-service-kubeconfig-cert
+  [INFO]   STALE:   tagging-v2/tagging-aggregate-api-apiservice-konk-service-kubeconfig-cert
+  [INFO]   DELETED: atcapi/atcapi-apiservice-konk-service-kubeconfig-cert (cert-manager will re-issue)
+  [INFO]   DELETED: atcapi/atcapi-apiservice-v2-konk-service-kubeconfig-cert (cert-manager will re-issue)
+  [INFO]   DELETED: ddi/dns-config-importexport-apiservice-konk-service-kubeconfig-cert (cert-manager will re-issue)
+  [INFO]   DELETED: ddi/dns-config-importexport-apiservice-v2-konk-service-kubeconfig-cert (cert-manager will re-issue)
+  [INFO]   DELETED: ddi/dns-data-importexport-apiservice-konk-service-kubeconfig-cert (cert-manager will re-issue)
+  [INFO]   DELETED: ddi/dns-data-importexport-apiservice-v2-konk-service-kubeconfig-cert (cert-manager will re-issue)
+  [INFO]   DELETED: ddi/ipam-importexport-apiservice-konk-service-kubeconfig-cert (cert-manager will re-issue)
+  [INFO]   DELETED: ddi/ipam-importexport-apiservice-v2-konk-service-kubeconfig-cert (cert-manager will re-issue)
+  [INFO]   DELETED: ddi/ipam-importexport-apiservice-v3-konk-service-kubeconfig-cert (cert-manager will re-issue)
+  [INFO]   DELETED: ddi/keys-importexport-apiservice-konk-service-kubeconfig-cert (cert-manager will re-issue)
+  [INFO]   DELETED: endpoints/endpoints-api-service-apiservice-konk-service-kubeconfig-cert (cert-manager will re-issue)
+  [INFO]   DELETED: hostapp/hostapp-aggregate-api-apiservice-konk-service-kubeconfig-cert (cert-manager will re-issue)
+  [INFO]   DELETED: hostapp/hostapp-aggregate-api-infra-konk-service-kubeconfig-cert (cert-manager will re-issue)
+  [INFO]   DELETED: ngp-cp/bootstrap-app-aggregate-api-apiservice-konk-service-kubeconfig-cert (cert-manager will re-issue)
+  [INFO]   DELETED: ntp/ntp-aggregate-api-apiservice-konk-service-kubeconfig-cert (cert-manager will re-issue)
+  [INFO]   DELETED: redirect/redirect-apiservice-konk-service-kubeconfig-cert (cert-manager will re-issue)
+  [INFO]   DELETED: tagging-v2/tagging-aggregate-api-apiservice-konk-service-kubeconfig-cert (cert-manager will re-issue)
+
+── 1. konk-operator (namespace: konk) ──
+  [PASS] konk-operator replicas ready
+  [PASS] konk-operator pod phase
+  [PASS] konk-operator pod Ready condition
+  [PASS] konk-operator HelmRelease Ready: Helm upgrade succeeded for release konk/konk-operator.v35 with chart konk-operator@v0.2.1-199-g26bef61-j60
+
+── 2. Core infrastructure (namespace: aggregate) ──
+  [PASS] bulk-konk apiserver replicas ready
+  [PASS] bulk-konk-init replicas ready
+  [PASS] bulk-konk-etcd replicas ready
+  [PASS] bulk-konk service exists (ClusterIP: 10.100.6.99)
+  [PASS] bulk-konk has ready endpoints (100.64.74.181)
+  [FAIL] aggregate pod in bad state: bulk-hr-watcher-29726616-xlbh6 (Error)
+  [FAIL] aggregate pod in bad state: bulk-hr-watcher-29726619-95758 (Error)
+  [FAIL] aggregate pod in bad state: bulk-hr-watcher-29726622-j4ph2 (Error)
+  [PASS] bulk HelmRelease Ready: Helm upgrade succeeded for release aggregate/bulk.v9 with chart bulk@v2.5.0-84-gcd8c3583-j189
+
+── 3. Image version consistency ──
+  [INFO] konk-operator          : v0.2.1-199-g26bef61
+  [PASS] bulk-konk (apiserver)  : v0.2.1-199-g26bef61
+  [PASS] bulk-konk (provision)  : v0.2.1-199-g26bef61
+  [PASS] konk-service (7/7 namespaces) : v0.2.1-199-g26bef61
+
+── 4. Konk CR + Etcd CR status (bulk-konk) ──
+  [PASS] Konk CR reason=Successful
+  [PASS] Konk CR Deployed=True
+  [PASS] Konk CR: no helm InstallError/UpgradeError in status message
+  [PASS] Konk ownership check: all 4 Helm-managed bulk-konk resources have Helm annotations
+  [PASS] Etcd CR reason=Successful
+  [PASS] Etcd CR Deployed=True
+  [PASS] Etcd CR 'bulk-konk-etcd': no ReleaseFailed condition
+  [PASS] Konk CR 'bulk-konk': no ReleaseFailed condition
+
+── 5. KonkService CRs (all namespaces) ──
+  [INFO] fetching KonkService CRs and Deployments...
+  [PASS] all 17 KonkService CRs report Successful with no ReleaseFailed and kubeconfig Deployments scaled up
+  [PASS] Konk ownership check: all current Helm-managed konk-service Deployments have Helm ownership annotations
+
+── 6. konk-service pods health (all namespaces) ──
+  [FAIL] kubectl-apiservice ngp-cp/bootstrap-app-aggregate-api-apiservice-konk-service-apiser2gncv: 0/1 Running
+  [PASS] all 17 kubeconfig (reconcile) pods are Running and all containers ready
+  [PASS] 17 apiservice-test pods present, none in error state (0/1 Running is normal)
+  [FAIL] KonkService ngp-cp/bootstrap-app-aggregate-api-apiservice: Deployments with no available replicas: bootstrap-app-aggregate-api-apiservice-konk-service-apiservice(0/1)
+  [INFO] 1/17 KonkServices have missing/unavailable konk-service Deployments
+
+── 7. CA trust chain (bulk-konk CA vs kubeconfig secrets) ──
+  [PASS] bulk-konk CA fingerprint readable
+  [PASS] bulk-konk CA certificate is not expired
+  [PASS] all 17 kubeconfig secrets have correct bulk-konk CA
+  [PASS] all 17 kubeconfig client certs (tls.crt) are valid and not expiring soon
+
+── 8. APIServices registered in konk ──
+  [INFO] connected to konk API via port-forward (localhost:30838)
+  [WARN] errors while querying APIServices from konk:
+       E0709 17:17:47.763802     301 memcache.go:287] "Unhandled Error" err="couldn't get resource list for keys.bulk.infoblox.com/v1: the server is currently unable to handle the request"
+       E0709 17:17:47.765312     301 memcache.go:287] "Unhandled Error" err="couldn't get resource list for atcapi.bulk.infoblox.com/v2: the server is currently unable to handle the request"
+       E0709 17:17:48.023784     301 memcache.go:121] "Unhandled Error" err="couldn't get resource list for atcapi.bulk.infoblox.com/v2: the server is currently unable to handle the request"
+       E0709 17:17:48.240006     301 memcache.go:121] "Unhandled Error" err="couldn't get resource list for keys.bulk.infoblox.com/v1: the server is currently unable to handle the request"
+       E0709 17:17:48.456915     301 memcache.go:121] "Unhandled Error" err="couldn't get resource list for keys.bulk.infoblox.com/v1: the server is currently unable to handle the request"
+       E0709 17:17:48.683713     301 memcache.go:121] "Unhandled Error" err="couldn't get resource list for atcapi.bulk.infoblox.com/v2: the server is currently unable to handle the request"
+       E0709 17:17:48.906671     301 memcache.go:121] "Unhandled Error" err="couldn't get resource list for keys.bulk.infoblox.com/v1: the server is currently unable to handle the request"
+       E0709 17:17:49.139917     301 memcache.go:121] "Unhandled Error" err="couldn't get resource list for atcapi.bulk.infoblox.com/v2: the server is currently unable to handle the request"
+  [INFO] konk APIServices: 16/17 available=True, 1 available=False
+  [WARN] errors while querying api-resources from konk:
+       error: unable to retrieve the complete list of server APIs: atcapi.bulk.infoblox.com/v2: the server is currently unable to handle the request, keys.bulk.infoblox.com/v1: the server is currently unable to handle the request
+  [PASS] konk serves 17 bulk.infoblox.com API version(s)
+  [INFO] trigger-registration enabled: forcing reconcile for an existing APIService
+  [INFO] deleted pod atcapi/atcapi-apiservice-konk-service-apiservice-6d864598bc-86nwv; waiting for deployment/atcapi-apiservice-konk-service-apiservice rollout
+  [PASS] trigger reconcile successful: deployment/atcapi-apiservice-konk-service-apiservice reapplied APIService (2 log hit(s))
+  [INFO] deleting konk APIService v1.dnsconfig.bulk.infoblox.com to trigger re-registration ...
+  [PASS] APIService v1.dnsconfig.bulk.infoblox.com re-registered by konk-service after deletion (state: ddi/dns-config-importexport-apiservice)
+
+── 9. Deep test: tagging-v2 namespace ──
+  [PASS] KonkService tagging-v2/tagging-aggregate-api-apiservice deployed
+  [PASS] tagging-v2 kubectl-apiservice pod ready (1/1)
+  [PASS] tagging-v2 kubectl-apiservice pod: 0 restarts
+  [PASS] tagging-v2 kubeconfig CA matches bulk-konk
+  [PASS] tagging-v2 kubectl-apiservice logs: no x509/TLS errors
+  [PASS] tagging-v2 kubectl-apiservice: APIService reconciliation succeeded
+  [PASS] tagging-v2 konk-service pod: 17 successful APIService apply(s) in recent logs
+  [PASS] tagging-v2 TLS server secret 'tagging-aggregate-api-apiservice-konk-service-server': has tls.crt + tls.key
+  [WARN] APIService endpoint ddi/keys-importexport-apiservice: service endpoint has no ready backends — pod(s) in notReadyAddresses: keys-importexport-7b8cd77c98-gkmf9. konk's available_controller will get 503 probing this APIService and log 'service unavailable' (same pattern as gov-stg-2 cert expiry incident)
+
+── 10. Bulk (atlas.bulk) integration with konk ──
+  [PASS] bulk deployment replicas ready
+  [PASS] bulk pod ready (2/2)
+  [PASS] konk apiserver /healthz returns 'ok' (via port-forward)
+  [PASS] bulk-konk proxy-client secret exists (keys: ca.crt tls.crt tls.key)
+  [PASS] bulk --konk.host points to konk apiserver: bulk-konk.aggregate:6443
+  [PASS] bulk pod logs: no errors in last 50 lines
+  [PASS] bulk-konk apiserver logs: no 'certificate has expired' rejections in last 2 min
+
+── 11. konk-operator log health ──
+  [PASS] konk-operator: no errors in last 100 log lines
+  [PASS] konk-operator: release 'bulk-konk' — no 'Release failed' errors
+  [PASS] konk-operator: release 'bulk-konk-etcd' — no 'Release failed' errors
+  [PASS] bulk-konk (aggregate)                                   —  deployed   — updated 2026-07-09 11:41:38
+  [PASS] bulk-konk-etcd (aggregate)                              —  deployed   — updated 2026-07-09 11:41:49
+  [PASS] atcapi-apiservice (atcapi)                              —  deployed   — updated 2026-07-09 11:42:41
+  [PASS] atcapi-apiservice-v2 (atcapi)                           —  deployed   — updated 2026-07-09 11:41:57
+  [PASS] dns-config-importexport-apiservice (ddi)                —  deployed   — updated 2026-07-09 11:42:13
+  [PASS] dns-config-importexport-apiservice-v2 (ddi)             —  deployed   — updated 2026-07-09 11:41:56
+  [PASS] dns-data-importexport-apiservice (ddi)                  —  deployed   — updated 2026-07-09 11:42:38
+  [PASS] dns-data-importexport-apiservice-v2 (ddi)               —  deployed   — updated 2026-07-09 11:42:29
+  [PASS] ipam-importexport-apiservice (ddi)                      —  deployed   — updated 2026-07-09 11:42:26
+  [PASS] ipam-importexport-apiservice-v2 (ddi)                   —  deployed   — updated 2026-07-09 11:42:14
+  [PASS] ipam-importexport-apiservice-v3 (ddi)                   —  deployed   — updated 2026-07-09 11:41:57
+  [PASS] keys-importexport-apiservice (ddi)                      —  deployed   — updated 2026-07-09 11:41:57
+  [PASS] endpoints-api-service-apiservice (endpoints)            —  deployed   — updated 2026-07-09 11:42:26
+  [PASS] hostapp-aggregate-api-apiservice (hostapp)              —  deployed   — updated 2026-07-09 11:42:12
+  [PASS] hostapp-aggregate-api-infra (hostapp)                   —  deployed   — updated 2026-07-09 11:42:28
+  [PASS] bootstrap-app-aggregate-api-apiservice (ngp-cp)         —  deployed   — updated 2026-07-09 11:42:39
+  [PASS] ntp-aggregate-api-apiservice (ntp)                      —  deployed   — updated 2026-07-09 11:42:39
+  [PASS] redirect-apiservice (redirect)                          —  deployed   — updated 2026-07-09 11:42:51
+  [PASS] tagging-aggregate-api-apiservice (tagging-v2)           —  deployed   — updated 2026-07-09 11:42:13
+
+── 12. cert-manager CA integration ──
+  [PASS] cert-manager Issuer bulk-konk-requestheader: Ready=True
+
+── 13. Konk API deep test (query resources inside konk) ──
+  [INFO] using konk API via port-forward for deep queries
+  [PASS] konk api-resources contains group: tagging.bulk.infoblox.com
+  [PASS] konk api-resources contains group: dnsconfig.bulk.infoblox.com
+  [PASS] konk api-resources contains group: dnsdata.bulk.infoblox.com
+  [PASS] konk: tagging API reachable (response: E0709 17:20:35.013601    3905 memcache.go:287] "Unhandled Error" err="couldn't g)
+  [PASS] konk: tagging values API reachable
+  [PASS] konk resource type 'tags' registered (group: Tag)
+  [PASS] konk resource type 'values' registered (group: Value)
+  [PASS] konk resource type 'records' registered (group: Record)
+  [PASS] konk resource type 'hosts' registered (group: Host)
+  [PASS] konk apiserver /livez returns 'ok'
+  [INFO] CSP URL: https://csp.us-dev-2.eng.test.infoblox.com
+  [INFO] testing tagging API via https://csp.us-dev-2.eng.test.infoblox.com/api/atlas-tagging/v2/tags ...
+  [PASS] tagging API GET /tags: HTTP 200 (3958 results)
+  [INFO] testing tagging API write path (create + delete tag) ...
+  [PASS] tagging API POST /tags: HTTP 201 — tag 'konk-e2e-test-1783597868' created successfully
+  [PASS] tagging API cleanup: test tag deleted (HTTP 204)
+  [INFO] testing bulk export API ...
+  [PASS] bulk export API: HTTP 202 (Export pending) — operation ID: a6d16f1e-5b7a-4e2b-a804-f7fd38518d43
+  [INFO] export flow: CSP → bulk → bulk-konk → tagging-aggregate-api — WORKING
+  [INFO] testing bulk operation tracking (GET /operation/a6d16f1e-5b7a-4e2b-a804-f7fd38518d43) ...
+  [PASS] bulk operation GET /operation/{id}: HTTP 200 (status: active)
+  [INFO] testing bulk operation list API (GET /operation) ...
+  [PASS] bulk operation list: GET /operation HTTP 200 (3 recent operation(s))
+
+── 15. Konk APIService backend health ──
+  [PASS] KonkService atcapi/atcapi-apiservice: backend 'atcapi-apiservice' has 1 ready pod(s)
+  [PASS] KonkService atcapi/atcapi-apiservice-v2: backend 'atcapi-apiservice' has 1 ready pod(s)
+  [PASS] KonkService ddi/dns-config-importexport-apiservice: backend 'dns-config-importexport-apiservice' has 1 ready pod(s)
+  [PASS] KonkService ddi/dns-config-importexport-apiservice-v2: backend 'dns-config-importexport-apiservice' has 1 ready pod(s)
+  [PASS] KonkService ddi/dns-data-importexport-apiservice: backend 'dns-data-importexport-apiservice' has 1 ready pod(s)
+  [PASS] KonkService ddi/dns-data-importexport-apiservice-v2: backend 'dns-data-importexport-apiservice' has 1 ready pod(s)
+  [PASS] KonkService ddi/ipam-importexport-apiservice: backend 'ipam-importexport-apiservice' has 1 ready pod(s)
+  [PASS] KonkService ddi/ipam-importexport-apiservice-v2: backend 'ipam-importexport-apiservice' has 1 ready pod(s)
+  [PASS] KonkService ddi/ipam-importexport-apiservice-v3: backend 'ipam-importexport-apiservice' has 1 ready pod(s)
+  [FAIL] KonkService ddi/keys-importexport-apiservice: backend service 'keys-importexport-apiservice' has 1 pod(s) in notReadyAddresses — konk will get 503 probing this APIService
+  [WARN]   not-ready: ddi/keys-importexport-7b8cd77c98-gkmf9 1/2 CrashLoopBackOff
+  [PASS] KonkService endpoints/endpoints-api-service-apiservice: backend 'endpoints-api-service-apiservice' has 1 ready pod(s)
+  [PASS] KonkService hostapp/hostapp-aggregate-api-apiservice: backend 'hostapp-aggregate-api-apiservice' has 1 ready pod(s)
+  [PASS] KonkService hostapp/hostapp-aggregate-api-infra: backend 'hostapp-aggregate-api-apiservice' has 1 ready pod(s)
+  [PASS] KonkService ngp-cp/bootstrap-app-aggregate-api-apiservice: backend 'bootstrap-app-aggregate-api-apiservice' has 1 ready pod(s)
+  [PASS] KonkService ntp/ntp-aggregate-api-apiservice: backend 'ntp-aggregate-api-apiservice' has 1 ready pod(s)
+  [PASS] KonkService redirect/redirect-apiservice: backend 'redirect-apiservice' has 1 ready pod(s)
+  [PASS] KonkService tagging-v2/tagging-aggregate-api-apiservice: backend 'tagging-aggregate-api-apiservice' has 1 ready pod(s)
+  [INFO] 1 KonkService(s) with not-ready backend pods — these cause 503s in konk's available_controller
+
+── 16. Stale node containers (Helm merge ghost detection) ──
+  [PASS] no pods running stale node container images
+
+── 17. Stale konk-service container image (ghost detection) ──
+  [SKIP] operator uses git-describe tag (v0.2.1-199) — post-migration; check not applicable
+
+── 18. Stale KonkService deployments (old chart names) ──
+  [PASS] no stale KonkService Deployments found outside current Helm manifests

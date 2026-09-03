@@ -1,0 +1,176 @@
+./e2e-konk-test.sh                                                 
+
+================================================================
+ Konk End-to-End Health Validation
+================================================================
+  Cluster:      us-dev-5
+  Date:         2026-06-12 10:41:35 UTC
+  Sample NS:    tagging-v2
+  Flags:        skip-bulk=false skip-exec=false skip-ca=false skip-trigger-registration=false debug=false
+
+
+
+
+── 1. konk-operator (namespace: konk) ──
+  [PASS] konk-operator replicas ready
+  [PASS] konk-operator pod phase
+  [PASS] konk-operator pod Ready condition
+
+── 2. Core infrastructure (namespace: aggregate) ──
+  [PASS] bulk-konk apiserver replicas ready
+  [PASS] bulk-konk-init replicas ready
+  [PASS] bulk-konk-etcd replicas ready
+  [PASS] bulk-konk service exists (ClusterIP: 10.100.54.198)
+  [PASS] bulk-konk has ready endpoints (100.64.59.136)
+  [PASS] no pods in error state in aggregate namespace
+
+── 3. Image version consistency ──
+  [INFO] konk-operator          : v0.2.1-155-gd4614c2
+  [PASS] bulk-konk (apiserver)  : v0.2.1-155-gd4614c2
+  [PASS] bulk-konk (provision)  : v0.2.1-155-gd4614c2
+  [PASS] konk-service (7/7 namespaces) : v0.2.1-155-gd4614c2
+
+── 4. Konk CR status (bulk-konk) ──
+  [PASS] Konk CR reason=Successful
+  [PASS] Konk CR Deployed=True
+  [PASS] Konk CR: no helm InstallError/UpgradeError in status message
+
+── 5. KonkService CRs (all namespaces) ──
+  [INFO] fetching KonkService CRs and Deployments...
+  [PASS] all 16 KonkService CRs report Successful with no ReleaseFailed and kubeconfig Deployments scaled up
+
+── 6. konk-service pods health (all namespaces) ──
+  [PASS] all 18 kubectl-apiservice pods are Running and all containers ready
+  [PASS] all 16 kubeconfig (reconcile) pods are Running and all containers ready
+  [PASS] 20 apiservice-test pods present, none in error state (0/1 Running is normal)
+  [PASS] all 16 KonkServices have their required konk-service Deployments running (kubeconfig + kubectl-apiservice)
+
+── 7. CA trust chain (bulk-konk CA vs kubeconfig secrets) ──
+  [PASS] bulk-konk CA fingerprint readable
+  [PASS] bulk-konk CA certificate is not expired
+  [PASS] all 16 kubeconfig secrets have correct bulk-konk CA
+  [PASS] all 16 kubeconfig client certs (tls.crt) are valid and not expiring soon
+
+── 8. APIServices registered in konk ──
+  [INFO] connected to konk API via port-forward (localhost:32282)
+  [WARN] errors while querying APIServices from konk:
+       E0612 16:14:23.776986   95840 memcache.go:287] "Unhandled Error" err="couldn't get resource list for redirect.bulk.infoblox.com/v1alpha1: the server is currently unable to handle the request"
+       E0612 16:14:23.779114   95840 memcache.go:287] "Unhandled Error" err="couldn't get resource list for atcapi.bulk.infoblox.com/v2: the server is currently unable to handle the request"
+       E0612 16:14:23.996800   95840 memcache.go:121] "Unhandled Error" err="couldn't get resource list for atcapi.bulk.infoblox.com/v2: the server is currently unable to handle the request"
+       E0612 16:14:24.215072   95840 memcache.go:121] "Unhandled Error" err="couldn't get resource list for redirect.bulk.infoblox.com/v1alpha1: the server is currently unable to handle the request"
+       E0612 16:14:24.431214   95840 memcache.go:121] "Unhandled Error" err="couldn't get resource list for atcapi.bulk.infoblox.com/v2: the server is currently unable to handle the request"
+       E0612 16:14:24.639318   95840 memcache.go:121] "Unhandled Error" err="couldn't get resource list for redirect.bulk.infoblox.com/v1alpha1: the server is currently unable to handle the request"
+       E0612 16:14:24.853609   95840 memcache.go:121] "Unhandled Error" err="couldn't get resource list for atcapi.bulk.infoblox.com/v2: the server is currently unable to handle the request"
+       E0612 16:14:25.062256   95840 memcache.go:121] "Unhandled Error" err="couldn't get resource list for redirect.bulk.infoblox.com/v1alpha1: the server is currently unable to handle the request"
+  [INFO] konk APIServices: 16/17 available=True, 1 available=False
+  [WARN] errors while querying api-resources from konk:
+       error: unable to retrieve the complete list of server APIs: atcapi.bulk.infoblox.com/v2: the server is currently unable to handle the request, redirect.bulk.infoblox.com/v1alpha1: the server is currently unable to handle the request
+  [PASS] konk serves 17 bulk.infoblox.com API version(s)
+  [INFO] trigger-registration enabled: forcing reconcile for an existing APIService
+  [INFO] deleted pod atcapi/atcapi-apiservice-konk-service-kubectl-apiservice-675dd58fhpznj; waiting for deployment/atcapi-apiservice-konk-service-kubectl-apiservice rollout
+  [PASS] trigger reconcile successful: deployment/atcapi-apiservice-konk-service-kubectl-apiservice reapplied APIService (2 log hit(s))
+  [INFO] deleting konk APIService v1.dnsconfig.bulk.infoblox.com to trigger re-registration ...
+  [PASS] APIService v1.dnsconfig.bulk.infoblox.com re-registered by konk-service after deletion (state: ddi/dns-config-importexport-apiservice)
+
+── 9. Deep test: tagging-v2 namespace ──
+  [PASS] KonkService tagging-v2/tagging-aggregate-api-apiservice deployed
+  [PASS] tagging-v2 kubectl-apiservice pod ready (1/1)
+  [PASS] tagging-v2 kubectl-apiservice pod: 0 restarts
+  [PASS] tagging-v2 kubeconfig CA matches bulk-konk
+  [PASS] tagging-v2 kubectl-apiservice logs: no x509/TLS errors
+  [PASS] tagging-v2 kubectl-apiservice: APIService reconciliation succeeded
+  [PASS] tagging-v2 konk-service pod: 17 successful APIService apply(s) in recent logs
+  [PASS] tagging-v2 TLS server secret 'tagging-aggregate-api-apiservice-konk-service-server': has tls.crt + tls.key
+  [PASS] all 10 APIService backend endpoints have ready addresses (no 503 risk)
+
+── 10. Bulk (atlas.bulk) integration with konk ──
+  [PASS] bulk deployment replicas ready
+  [PASS] bulk pod ready (2/2)
+  [PASS] konk apiserver /healthz returns 'ok' (via port-forward)
+  [PASS] bulk-konk proxy-client secret exists (keys: ca.crt tls.crt tls.key)
+  [PASS] bulk --konk.host points to konk apiserver: bulk-konk.aggregate:6443
+  [WARN] bulk pod logs: 6 potential error(s) in last 50 lines
+  [PASS] bulk-konk apiserver logs: no 'certificate has expired' rejections in last 2 min
+
+── 11. konk-operator log health ──
+  [PASS] konk-operator: no errors in last 100 log lines
+  [PASS] konk-operator: release 'bulk-konk' — no 'Release failed' errors
+  [PASS] konk-operator: release 'bulk-konk-etcd' — no 'Release failed' errors
+  [PASS] bulk-konk (aggregate)                                   —  deployed   — updated 2026-06-12 10:37:13
+  [PASS] bulk-konk-etcd (aggregate)                              —  deployed   — updated 2026-05-20 11:08:13
+  [PASS] atcapi-apiservice (atcapi)                              —  deployed   — updated 2026-06-11 14:14:05
+  [PASS] atcapi-apiservice-v2 (atcapi)                           —  deployed   — updated 2026-06-11 14:13:57
+  [PASS] dns-config-importexport-apiservice (ddi)                —  deployed   — updated 2026-06-11 14:14:03
+  [PASS] dns-config-importexport-apiservice-v2 (ddi)             —  deployed   — updated 2026-06-11 14:13:57
+  [PASS] dns-data-importexport-apiservice (ddi)                  —  deployed   — updated 2026-06-11 14:14:05
+  [PASS] dns-data-importexport-apiservice-v2 (ddi)               —  deployed   — updated 2026-06-11 14:13:57
+  [PASS] ipam-importexport-apiservice (ddi)                      —  deployed   — updated 2026-06-11 14:14:03
+  [PASS] ipam-importexport-apiservice-v2 (ddi)                   —  deployed   — updated 2026-06-11 14:13:57
+  [PASS] ipam-importexport-apiservice-v3 (ddi)                   —  deployed   — updated 2026-06-11 14:13:58
+  [PASS] keys-importexport-apiservice (ddi)                      —  deployed   — updated 2026-06-11 14:14:05
+  [PASS] endpoints-api-service-apiservice (endpoints)            —  deployed   — updated 2026-06-11 14:14:04
+  [PASS] hostapp-aggregate-api-apiservice (hostapp)              —  deployed   — updated 2026-06-11 14:14:05
+  [PASS] hostapp-aggregate-api-infra (hostapp)                   —  deployed   — updated 2026-06-11 14:14:05
+  [PASS] bootstrap-app-aggregate-api-apiservice (ngp-cp)         —  deployed   — updated 2026-06-11 14:13:57
+  [PASS] ntp-aggregate-api-apiservice (ntp)                      —  deployed   — updated 2026-06-11 14:13:58
+  [PASS] tagging-aggregate-api-apiservice (tagging-v2)           —  deployed   — updated 2026-06-11 14:13:58
+
+── 12. cert-manager CA integration ──
+  [PASS] cert-manager Issuer bulk-konk-requestheader: Ready=True
+
+── 13. Konk API deep test (query resources inside konk) ──
+  [INFO] using konk API via port-forward for deep queries
+  [PASS] konk api-resources contains group: tagging.bulk.infoblox.com
+  [PASS] konk api-resources contains group: dnsconfig.bulk.infoblox.com
+  [PASS] konk api-resources contains group: dnsdata.bulk.infoblox.com
+  [PASS] konk: tagging API reachable (response: E0612 16:17:27.165413   97774 memcache.go:287] "Unhandled Error" err="couldn't g)
+  [PASS] konk: tagging values API reachable
+  [PASS] konk resource type 'tags' registered (group: Tag)
+  [PASS] konk resource type 'values' registered (group: Value)
+  [PASS] konk resource type 'records' registered (group: Record)
+  [PASS] konk resource type 'hosts' registered (group: Host)
+  [PASS] konk apiserver /livez returns 'ok'
+
+── 14. External API integration (tagging + bulk via CSP) ──
+  [INFO] auto-fetching CSP token via https://csp.us-dev-5.eng.test.infoblox.com/v2/session/users/sign_in (notificationautomation1@gmail.com)
+  [PASS] auto-fetched CSP JWT from cluster secret (tagging-v2/tagging-v2-k6-smoke-test-credentials)
+  [INFO] CSP URL: https://csp.us-dev-5.eng.test.infoblox.com
+  [INFO] testing tagging API via https://csp.us-dev-5.eng.test.infoblox.com/api/atlas-tagging/v2/tags ...
+  [PASS] tagging API GET /tags: HTTP 200 (610 results)
+  [INFO] testing tagging API write path (create + delete tag) ...
+  [PASS] tagging API POST /tags: HTTP 201 — tag 'konk-e2e-test-1781261273' created successfully
+  [PASS] tagging API cleanup: test tag deleted (HTTP 204)
+  [INFO] testing bulk export API ...
+  [PASS] bulk export API: HTTP 202 (Export pending) — operation ID: 16716872-26b7-4e63-873f-85401638d63f
+  [INFO] export flow: CSP → bulk → bulk-konk → tagging-aggregate-api — WORKING
+  [INFO] testing bulk operation tracking (GET /operation/16716872-26b7-4e63-873f-85401638d63f) ...
+  [PASS] bulk operation GET /operation/{id}: HTTP 200 (status: active)
+  [INFO] testing bulk operation list API (GET /operation) ...
+  [PASS] bulk operation list: GET /operation HTTP 200 (3 recent operation(s))
+
+── 15. Konk APIService backend health ──
+  [WARN] backend pod not fully ready: ddi/dns-data-actor-6cc9cd4dc-2gspj (1/2 CrashLoopBackOff)
+  [WARN] backend pod not fully ready: ddi/migrate-service-57c78b957d-rdn86 (1/3 Init:CrashLoopBackOff)
+  [WARN] backend pod not fully ready: ddi/migrate-service-57c78b957d-sbgcn (1/3 Init:CrashLoopBackOff)
+  [WARN] backend pod not fully ready: ddi/migrate-service-57c78b957d-zngst (1/3 Init:CrashLoopBackOff)
+  [WARN] backend pod not fully ready: ddi/migrate-service-consolidator-57cbf4f64b-ms5q7 (1/3 Init:CrashLoopBackOff)
+  [WARN] backend pod not fully ready: ddi/migrate-service-export-7f4b9dd779-kjvv2 (1/3 Init:CrashLoopBackOff)
+  [WARN] backend pod not fully ready: ngp-cp/appinfra-prometheus-6dc47b857d-stqlp (1/2 CrashLoopBackOff)
+  [WARN] backend pod not fully ready: tagging-v2/tagging-v2-us-dev-5-6c88cddc75-jqczt (0/1 CreateContainerConfigError)
+  [WARN] backend pod not fully ready: tagging-v2/tagging-v2-us-dev-5-f67bc64b4-kqhch (0/1 CreateContainerConfigError)
+  [WARN] backend pod not fully ready: redirect/redirect-apiservice-56d4f96fdf-k48vg (0/1 ContainerCreating)
+  [INFO] 10 not-ready pod(s) found — check warnings above. Not-ready APIService backend pods will cause 503s in konk's available_controller.
+
+================================================================
+ Results
+================================================================
+  Passed:   63
+  Failed:   0
+  Warnings: 13
+  Skipped:  0
+
+END-TO-END VALIDATION PASSED WITH WARNINGS — review warnings above.
+
+ rsatal@IB-KTWMHH264F  ~/Documents/repos/konk/scripts   feat/e2e-test-enhancements  
+ rsatal@IB-KTWMHH264F  ~/Documents/repos/konk/scripts   feat/e2e-test-enhancements  
+ rsatal@IB-KTWMHH264F  ~/Documents/repos/konk/scripts   feat/e2e-test-enhancements  

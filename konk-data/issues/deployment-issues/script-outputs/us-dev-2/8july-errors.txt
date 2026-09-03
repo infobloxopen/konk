@@ -1,0 +1,208 @@
+ ./e2e-konk-test.sh
+
+================================================================
+ Konk End-to-End Health Validation
+================================================================
+  Cluster:      teleport.services.sdp.infoblox.com-us-dev-2
+  Date (UTC):   2026-07-08 16:16:38 UTC
+  Date (IST):   2026-07-08 21:46:38 IST
+  Sample NS:    tagging-v2
+  Flags:        skip-bulk=false skip-exec=false skip-ca=false skip-trigger-registration=false debug=false
+
+
+── 3. Image version consistency ──
+  [INFO] konk-operator          : v0.2.1-192-g8b3e9cd
+  [WARN] bulk-konk (apiserver)  : v0.2.1-155-gd4614c2 — expected v0.2.1-192-g8b3e9cd (reconcile failing)
+  [WARN] bulk-konk (provision)  : v0.2.1-155-gd4614c2 — expected v0.2.1-192-g8b3e9cd (reconcile failing)
+  [PASS] konk-service (7/7 namespaces) : v0.2.1-192-g8b3e9cd
+
+── 4. Konk CR + Etcd CR status (bulk-konk) ──
+  [PASS] Konk CR reason=Successful
+  [PASS] Konk CR Deployed=True
+  [PASS] Konk CR: no helm InstallError/UpgradeError in status message
+  [WARN] Konk ownership check: no Helm-managed bulk-konk resources found in aggregate
+  [PASS] Etcd CR reason=Successful
+  [PASS] Etcd CR Deployed=True
+  [PASS] Etcd CR 'bulk-konk-etcd': no ReleaseFailed condition
+  [FAIL] Konk CR 'bulk-konk': ReleaseFailed=True reason='InstallError'
+       Message: failed to install release: Unable to continue with install: ServiceAccount "bulk-konk" in namespace "aggregate" exists and cannot be imported into the current release: invalid ownership metadata; annotation validation error: missing key "meta.helm.sh/release-name": must be set to "bulk-konk"; annota
+       Fix:     kubectl annotate ServiceAccount "bulk-konk" -n aggregate meta.helm.sh/release-name=bulk-konk meta.helm.sh/release-namespace=aggregate --overwrite
+
+── 6. konk-service pods health (all namespaces) ──
+  [FAIL] kubectl-apiservice atcapi/atcapi-apiservice-konk-service-apiservice-6bc786f96-f5ncx: 0/1 Running
+  [FAIL] kubectl-apiservice atcapi/atcapi-apiservice-konk-service-apiservice-6bf56cb4c8-mh5lf: 0/1 Running
+  [FAIL] kubectl-apiservice atcapi/atcapi-apiservice-v2-konk-service-apiservice-6ffc4cdd8b-vvh7f: 0/1 Running
+  [FAIL] kubectl-apiservice ddi/dns-config-importexport-apiservice-konk-service-apiservicekgxj7: 0/1 Running
+  [FAIL] kubectl-apiservice ddi/dns-config-importexport-apiservice-v2-konk-service-apiservmdt2d: 0/1 Running
+  [FAIL] kubectl-apiservice ddi/dns-data-importexport-apiservice-konk-service-apiservice-7rzwk5: 0/1 Running
+  [FAIL] kubectl-apiservice ddi/dns-data-importexport-apiservice-v2-konk-service-apiservicv4fs7: 0/1 Running
+  [FAIL] kubectl-apiservice ddi/ipam-importexport-apiservice-konk-service-apiservice-6fdfc72hl8: 0/1 Running
+  [FAIL] kubectl-apiservice ddi/ipam-importexport-apiservice-konk-service-apiservice-75f67d76gv: 0/1 Running
+  [FAIL] kubectl-apiservice ddi/ipam-importexport-apiservice-v2-konk-service-apiservice-657hknj: 0/1 Running
+  [FAIL] kubectl-apiservice ddi/ipam-importexport-apiservice-v3-konk-service-apiservice-7cjzqvl: 0/1 Running
+  [FAIL] kubectl-apiservice ddi/keys-importexport-apiservice-konk-service-apiservice-69fffz6p2r: 0/1 Running
+  [FAIL] kubectl-apiservice endpoints/endpoints-api-service-apiservice-konk-service-apiservice-59ksp2: 0/1 Running
+  [FAIL] kubectl-apiservice hostapp/hostapp-aggregate-api-apiservice-konk-service-apiservice-7b5lrk: 0/1 Running
+  [FAIL] kubectl-apiservice hostapp/hostapp-aggregate-api-apiservice-konk-service-apiservice-7wdsjk: 0/1 Running
+  [FAIL] kubectl-apiservice hostapp/hostapp-aggregate-api-infra-konk-service-apiservice-85b546wpxnk: 0/1 Running
+  [FAIL] kubectl-apiservice ngp-cp/bootstrap-app-aggregate-api-apiservice-konk-service-apiserx8fdh: 0/1 Running
+  [FAIL] kubectl-apiservice ntp/ntp-aggregate-api-apiservice-konk-service-apiservice-6cbd8b5vpf: 0/1 Running
+  [FAIL] kubectl-apiservice redirect/redirect-apiservice-konk-service-apiservice-7bcf674b64-75sgp: 0/1 Running
+  [FAIL] kubectl-apiservice tagging-v2/tagging-aggregate-api-apiservice-konk-service-apiservice-5t9d5h: 0/1 Running
+  [PASS] all 17 kubeconfig (reconcile) pods are Running and all containers ready
+  [PASS] 17 apiservice-test pods present, none in error state (0/1 Running is normal)
+  [FAIL] KonkService atcapi/atcapi-apiservice: Deployments with no available replicas: atcapi-apiservice-konk-service-apiservice(0/1)
+  [FAIL] KonkService atcapi/atcapi-apiservice-v2: Deployments with no available replicas: atcapi-apiservice-v2-konk-service-apiservice(0/1)
+  [FAIL] KonkService ddi/dns-config-importexport-apiservice: Deployments with no available replicas: dns-config-importexport-apiservice-konk-service-apiservice(0/1)
+  [FAIL] KonkService ddi/dns-config-importexport-apiservice-v2: Deployments with no available replicas: dns-config-importexport-apiservice-v2-konk-service-apiservice(0/1)
+  [FAIL] KonkService ddi/dns-data-importexport-apiservice: Deployments with no available replicas: dns-data-importexport-apiservice-konk-service-apiservice(0/1)
+  [FAIL] KonkService ddi/dns-data-importexport-apiservice-v2: Deployments with no available replicas: dns-data-importexport-apiservice-v2-konk-service-apiservice(0/1)
+  [FAIL] KonkService ddi/ipam-importexport-apiservice: Deployments with no available replicas: ipam-importexport-apiservice-konk-service-apiservice(0/1)
+  [FAIL] KonkService ddi/ipam-importexport-apiservice-v2: Deployments with no available replicas: ipam-importexport-apiservice-v2-konk-service-apiservice(0/1)
+  [FAIL] KonkService ddi/ipam-importexport-apiservice-v3: Deployments with no available replicas: ipam-importexport-apiservice-v3-konk-service-apiservice(0/1)
+  [FAIL] KonkService ddi/keys-importexport-apiservice: Deployments with no available replicas: keys-importexport-apiservice-konk-service-apiservice(0/1)
+  [FAIL] KonkService endpoints/endpoints-api-service-apiservice: Deployments with no available replicas: endpoints-api-service-apiservice-konk-service-apiservice(0/1)
+  [FAIL] KonkService hostapp/hostapp-aggregate-api-apiservice: Deployments with no available replicas: hostapp-aggregate-api-apiservice-konk-service-apiservice(0/1)
+  [FAIL] KonkService hostapp/hostapp-aggregate-api-infra: Deployments with no available replicas: hostapp-aggregate-api-infra-konk-service-apiservice(0/1)
+  [FAIL] KonkService ngp-cp/bootstrap-app-aggregate-api-apiservice: Deployments with no available replicas: bootstrap-app-aggregate-api-apiservice-konk-service-apiservice(0/1)
+  [FAIL] KonkService ntp/ntp-aggregate-api-apiservice: Deployments with no available replicas: ntp-aggregate-api-apiservice-konk-service-apiservice(0/1)
+  [FAIL] KonkService redirect/redirect-apiservice: Deployments with no available replicas: redirect-apiservice-konk-service-apiservice(0/1)
+  [FAIL] KonkService tagging-v2/tagging-aggregate-api-apiservice: Deployments with no available replicas: tagging-aggregate-api-apiservice-konk-service-apiservice(0/1)
+  [INFO] 17/17 KonkServices have missing/unavailable konk-service Deployments
+
+── 7. CA trust chain (bulk-konk CA vs kubeconfig secrets) ──
+  [PASS] bulk-konk CA fingerprint readable
+  [PASS] bulk-konk CA certificate is not expired
+  [FAIL] CA MISMATCH: atcapi/atcapi-apiservice-konk-service-kubeconfig (got: 63:F4:01:2B:72:4C:D4:C4:90:2F:...)
+  [FAIL] CA MISMATCH: atcapi/atcapi-apiservice-v2-konk-service-kubeconfig (got: 63:F4:01:2B:72:4C:D4:C4:90:2F:...)
+  [FAIL] CA MISMATCH: ddi/dns-config-importexport-apiservice-konk-service-kubeconfig (got: 63:F4:01:2B:72:4C:D4:C4:90:2F:...)
+  [FAIL] CA MISMATCH: ddi/dns-config-importexport-apiservice-v2-konk-service-kubeconfig (got: 63:F4:01:2B:72:4C:D4:C4:90:2F:...)
+  [FAIL] CA MISMATCH: ddi/dns-data-importexport-apiservice-konk-service-kubeconfig (got: 63:F4:01:2B:72:4C:D4:C4:90:2F:...)
+  [FAIL] CA MISMATCH: ddi/dns-data-importexport-apiservice-v2-konk-service-kubeconfig (got: 63:F4:01:2B:72:4C:D4:C4:90:2F:...)
+  [FAIL] CA MISMATCH: ddi/ipam-importexport-apiservice-konk-service-kubeconfig (got: 63:F4:01:2B:72:4C:D4:C4:90:2F:...)
+  [FAIL] CA MISMATCH: ddi/ipam-importexport-apiservice-v2-konk-service-kubeconfig (got: 63:F4:01:2B:72:4C:D4:C4:90:2F:...)
+  [FAIL] CA MISMATCH: ddi/ipam-importexport-apiservice-v3-konk-service-kubeconfig (got: 63:F4:01:2B:72:4C:D4:C4:90:2F:...)
+  [FAIL] CA MISMATCH: ddi/keys-importexport-apiservice-konk-service-kubeconfig (got: 63:F4:01:2B:72:4C:D4:C4:90:2F:...)
+  [FAIL] CA MISMATCH: endpoints/endpoints-api-service-apiservice-konk-service-kubeconfig (got: 63:F4:01:2B:72:4C:D4:C4:90:2F:...)
+  [FAIL] CA MISMATCH: hostapp/hostapp-aggregate-api-apiservice-konk-service-kubeconfig (got: 63:F4:01:2B:72:4C:D4:C4:90:2F:...)
+  [FAIL] CA MISMATCH: hostapp/hostapp-aggregate-api-infra-konk-service-kubeconfig (got: 63:F4:01:2B:72:4C:D4:C4:90:2F:...)
+  [FAIL] CA MISMATCH: ngp-cp/bootstrap-app-aggregate-api-apiservice-konk-service-kubeconfig (got: 63:F4:01:2B:72:4C:D4:C4:90:2F:...)
+  [FAIL] CA MISMATCH: ntp/ntp-aggregate-api-apiservice-konk-service-kubeconfig (got: 63:F4:01:2B:72:4C:D4:C4:90:2F:...)
+  [FAIL] CA MISMATCH: redirect/redirect-apiservice-konk-service-kubeconfig (got: 63:F4:01:2B:72:4C:D4:C4:90:2F:...)
+  [FAIL] CA MISMATCH: tagging-v2/tagging-aggregate-api-apiservice-konk-service-kubeconfig (got: 63:F4:01:2B:72:4C:D4:C4:90:2F:...)
+  [INFO] CA chain: 0 match, 17 mismatch, 0 missing
+  [PASS] all 17 kubeconfig client certs (tls.crt) are valid and not expiring soon
+
+── 8. APIServices registered in konk ──
+  [WARN] port-forward established but konk API not reachable (TLS handshake or auth failed)
+  [WARN] no healthy konk API access available for API queries (no kubeconfig secret found or port-forward failed)
+  [INFO] Ensure a kubeconfig secret exists: kubectl get secrets -A | grep konk-service-kubeconfig
+
+── 9. Deep test: tagging-v2 namespace ──
+  [PASS] KonkService tagging-v2/tagging-aggregate-api-apiservice deployed
+  [FAIL] tagging-v2 kubectl-apiservice pod not fully ready (0/1)
+  [PASS] tagging-v2 kubectl-apiservice pod: 0 restarts
+  [FAIL] tagging-v2 kubeconfig CA matches bulk-konk (expected: 'C5:23:40:15:F2:48:D9:F2:63:BF:7A:EF:D1:CD:D9:26:E0:EA:D9:7F:6D:94:C2:86:26:06:F2:B5:C8:09:42:1C', got: '63:F4:01:2B:72:4C:D4:C4:90:2F:24:48:32:D0:00:E6:F0:28:C4:FF:63:90:04:73:8E:91:F9:37:71:13:56:C6')
+  [FAIL] tagging-v2 kubectl-apiservice logs contain TLS/x509 errors
+         2026/07/08 16:11:41 client.go:201: Retrying after error: applying Namespace /tagging-v2: Patch "https://bulk-konk.aggregate.svc:6443/api/v1/namespaces/tagging-v2?fieldManager=konk-service&force=true": tls: failed to verify certificate: x509: certificate signed by unknown authority (possibly because of "crypto/rsa: verification error" while trying to verify candidate authority certificate "kubernetes") (delay 2s)
+         2026/07/08 16:11:43 client.go:201: Retrying after error: applying Namespace /tagging-v2: Patch "https://bulk-konk.aggregate.svc:6443/api/v1/namespaces/tagging-v2?fieldManager=konk-service&force=true": tls: failed to verify certificate: x509: certificate signed by unknown authority (possibly because of "crypto/rsa: verification error" while trying to verify candidate authority certificate "kubernetes") (delay 4s)
+         2026/07/08 16:11:47 client.go:201: Retrying after error: applying Namespace /tagging-v2: Patch "https://bulk-konk.aggregate.svc:6443/api/v1/namespaces/tagging-v2?fieldManager=konk-service&force=true": tls: failed to verify certificate: x509: certificate signed by unknown authority (possibly because of "crypto/rsa: verification error" while trying to verify candidate authority certificate "kubernetes") (delay 8s)
+  [WARN] tagging-v2 kubectl-apiservice: no recent reconciliation log entry
+  [FAIL] tagging-v2 konk-service pod: 13 konk connectivity error(s) in recent logs
+         2026/07/08 16:11:41 client.go:201: Retrying after error: applying Namespace /tagging-v2: Patch "https://bulk-konk.aggregate.svc:6443/api/v1/namespaces/tagging-v2?fieldManager=konk-service&force=true": tls: failed to verify certificate: x509: certificate signed by unknown authority (possibly because of "crypto/rsa: verification error" while trying to verify candidate authority certificate "kubernetes") (delay 2s)
+         2026/07/08 16:11:43 client.go:201: Retrying after error: applying Namespace /tagging-v2: Patch "https://bulk-konk.aggregate.svc:6443/api/v1/namespaces/tagging-v2?fieldManager=konk-service&force=true": tls: failed to verify certificate: x509: certificate signed by unknown authority (possibly because of "crypto/rsa: verification error" while trying to verify candidate authority certificate "kubernetes") (delay 4s)
+         2026/07/08 16:11:47 client.go:201: Retrying after error: applying Namespace /tagging-v2: Patch "https://bulk-konk.aggregate.svc:6443/api/v1/namespaces/tagging-v2?fieldManager=konk-service&force=true": tls: failed to verify certificate: x509: certificate signed by unknown authority (possibly because of "crypto/rsa: verification error" while trying to verify candidate authority certificate "kubernetes") (delay 8s)
+  [PASS] tagging-v2 TLS server secret 'tagging-aggregate-api-apiservice-konk-service-server': has tls.crt + tls.key
+  [WARN] APIService endpoint ddi/ipam-importexport-apiservice: service endpoint has no ready backends — pod(s) in notReadyAddresses: ipam-importexport-5f7f87784c-vmbl5. konk's available_controller will get 503 probing this APIService and log 'service unavailable' (same pattern as gov-stg-2 cert expiry incident)
+  [WARN] APIService endpoint ddi/keys-importexport-apiservice: service endpoint has no ready backends — pod(s) in notReadyAddresses: keys-importexport-f75684549-r5l9r. konk's available_controller will get 503 probing this APIService and log 'service unavailable' (same pattern as gov-stg-2 cert expiry incident)
+  [WARN] APIService endpoint redirect/redirect-apiservice: service endpoint has no ready backends — pod(s) in notReadyAddresses: redirect-apiservice-85cd59b648-7mjqp. konk's available_controller will get 503 probing this APIService and log 'service unavailable' (same pattern as gov-stg-2 cert expiry incident)
+  [INFO] tagging-v2 pod 'tagging-aggregate-api-apiservice-konk-service-apiservice-5t9d5h' is unhealthy — showing events:
+             Optional:                false
+             DownwardAPI:             true
+         QoS Class:                   Burstable
+         Node-Selectors:              <none>
+         Tolerations:                 node.kubernetes.io/not-ready:NoExecute op=Exists for 300s
+                                      node.kubernetes.io/unreachable:NoExecute op=Exists for 300s
+         Events:
+           Type     Reason     Age                     From               Message
+           ----     ------     ----                    ----               -------
+           Normal   Scheduled  9m38s                   default-scheduler  Successfully assigned tagging-v2/tagging-aggregate-api-apiservice-konk-service-apiservice-5t9d5h to ip-172-19-200-7.ec2.internal
+           Normal   Pulling    9m37s                   kubelet            Pulling image "harbor.services.sdp.infoblox.com/infobloxcto/konk-service:v0.2.1-192-g8b3e9cd"
+           Normal   Pulled     9m32s                   kubelet            Successfully pulled image "harbor.services.sdp.infoblox.com/infobloxcto/konk-service:v0.2.1-192-g8b3e9cd" in 4.674s (4.674s including waiting). Image size: 12207085 bytes.
+           Normal   Created    9m31s                   kubelet            Created container: apiservice
+           Normal   Started    9m29s                   kubelet            Started container apiservice
+           Warning  Unhealthy  4m19s (x63 over 9m22s)  kubelet            Readiness probe failed:
+  [INFO] tagging-v2 pod logs (last 10 lines):
+         2026/07/08 16:12:11 client.go:201: Retrying after error: applying Namespace /tagging-v2: Patch "https://bulk-konk.aggregate.svc:6443/api/v1/namespaces/tagging-v2?fieldManager=konk-service&force=true": tls: failed to verify certificate: x509: certificate signed by unknown authority (possibly because of "crypto/rsa: verification error" while trying to verify candidate authority certificate "kubernetes") (delay 32s)
+         2026/07/08 16:12:43 client.go:201: Retrying after error: applying Namespace /tagging-v2: Patch "https://bulk-konk.aggregate.svc:6443/api/v1/namespaces/tagging-v2?fieldManager=konk-service&force=true": tls: failed to verify certificate: x509: certificate signed by unknown authority (possibly because of "crypto/rsa: verification error" while trying to verify candidate authority certificate "kubernetes") (delay 1m0s)
+         2026/07/08 16:13:43 client.go:201: Retrying after error: applying Namespace /tagging-v2: Patch "https://bulk-konk.aggregate.svc:6443/api/v1/namespaces/tagging-v2?fieldManager=konk-service&force=true": tls: failed to verify certificate: x509: certificate signed by unknown authority (possibly because of "crypto/rsa: verification error" while trying to verify candidate authority certificate "kubernetes") (delay 1m0s)
+         2026/07/08 16:14:43 client.go:201: Retrying after error: applying Namespace /tagging-v2: Patch "https://bulk-konk.aggregate.svc:6443/api/v1/namespaces/tagging-v2?fieldManager=konk-service&force=true": tls: failed to verify certificate: x509: certificate signed by unknown authority (possibly because of "crypto/rsa: verification error" while trying to verify candidate authority certificate "kubernetes") (delay 1m0s)
+         2026/07/08 16:15:43 client.go:201: Retrying after error: applying Namespace /tagging-v2: Patch "https://bulk-konk.aggregate.svc:6443/api/v1/namespaces/tagging-v2?fieldManager=konk-service&force=true": tls: failed to verify certificate: x509: certificate signed by unknown authority (possibly because of "crypto/rsa: verification error" while trying to verify candidate authority certificate "kubernetes") (delay 1m0s)
+         2026/07/08 16:16:43 client.go:201: Retrying after error: applying Namespace /tagging-v2: Patch "https://bulk-konk.aggregate.svc:6443/api/v1/namespaces/tagging-v2?fieldManager=konk-service&force=true": tls: failed to verify certificate: x509: certificate signed by unknown authority (possibly because of "crypto/rsa: verification error" while trying to verify candidate authority certificate "kubernetes") (delay 1m0s)
+         2026/07/08 16:17:43 client.go:201: Retrying after error: applying Namespace /tagging-v2: Patch "https://bulk-konk.aggregate.svc:6443/api/v1/namespaces/tagging-v2?fieldManager=konk-service&force=true": tls: failed to verify certificate: x509: certificate signed by unknown authority (possibly because of "crypto/rsa: verification error" while trying to verify candidate authority certificate "kubernetes") (delay 1m0s)
+         2026/07/08 16:18:43 client.go:201: Retrying after error: applying Namespace /tagging-v2: Patch "https://bulk-konk.aggregate.svc:6443/api/v1/namespaces/tagging-v2?fieldManager=konk-service&force=true": tls: failed to verify certificate: x509: certificate signed by unknown authority (possibly because of "crypto/rsa: verification error" while trying to verify candidate authority certificate "kubernetes") (delay 1m0s)
+         2026/07/08 16:19:43 client.go:201: Retrying after error: applying Namespace /tagging-v2: Patch "https://bulk-konk.aggregate.svc:6443/api/v1/namespaces/tagging-v2?fieldManager=konk-service&force=true": tls: failed to verify certificate: x509: certificate signed by unknown authority (possibly because of "crypto/rsa: verification error" while trying to verify candidate authority certificate "kubernetes") (delay 1m0s)
+         2026/07/08 16:20:43 client.go:201: Retrying after error: applying Namespace /tagging-v2: Patch "https://bulk-konk.aggregate.svc:6443/api/v1/namespaces/tagging-v2?fieldManager=konk-service&force=true": tls: failed to verify certificate: x509: certificate signed by unknown authority (possibly because of "crypto/rsa: verification error" while trying to verify candidate authority certificate "kubernetes") (delay 1m0s)
+
+── 10. Bulk (atlas.bulk) integration with konk ──
+  [PASS] bulk deployment replicas ready
+  [PASS] bulk pod ready (2/2)
+  [PASS] bulk-konk proxy-client secret exists (keys: ca.crt tls.crt tls.key)
+  [PASS] bulk --konk.host points to konk apiserver: bulk-konk.aggregate:6443
+  [WARN] bulk pod logs: 6 potential error(s) in last 50 lines
+  [PASS] bulk-konk apiserver logs: no 'certificate has expired' rejections in last 2 min
+
+── 11. konk-operator log health ──
+  [WARN] konk-operator: 10 error(s) in last 100 log lines
+  [WARN] konk-operator: 10 reconcile error(s) in recent logs
+  [FAIL] konk-operator: release 'bulk-konk' has 16 'Release failed' error(s)
+       Release: bulk-konk (ns: aggregate)
+       Period:  2026-07-08T16:16:22Z → 2026-07-08T16:19:15Z (16 retries)
+       Reason:  failed to install release: Unable to continue with install: ServiceAccount \"bulk-konk\" in namespace \"aggregate\" exists and cannot be imported into the current release: invalid ownership metadata; annotation validation error: missing key \"meta.helm.sh/release-name\": must be set to \"bulk-konk\"; annotation validation error: missing key \"meta.helm.sh/release-namespace\": must be set to \"aggregate\"
+       Fix:     kubectl annotate serviceaccount bulk-konk -n aggregate meta.helm.sh/release-name=bulk-konk meta.helm.sh/release-namespace=aggregate --overwrite
+       Check:   kubectl logs -n konk -l app.kubernetes.io/name=konk-operator --tail=50 | grep '"release":"bulk-konk"' | grep 'Release failed'
+  [PASS] konk-operator: release 'bulk-konk-etcd' — no 'Release failed' errors
+  [PASS] bulk-konk-etcd (aggregate)                              —  deployed   — updated 2026-07-08 16:09:20
+  [PASS] atcapi-apiservice (atcapi)                              —  deployed   — updated 2026-07-08 16:10:30
+  [PASS] atcapi-apiservice-v2 (atcapi)                           —  deployed   — updated 2026-07-08 16:09:53
+  [PASS] dns-config-importexport-apiservice (ddi)                —  deployed   — updated 2026-07-08 16:09:10
+  [PASS] dns-config-importexport-apiservice-v2 (ddi)             —  deployed   — updated 2026-07-08 16:10:10
+  [PASS] dns-data-importexport-apiservice (ddi)                  —  deployed   — updated 2026-07-08 16:10:14
+  [PASS] dns-data-importexport-apiservice-v2 (ddi)               —  deployed   — updated 2026-07-08 16:10:15
+  [PASS] ipam-importexport-apiservice (ddi)                      —  deployed   — updated 2026-07-08 16:10:30
+  [PASS] ipam-importexport-apiservice-v2 (ddi)                   —  deployed   — updated 2026-07-08 16:09:46
+  [PASS] ipam-importexport-apiservice-v3 (ddi)                   —  deployed   — updated 2026-07-08 16:10:28
+  [PASS] keys-importexport-apiservice (ddi)                      —  deployed   — updated 2026-07-08 16:10:40
+  [PASS] endpoints-api-service-apiservice (endpoints)            —  deployed   — updated 2026-07-08 16:09:09
+  [PASS] hostapp-aggregate-api-apiservice (hostapp)              —  deployed   — updated 2026-07-08 16:09:54
+  [PASS] hostapp-aggregate-api-infra (hostapp)                   —  deployed   — updated 2026-07-08 16:09:46
+  [PASS] bootstrap-app-aggregate-api-apiservice (ngp-cp)         —  deployed   — updated 2026-07-08 16:10:26
+  [PASS] ntp-aggregate-api-apiservice (ntp)                      —  deployed   — updated 2026-07-08 16:09:58
+  [PASS] redirect-apiservice (redirect)                          —  deployed   — updated 2026-07-08 16:10:12
+  [PASS] tagging-aggregate-api-apiservice (tagging-v2)           —  deployed   — updated 2026-07-08 16:10:01
+
+── 15. Konk APIService backend health ──
+  [PASS] KonkService atcapi/atcapi-apiservice: backend 'atcapi-apiservice' has 1 ready pod(s)
+  [PASS] KonkService atcapi/atcapi-apiservice-v2: backend 'atcapi-apiservice' has 1 ready pod(s)
+  [PASS] KonkService ddi/dns-config-importexport-apiservice: backend 'dns-config-importexport-apiservice' has 1 ready pod(s)
+  [PASS] KonkService ddi/dns-config-importexport-apiservice-v2: backend 'dns-config-importexport-apiservice' has 1 ready pod(s)
+  [PASS] KonkService ddi/dns-data-importexport-apiservice: backend 'dns-data-importexport-apiservice' has 1 ready pod(s)
+  [PASS] KonkService ddi/dns-data-importexport-apiservice-v2: backend 'dns-data-importexport-apiservice' has 1 ready pod(s)
+  [FAIL] KonkService ddi/ipam-importexport-apiservice: backend service 'ipam-importexport-apiservice' has 1 pod(s) in notReadyAddresses — konk will get 503 probing this APIService
+  [WARN]   not-ready: ddi/ipam-importexport-5f7f87784c-vmbl5 2/3 CrashLoopBackOff
+  [FAIL] KonkService ddi/ipam-importexport-apiservice-v2: backend service 'ipam-importexport-apiservice' has 1 pod(s) in notReadyAddresses — konk will get 503 probing this APIService
+  [WARN]   not-ready: ddi/ipam-importexport-5f7f87784c-vmbl5 2/3 CrashLoopBackOff
+  [FAIL] KonkService ddi/ipam-importexport-apiservice-v3: backend service 'ipam-importexport-apiservice' has 1 pod(s) in notReadyAddresses — konk will get 503 probing this APIService
+  [WARN]   not-ready: ddi/ipam-importexport-5f7f87784c-vmbl5 2/3 CrashLoopBackOff
+  [FAIL] KonkService ddi/keys-importexport-apiservice: backend service 'keys-importexport-apiservice' has 1 pod(s) in notReadyAddresses — konk will get 503 probing this APIService
+  [WARN]   not-ready: ddi/keys-importexport-f75684549-r5l9r 1/2 CrashLoopBackOff
+  [PASS] KonkService endpoints/endpoints-api-service-apiservice: backend 'endpoints-api-service-apiservice' has 1 ready pod(s)
+  [PASS] KonkService hostapp/hostapp-aggregate-api-apiservice: backend 'hostapp-aggregate-api-apiservice' has 1 ready pod(s)
+  [PASS] KonkService hostapp/hostapp-aggregate-api-infra: backend 'hostapp-aggregate-api-apiservice' has 1 ready pod(s)
+  [PASS] KonkService ngp-cp/bootstrap-app-aggregate-api-apiservice: backend 'bootstrap-app-aggregate-api-apiservice' has 1 ready pod(s)
+  [PASS] KonkService ntp/ntp-aggregate-api-apiservice: backend 'ntp-aggregate-api-apiservice' has 1 ready pod(s)
+  [FAIL] KonkService redirect/redirect-apiservice: backend service 'redirect-apiservice' has 1 pod(s) in notReadyAddresses — konk will get 503 probing this APIService
+  [WARN]   not-ready: redirect/redirect-apiservice-85cd59b648-7mjqp 0/1 CrashLoopBackOff
+  [PASS] KonkService tagging-v2/tagging-aggregate-api-apiservice: backend 'tagging-aggregate-api-apiservice' has 1 ready pod(s)
+  [INFO] 5 KonkService(s) with not-ready backend pods — these cause 503s in konk's available_controller
+

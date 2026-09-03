@@ -1,0 +1,155 @@
+========================================================
+  bulk-konk-etcd POD RECREATION — ROOT CAUSE EVENTS
+  Cluster: gov-stg-2 | Namespace: aggregate
+  Captured: 2026-08-13
+========================================================
+
+----- ETCD POD CURRENT STATE -----
+
+  NAME                 CONTAINERS   AGE (at capture)   STATUS
+  bulk-konk-etcd-0    2/2          20m                 Running  (recreated ~21 min ago)
+  bulk-konk-etcd-1    2/2          35h                 Running  (stable)
+  bulk-konk-etcd-2    2/2          80m                 Running  (recreated ~80 min ago)
+
+  NOTE: 2/2 = etcd container + Linkerd proxy sidecar (injected, unlike us-dev-2 where injection was skipped)
+  Recreation cadence: staggered ~60 min apart (Karpenter disruption budget: 1 node at a time)
+
+----- KARPENTER NODE DISRUPTION (default namespace) -----
+
+~21m   Normal   DisruptionTerminating   nodeclaim/bottlerocket-nodescaling-pool-jclhh
+       Disrupting NodeClaim: Underutilized
+       (this node hosted bulk-konk-etcd-0)
+
+Active disruption cycle continues — Karpenter is actively consolidating nodes.
+
+----- ETCD POD EVICTION EVENTS (aggregate namespace) — etcd-0 -----
+
+21m   Normal    Killing    pod/bulk-konk-etcd-0
+      Stopping container etcd
+
+21m   Normal    Killing    pod/bulk-konk-etcd-0
+      Stopping container linkerd-proxy
+
+21m   Normal    Evicted    pod/bulk-konk-etcd-0
+      Evicted pod: Underutilized
+
+21m   Warning   Unhealthy  pod/bulk-konk-etcd-0
+      Readiness probe errored and resulted in unknown state:
+      rpc error: code = Canceled desc = context canceled
+
+21m   Warning   FailedAttachVolume   pod/bulk-konk-etcd-0
+      Multi-Attach error for volume "pvc-e2042372-ef33-47aa-89e3-347ecbbbcab4"
+      Volume is already exclusively attached to one node and can't be attached to another
+
+21m   Warning   TopologyAwareHintsDisabled   service/bulk-konk-etcd-headless
+      Insufficient number of endpoints (2 endpoints, 3 zones), addressType: IPv4
+
+21m   Warning   TopologyAwareHintsDisabled   service/bulk-konk-etcd
+      Insufficient number of endpoints (2 endpoints, 3 zones), addressType: IPv4
+
+----- ETCD POD RESCHEDULING EVENTS (aggregate namespace) — etcd-0 -----
+
+21m   Normal   Scheduled   pod/bulk-konk-etcd-0
+      Successfully assigned aggregate/bulk-konk-etcd-0 to
+      ip-172-22-160-123.us-gov-west-1.compute.internal
+
+21m   Normal   SuccessfulAttachVolume   pod/bulk-konk-etcd-0
+      AttachVolume.Attach succeeded for volume "pvc-e2042372-ef33-47aa-89e3-347ecbbbcab4"
+
+21m   Normal   Pulling   pod/bulk-konk-etcd-0
+      Pulling image "harbor-services.sdp.stg.infoblox-fedcloud.com/
+      central-proxy-cache-images/infobloxcto/linkerd2-proxy:edge-26.5.5-fips-ib-87f5abd2"
+
+21m   Normal   Pulled    pod/bulk-konk-etcd-0
+      Successfully pulled linkerd2-proxy image in 1.078s
+
+21m   Normal   Pulling   pod/bulk-konk-etcd-0
+      Pulling image "harbor-services.sdp.stg.infoblox-fedcloud.com/
+      cgr-proxy/infoblox.com/etcd:v3.7.0"
+
+21m   Normal   Pulled    pod/bulk-konk-etcd-0
+      Successfully pulled etcd:v3.7.0 in 1.497s
+
+21m   Normal   Created / Started   pod/bulk-konk-etcd-0   Containers created and started
+
+20m   Normal   TopologyAwareHintsEnabled   service/bulk-konk-etcd
+      Topology Aware Hints has been enabled, addressType: IPv4
+
+20m   Normal   TopologyAwareHintsEnabled   service/bulk-konk-etcd-headless
+      Topology Aware Hints has been enabled, addressType: IPv4
+
+----- ETCD RESOURCE CONFIGURATION -----
+
+  StatefulSet: bulk-konk-etcd (3 replicas)
+  Image: harbor-services.sdp.stg.infoblox-fedcloud.com/cgr-proxy/infoblox.com/etcd:v3.7.0
+  Node pool: bottlerocket-nodescaling-pool
+             consolidationPolicy: WhenEmptyOrUnderutilized
+             consolidateAfter: 2h
+             disruption budget: nodes: 1 (Underutilized)
+  PodDisruptionBudget: NONE
+
+  Per-pod containers:
+
+  Container: etcd
+    requests:
+      cpu:    10m    ← PRIMARY CAUSE: same low value as us-dev-2
+      memory: 64Mi
+    limits:
+      memory: 4Gi
+
+  Container: linkerd-proxy (sidecar)
+    requests:
+      cpu:    100m
+      memory: 20Mi
+    limits:
+      memory: 2Gi
+
+  Total pod CPU request: 110m — still low enough for Karpenter to mark host node as Underutilized
+
+----- COMPARISON WITH us-dev-2 -----
+
+  SAME root cause:
+  ✓ Karpenter WhenEmptyOrUnderutilized consolidation evicting etcd pods
+  ✓ No PodDisruptionBudget in aggregate namespace
+  ✓ etcd container cpu request: 10m (identical)
+  ✓ FailedAttachVolume (EBS Multi-Attach) on each reschedule
+  ✓ Readiness probe canceled on eviction
+  ✓ Staggered restarts (one pod at a time, respecting Karpenter disruption budget)
+
+  KEY DIFFERENCES vs us-dev-2:
+  ✗ Node pool: bottlerocket-nodescaling-pool (vs nodescaling-node-pool)
+  ✗ consolidateAfter: 2h (vs 1h in us-dev-2) → slower cycle (~60-80 min cadence observed)
+  ✗ Linkerd proxy IS injected here (2/2 pods) — was skipped in us-dev-2 (1/1 pods)
+  ✗ etcd image tag: v3.7.0 (vs 3.7.0 without v prefix in us-dev-2)
+  ✗ Harbor registry: infoblox-fedcloud.com (gov registry) vs sdp.infoblox.com (commercial)
+
+----- ROOT CAUSE SUMMARY -----
+
+  Same root cause as us-dev-2:
+
+  1. Karpenter consolidation (WhenEmptyOrUnderutilized) terminates nodes hosting
+     etcd pods because the nodes appear underutilized.
+
+  2. etcd container CPU request is only 10m — making any node it lands on a
+     consolidation target within the consolidateAfter window (2h here vs 1h in us-dev-2).
+
+  3. No PodDisruptionBudget protects the etcd StatefulSet — Karpenter evicts freely.
+
+  4. EBS volume Multi-Attach error adds delay on each reschedule (volume must fully
+     detach from old node before attaching to new node).
+
+  5. The 2h consolidateAfter explains the slower cycle (etcd-2 at 80m, etcd-0 at 20m,
+     ~60 min apart vs ~50 min in us-dev-2).
+
+----- RECOMMENDED FIXES (same as us-dev-2) -----
+
+  1. Add PodDisruptionBudget (minAvailable: 2) for bulk-konk-etcd in aggregate namespace.
+
+  2. Increase etcd container CPU requests to >= 200m.
+     (linkerd-proxy sidecar already has 100m — total pod needs to be high enough
+      that the host node is not flagged as underutilized)
+
+  3. OR add annotation karpenter.sh/do-not-disrupt: "true" to etcd pod template
+     as an immediate stopgap.
+
+  Fix must be applied in the konk chart — both gov-stg-2 and us-dev-2 are affected.
