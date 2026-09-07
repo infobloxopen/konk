@@ -29,7 +29,7 @@ spec:
       {{- if .Values.initOrphanFix.enabled }}
       initContainers:
         - name: fix-helm-orphans
-          image: "{{ .Values.relatedImages.kindRepository }}:{{ .Values.relatedImages.kind }}"
+          image: "{{ include "konk-operator.imageRepo" (dict "ctx" . "repo" .Values.relatedImages.kindRepository) }}:{{ .Values.relatedImages.kind }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           command: ["/usr/local/bin/konk-service", "fix-helm-orphans-init"]
           {{- if .Values.initOrphanFix.skip }}
@@ -56,7 +56,7 @@ spec:
         - name: {{ .Chart.Name }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          image: "{{ include "konk-operator.imageRepo" (dict "ctx" . "repo" .Values.image.repository) }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
             - name: AUTH_URL
@@ -74,11 +74,11 @@ spec:
             - name: RELATED_IMAGE_KIND
               value: {{ .Values.relatedImages.kind | default "" | quote }}
             - name: RELATED_IMAGE_APISERVER_REPO
-              value: {{ .Values.relatedImages.apiserverRepository | default "" | quote }}
+              value: {{ include "konk-operator.imageRepo" (dict "ctx" . "repo" .Values.relatedImages.apiserverRepository) | quote }}
             - name: RELATED_IMAGE_PROVISION_REPO
-              value: {{ .Values.relatedImages.provisionRepository | default "" | quote }}
+              value: {{ include "konk-operator.imageRepo" (dict "ctx" . "repo" .Values.relatedImages.provisionRepository) | quote }}
             - name: RELATED_IMAGE_KIND_REPO
-              value: {{ .Values.relatedImages.kindRepository | default "" | quote }}
+              value: {{ include "konk-operator.imageRepo" (dict "ctx" . "repo" .Values.relatedImages.kindRepository) | quote }}
           livenessProbe:
             httpGet:
               path: /healthz
