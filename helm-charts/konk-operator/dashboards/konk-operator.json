@@ -123,7 +123,8 @@
           },
           "expr": "count(resource_created_at_seconds{group=\"konk.infoblox.com\",kind=\"Konk\"})",
           "instant": false,
-          "refId": "A"
+          "refId": "A",
+          "legendFormat": "Konk CRs"
         }
       ],
       "title": "konk count",
@@ -195,7 +196,8 @@
           "placement": "bottom",
           "showLegend": true
         }
-      }
+      },
+      "description": "Number of Konk CRs in the cluster. Legend is named explicitly; without a legendFormat Grafana printed the raw PromQL expression as the series name."
     },
     {
       "datasource": {
@@ -389,7 +391,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS_UID}"
       },
-      "description": "Restarts of the konk-operator container. Counts OOMKill and crash-loop restarts within the same pod; an eviction-based recreate reads 0 here because a new pod starts with RESTARTS=0 -- Operator uptime catches those. Uses an explicit [5m] window rather than $__rate_interval: the PodMonitor scrapes every 60s and $__rate_interval resolves to ~60-75s, too few samples for increase() to return anything.",
+      "description": "Restarts of the konk-operator container. Counts OOMKill and crash-loop restarts within the same pod; an eviction-based recreate reads 0 here because a new pod starts with RESTARTS=0 -- Operator uptime catches those. Uses an explicit [5m] window rather than $__rate_interval: the datasource sets timeInterval 6s, so $__rate_interval is max($__interval + 6s, 24s) and collapses to 24s at short dashboard ranges -- below the scrape interval, so increase() saw too few samples to return anything. Soft max keeps a single restart visible: the series is present but reads 0 on a healthy operator, and an unbounded axis auto-scaled to 0-100, hiding the line against the x-axis.",
       "gridPos": {
         "h": 9,
         "w": 12,
@@ -446,7 +448,9 @@
             },
             "thresholdsStyle": {
               "mode": "off"
-            }
+            },
+            "axisSoftMax": 5,
+            "axisSoftMin": 0
           },
           "links": [],
           "mappings": [],
