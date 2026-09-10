@@ -15,7 +15,7 @@ HELM		?= $(DOCKER_RUNNER) \
 HELM_CMD	?= $(DOCKER_RUNNER) \
 			/bin/bash -c
 K8S_RELEASE	?= v1.25.8
-ETCD_VERSION ?= v3.6.13
+ETCD_VERSION ?= v3.7.1
 KUBEADM		?= docker run --rm -it --entrypoint="" ${KUBERNETES_IMG} kubeadm
 KUBECONFIG	?= ${HOME}/.kube/config
 RELEASE_PREFIX	?= $(USER)
@@ -272,7 +272,7 @@ kind-destroy: $(KIND)
 
 ETCD_IMG ?= gcr.io/etcd-development/etcd:$(ETCD_VERSION)
 # Chart-expected etcd image (cgr.dev is private; CI pulls the public image and retags)
-ETCD_CHART_IMG ?= cgr.dev/infoblox.com/etcd:3.7.0
+ETCD_CHART_IMG ?= cgr.dev/infoblox.com/etcd:3.7.1
 
 kind-load-konk: $(KIND) docker-build docker-build-kubernetes docker-build-provision docker-build-konk-service
 	@# All images use GIT_VERSION tag, no extra tagging needed
