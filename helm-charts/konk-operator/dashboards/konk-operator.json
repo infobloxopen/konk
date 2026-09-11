@@ -217,7 +217,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS_UID}"
           },
-          "expr": "sum(rate(rest_client_requests_total{app_kubernetes_io_instance=\"konk-operator\"}[5m])) by (method, code)",
+          "expr": "sum(rate(rest_client_requests_total{app_kubernetes_io_instance=\"${KONK_OPERATOR_INSTANCE}\"}[5m])) by (method, code)",
           "legendFormat": "{{method}} {{ code}}",
           "refId": "A"
         }
@@ -312,7 +312,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS_UID}"
           },
-          "expr": "time() - process_start_time_seconds{app_kubernetes_io_instance=\"konk-operator\"}",
+          "expr": "time() - process_start_time_seconds{app_kubernetes_io_instance=\"${KONK_OPERATOR_INSTANCE}\"}",
           "legendFormat": "{{pod}}",
           "refId": "A"
         }
@@ -853,7 +853,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS_UID}"
           },
-          "expr": "sum by (code) (rate(rest_client_requests_total{app_kubernetes_io_instance=\"konk-operator\",code=~\"5..\"}[5m]))",
+          "expr": "sum by (code) (rate(rest_client_requests_total{app_kubernetes_io_instance=\"${KONK_OPERATOR_INSTANCE}\",code=~\"5..\"}[5m]))",
           "refId": "A",
           "legendFormat": "{{code}}"
         }
