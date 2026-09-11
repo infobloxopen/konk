@@ -10,10 +10,5 @@ metadata:
 spec:
   customFolderName: "konk"
   json: |-
-    {{- /*
-    KONK_OPERATOR_INSTANCE is the app.kubernetes.io/instance label the operator's
-    own pods carry, which is .Release.Name -- not necessarily "konk-operator".
-    Substituted here so the operator-metric panels resolve for any release name.
-    */}}
-    {{- .Files.Get "dashboards/konk-operator.json" | replace "${DS_PROMETHEUS_UID}" .Values.dashboards.prometheusUid | replace "${KONK_OPERATOR_INSTANCE}" .Release.Name | nindent 4  }}
+    {{- .Files.Get "dashboards/konk-operator.json" | replace "${DS_PROMETHEUS_UID}" .Values.dashboards.prometheusUid | nindent 4  }}
 {{- end }}
