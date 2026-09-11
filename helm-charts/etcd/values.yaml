@@ -64,8 +64,15 @@ service:
 ## @section Persistence parameters
 persistence:
   enabled: true
-  ## @param persistence.claimName Name for the volumeClaimTemplate. Change to provision fresh PVCs on upgrade (e.g. "data-v2").
-  claimName: data
+  ## A StatefulSet's volumeClaimTemplate name is immutable. Changing this against a
+  ## cluster that already has an etcd StatefulSet is rejected by the API server, and
+  ## the helm-operator then loops in failed-upgrade/rollback — the StatefulSet has to
+  ## be deleted (`kubectl delete sts <name> --cascade=orphan`) so Helm can recreate it.
+  ## Defaults to "data-v2": the fleet moved to that name when migrating off the Bitnami
+  ## chart's /bitnami/etcd layout, and it provisions fresh PVCs rather than reusing the
+  ## old ones.
+  ## @param persistence.claimName Name for the volumeClaimTemplate.
+  claimName: data-v2
   storageClass: ""
   accessModes:
     - ReadWriteOnce
