@@ -7,6 +7,27 @@ metadata:
     {{- include "konk-operator.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
+  {{- /*
+  Recreate, not the default RollingUpdate. With replicas: 1 the defaults are
+  maxUnavailable: 25% (floor -> 0) and maxSurge: 25% (ceil -> 1), so one pod
+  must stay Available and the new pod is required to become Ready BEFORE the
+  old one is removed. That guarantees a window where two operators reconcile
+  the same Konk/Etcd CRs at once, with no leader election to arbitrate: both
+  drive Helm releases for the same CR and corrupt each other's release
+  history ("release: already exists", "sh.helm.release.v1.<rel>.vN not found",
+  "rollback failed: release has no N version").
+
+  The overlap also breaks the fix-helm-orphans init container below, whose
+  whole premise is starting from a clean slate: it deletes non-deployed
+  release secrets, and pending-upgrade is indistinguishable from an upgrade
+  the outgoing operator is running right now.
+
+  Recreate costs a few seconds with no operator running. Reconciliation
+  resumes on startup and nothing is lost, which is the right trade for a
+  singleton that owns Helm releases.
+  */}}
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       {{- include "konk-operator.selectorLabels" . | nindent 6 }}
