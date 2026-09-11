@@ -280,13 +280,13 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "count(sum by (namespace, endpoint) (kube_endpoint_address{namespace=~\"aggregate|ddi|atcapi|hostapp|ngp-cp|ntp|tagging-v2|redirect|endpoints\", endpoint=~\".*-apiservice\", ready=\"true\"})) or vector(0)",
+          "expr": "count(sum by (namespace, endpoint) (kube_endpoint_address{namespace=~\"$namespace\", endpoint=~\".*-apiservice\", ready=\"true\"})) or vector(0)",
           "legendFormat": "with endpoints",
           "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "count(sum by (namespace, endpoint) (kube_endpoint_info{namespace=~\"aggregate|ddi|atcapi|hostapp|ngp-cp|ntp|tagging-v2|redirect|endpoints\", endpoint=~\".*-apiservice\"})) or vector(0)",
+          "expr": "count(sum by (namespace, endpoint) (kube_endpoint_info{namespace=~\"$namespace\", endpoint=~\".*-apiservice\"})) or vector(0)",
           "legendFormat": "of total",
           "refId": "B"
         }
@@ -1667,7 +1667,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS_UID}" },
-          "expr": "count by (namespace) ((kube_pod_status_ready{namespace=~\"$namespace\", namespace=~\"aggregate|ddi|atcapi|hostapp|ngp-cp|ntp|tagging-v2|redirect|endpoints\", condition=\"true\"} == 0) * on (namespace, pod) group_left () (kube_pod_status_phase{namespace=~\"$namespace\", namespace=~\"aggregate|ddi|atcapi|hostapp|ngp-cp|ntp|tagging-v2|redirect|endpoints\", phase=\"Running\"} == 1))",
+          "expr": "count by (namespace) ((kube_pod_status_ready{namespace=~\"$namespace\", condition=\"true\"} == 0) * on (namespace, pod) group_left () (kube_pod_status_phase{namespace=~\"$namespace\", phase=\"Running\"} == 1))",
           "legendFormat": "{{namespace}}",
           "refId": "A"
         }
@@ -2118,7 +2118,7 @@
         "regex": "",
         "sort": 1,
         "type": "query",
-        "allValue": "aggregate|ddi|atcapi|hostapp|ngp-cp|ntp|tagging-v2|redirect|endpoints"
+        "allValue": ""
       },
       {
         "current": {},
