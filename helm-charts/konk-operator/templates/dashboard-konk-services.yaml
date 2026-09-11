@@ -1,0 +1,22 @@
+{{- /*
+The konk-services dashboard is fleet-wide: it covers every KonkService across
+every namespace. It lives in the konk-operator chart rather than konk-service
+because watches.yaml maps the KonkService CR to helm-charts/konk-service, so
+that chart is instantiated once per CR -- dozens of releases, which would emit
+dozens of duplicate GrafanaDashboard CRs all claiming the same uid.
+konk-operator is deployed directly, one release per cluster.
+*/}}
+{{- if .Values.dashboards.create }}
+apiVersion: integreatly.org/v1alpha1
+kind: GrafanaDashboard
+metadata:
+  name: {{ include "konk-operator.fullname" . }}-konk-services
+  namespace: {{ .Release.Namespace }}
+  labels:
+    integreatly.org/operator: appinfra-grafana
+    {{- include "konk-operator.labels" . | nindent 4 }}
+spec:
+  customFolderName: "konk"
+  json: |-
+    {{- .Files.Get "dashboards/konk-services.json" | replace "${DS_PROMETHEUS_UID}" .Values.dashboards.prometheusUid | nindent 4 }}
+{{- end }}
