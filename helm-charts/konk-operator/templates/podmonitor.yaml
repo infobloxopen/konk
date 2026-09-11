@@ -1,0 +1,45 @@
+{{- /*
+Scrapes the operator's own /metrics endpoint.
+
+A PodMonitor rather than a Service + ServiceMonitor because it needs no extra
+Service, and because this is the pattern already proven on these clusters: the
+etcd chart's PodMonitor is discovered by infra-monitoring-alloy, whose
+prometheus.operator.podmonitors component carries no selector and so picks up
+every PodMonitor regardless of labels.
+
+Without this, resource_created_at_seconds / rest_client_requests_total /
+process_start_time_seconds are never collected and the operator-sourced panels
+on the konk-operator dashboard are permanently empty.
+*/}}
+{{- /*
+Also gated on the PodMonitor CRD actually being installed. monitoring.coreos.com
+is not guaranteed on every cluster, and rendering the object where the CRD is
+absent fails the whole install -- so enabling metrics must never be able to break
+a cluster that has no prometheus-operator. Same capability-check pattern the
+charts already use for cert-manager in _helpers.tpl.
+*/}}
+{{- if and .Values.metrics.enabled .Values.metrics.podMonitor.enabled (.Capabilities.APIVersions.Has "monitoring.coreos.com/v1") }}
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: {{ include "konk-operator.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "konk-operator.labels" . | nindent 4 }}
+spec:
+  # Carry app.kubernetes.io/instance onto the metrics. Alloy's annotation-based
+  # discovery labelmaps pod labels in automatically, but a PodMonitor adds only
+  # namespace/pod/container unless told otherwise -- so without this the label
+  # set differs depending on which collector picked the pod up, and any query
+  # selecting on it silently stops matching when the PodMonitor takes over.
+  podTargetLabels:
+    - app.kubernetes.io/instance
+  selector:
+    matchLabels:
+      {{- include "konk-operator.selectorLabels" . | nindent 6 }}
+  podMetricsEndpoints:
+    - port: metrics
+      path: /metrics
+      interval: {{ .Values.metrics.podMonitor.interval }}
+      scrapeTimeout: {{ .Values.metrics.podMonitor.scrapeTimeout }}
+{{- end }}
