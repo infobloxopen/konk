@@ -12,7 +12,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 K8S_VERSION="${1:-${K8S_VERSION:-v1.25.8}}"
-GO_VERSION="${2:-${GO_VERSION:-1.25.5}}"
+GO_VERSION="${2:-${GO_VERSION:-1.26.6}}"
 
 # Packages to upgrade – add new entries here as vulnerabilities are discovered.
 # NOTE: google.golang.org/protobuf is excluded because v1.34+ removed
@@ -33,11 +33,11 @@ PACKAGES=(
 
 # Packages that require specific versions (not @latest) due to compatibility
 # constraints with k8s 1.25.x's OpenTelemetry v0.20.0 pinning.
-# grpc 1.79.3 is the minimum fix for CVE-2026-33186 (authorization bypass via missing leading slash).
+# grpc 1.83.2 covers CVE-2026-33186 plus CVE-2026-84303/84304/84445 and GHSA-hrxh-6v49-42gf.
 # docker/distribution was renamed to github.com/distribution/reference;
 # we pin to the last v2 tag that contains the CVE-2023-2253 fix.
 PINNED_PACKAGES=(
-  "google.golang.org/grpc@v1.79.3"
+  "google.golang.org/grpc@v1.83.2"
   "github.com/docker/distribution@v2.8.3+incompatible"
   "go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp@v0.44.0"
   "go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc@v0.44.0"
@@ -52,6 +52,12 @@ PINNED_PACKAGES=(
   "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc@v1.39.0"
   "go.opentelemetry.io/proto/otlp@v1.0.0"
 )
+
+# NOTE: do NOT swap gopkg.in/square/go-jose.v2 for the maintained fork to chase
+# CVE-2024-28180. k8s 1.25's pkg/serviceaccount imports both the root package and
+# the /jwt subpackage; a replace splits type identity across the two module paths
+# (square vs go-jose Signer), and NewNumericDate changed signature after v2.2.2.
+# Both break the kube-apiserver build. Verified 2026-09-15.
 
 # Combine all package names (without versions) for the drop-replace loop
 ALL_PACKAGE_NAMES=("${PACKAGES[@]}")

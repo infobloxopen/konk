@@ -79,7 +79,7 @@ require (
 	go.opentelemetry.io/otel/trace v0.20.0
 	go.opentelemetry.io/proto/otlp v0.7.0
 	go.uber.org/zap v1.19.0
-	golang.org/x/crypto v0.52.0
+	golang.org/x/crypto v0.57.0
 	golang.org/x/net v0.55.0
 	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8
 	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4
@@ -90,7 +90,7 @@ require (
 	gonum.org/v1/gonum v0.6.2
 	google.golang.org/api v0.60.0
 	google.golang.org/genproto v0.0.0-20220502173005-c8bf987b8c21
-	google.golang.org/grpc v1.79.3
+	google.golang.org/grpc v1.83.2
 	google.golang.org/protobuf v1.33.0
 	gopkg.in/gcfg.v1 v1.2.0
 	gopkg.in/square/go-jose.v2 v2.2.2
