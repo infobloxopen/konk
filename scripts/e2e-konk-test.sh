@@ -383,6 +383,30 @@ fi
 echo -e "  Cluster:      ${KONK_CTX}"
 echo -e "  Date (UTC):   $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
 echo -e "  Date (IST):   $(TZ=Asia/Kolkata date '+%Y-%m-%d %H:%M:%S IST')"
+
+# Konk build under test. Two different strings are in play and both matter:
+# the HelmRelease revision is the chart version pinned in the DC repo
+# (v0.2.1-164-gbd3f28a-j203), while the operator image tag is the same build
+# without the chart's -jNNN suffix (v0.2.1-164-gbd3f28a).
+KONK_OP_IMAGE=$(kubectl get deploy konk-operator -n "$KONK_NAMESPACE" \
+  -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null || true)
+KONK_OP_IMAGE_SHORT="${KONK_OP_IMAGE%%@*}"          # drop any @sha256:... digest pin
+# Drop the registry host but KEEP the project: operator images live in two
+# different Harbor projects (infobloxcto/konk and infoblox/konk), so the
+# project is part of identifying which build is running.
+case "${KONK_OP_IMAGE_SHORT%%/*}" in
+  *.*|*:*) KONK_OP_IMAGE_SHORT="${KONK_OP_IMAGE_SHORT#*/}" ;;
+esac
+KONK_OP_CHART=$(kubectl get hr -n vela-system konk-operator \
+  -o jsonpath='{.status.history[0].chartVersion}' 2>/dev/null || true)
+if [[ -z "$KONK_OP_CHART" ]]; then
+  KONK_OP_CHART=$(kubectl get hr -n vela-system konk-operator \
+    -o jsonpath='{.status.lastAttemptedRevision}' 2>/dev/null || true)
+fi
+if [[ -n "$KONK_OP_CHART" ]]; then
+  echo -e "  Konk chart:   ${KONK_OP_CHART}"
+fi
+echo -e "  Konk image:   ${KONK_OP_IMAGE_SHORT:-unknown}"
 echo -e "  Sample NS:    ${SAMPLE_NS}"
 SKIP_TRIGGER_DISPLAY="false"
 if [[ "$TRIGGER_REGISTRATION" != true ]]; then
@@ -2663,16 +2687,33 @@ for HELM_NS in $KONK_NS_LIST; do
   # --deployed --failed --pending covers all actionable states (skip superseded/uninstalled)
   helm list -n "$HELM_NS" --deployed --failed --pending -o json 2>/dev/null | python3 -c "
 import sys, json
+from datetime import datetime, timezone
 try:
     releases = json.load(sys.stdin)
 except:
     sys.exit(0)
+
+def to_utc(raw):
+    # helm prints the release timestamp with an explicit offset, e.g.
+    # '2026-09-16 10:25:54.168293117 +0000 UTC'. It reads LastDeployed straight
+    # out of the release secret, so in practice the offset is +0000 — but parse
+    # it rather than assume, then normalise to UTC so the printed time always
+    # matches the 'Date (UTC)' line in the banner.
+    parts = raw.split()
+    if len(parts) >= 3:
+        try:
+            stamp = parts[0] + ' ' + parts[1].split('.')[0] + ' ' + parts[2]
+            dt = datetime.strptime(stamp, '%Y-%m-%d %H:%M:%S %z')
+            return dt.astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+        except ValueError:
+            pass
+    return raw[:19]
+
 konk_charts = ('konk-', 'etcd-', 'konk-service-')
 for rel in releases:
     chart = rel.get('chart', '')
     if any(chart.startswith(prefix) for prefix in konk_charts):
-        updated_raw = rel.get('updated', '')
-        updated = updated_raw[:19] if len(updated_raw) >= 19 else updated_raw
+        updated = to_utc(rel.get('updated', ''))
         print(f\"{rel.get('namespace','')}\t{rel.get('name','')}\t{rel.get('status','')}\t{chart}\t{updated}\t{rel.get('app_version','')}\")
 " | while IFS=$'\t' read -r REL_NS REL_NAME REL_STATUS REL_CHART REL_UPDATED REL_APP_VER; do
     if [[ -z "$REL_NAME" ]]; then
@@ -2681,15 +2722,15 @@ for rel in releases:
     # Pad release label to align columns (longest konk release name ~50 chars)
     REL_LABEL=$(printf "%-55s" "${REL_NAME} (${REL_NS})")
     if [[ "$REL_STATUS" == "deployed" ]]; then
-      pass "${REL_LABEL} —  deployed   — updated ${REL_UPDATED}"
+      pass "${REL_LABEL} —  deployed   — updated ${REL_UPDATED} UTC"
     elif [[ "$REL_STATUS" == "failed" ]]; then
-      fail "${REL_LABEL} —  FAILED    — last attempt ${REL_UPDATED}"
+      fail "${REL_LABEL} —  FAILED    — last attempt ${REL_UPDATED} UTC"
       HELM_RELEASE_ISSUES=$((HELM_RELEASE_ISSUES + 1))
     elif [[ "$REL_STATUS" == "pending-upgrade" || "$REL_STATUS" == "pending-install" ]]; then
-      warn "${REL_LABEL} —  ${REL_STATUS} — stuck since ${REL_UPDATED}"
+      warn "${REL_LABEL} —  ${REL_STATUS} — stuck since ${REL_UPDATED} UTC"
       HELM_RELEASE_ISSUES=$((HELM_RELEASE_ISSUES + 1))
     else
-      warn "${REL_LABEL} —  ${REL_STATUS} — updated ${REL_UPDATED}"
+      warn "${REL_LABEL} —  ${REL_STATUS} — updated ${REL_UPDATED} UTC"
       HELM_RELEASE_ISSUES=$((HELM_RELEASE_ISSUES + 1))
     fi
   done
