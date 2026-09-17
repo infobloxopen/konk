@@ -1,5 +1,5 @@
 # Multi-stage build: Build helm-operator with updated Go version
-FROM golang:1.25.5-alpine AS go-builder
+FROM golang:1.26.6-alpine AS go-builder
 
 # Install necessary build tools
 RUN apk add --no-cache git make bash
@@ -8,7 +8,7 @@ RUN apk add --no-cache git make bash
 WORKDIR /workspace
 RUN git clone --depth 1 --branch v1.42.0 https://github.com/operator-framework/operator-sdk.git && \
     cd operator-sdk && \
-    go get -u golang.org/x/crypto && \
+    go get golang.org/x/crypto@v0.57.0 && \
     go mod tidy && \
     make build/helm-operator
 
