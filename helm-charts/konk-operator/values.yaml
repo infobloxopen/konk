@@ -41,11 +41,10 @@ serviceAccount:
 space:
   enabled: false
 
-# Scrape annotations for the operator's metrics endpoint, which helm-operator
-# serves on :8080. Set to {} to opt out.
-podAnnotations:
-  prometheus.io/port: '8080'
-  prometheus.io/scrape: 'true'
+# Annotations for the operator pod. Scrape annotations do NOT belong here --
+# use metrics.podAnnotations below, which is suppressed automatically when the
+# PodMonitor is collecting instead.
+podAnnotations: {}
 
 podSecurityContext:
   runAsUser: 10001
@@ -103,6 +102,12 @@ dashboards:
 metrics:
   enabled: false
   port: 8080
+  # Annotation-based discovery, for collectors that scrape on prometheus.io/*
+  # rather than PodMonitors. Emitted only while metrics.enabled is true AND
+  # podMonitor.enabled is false -- see the note on the deployment template.
+  podAnnotations:
+    prometheus.io/scrape: 'true'
+    prometheus.io/port: '8080'
   podMonitor:
     enabled: false
     interval: 60s

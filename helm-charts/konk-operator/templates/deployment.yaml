@@ -33,10 +33,27 @@ spec:
       {{- include "konk-operator.selectorLabels" . | nindent 6 }}
   template:
     metadata:
-    {{- with .Values.podAnnotations }}
+      {{- /*
+      Never emit prometheus.io scrape annotations while the PodMonitor is
+      collecting. Alloy's annotation discovery and its
+      prometheus.operator.podmonitors component both run with no selector, so a
+      pod carrying both is scraped TWICE and every series is duplicated, the two
+      copies differing only in job/instance. Same gate the etcd chart uses
+      (#689/#699); konk-operator previously had none, which is why DC had to
+      null podAnnotations per cluster by hand.
+      */}}
+      {{- $scrapeAnnotations := and .Values.metrics.enabled (not .Values.metrics.podMonitor.enabled) .Values.metrics.podAnnotations }}
+      {{- if or .Values.podAnnotations $scrapeAnnotations }}
       annotations:
+        {{- with .Values.podAnnotations }}
         {{- toYaml . | nindent 8 }}
-    {{- end }}
+        {{- end }}
+        {{- if $scrapeAnnotations }}
+        {{- with .Values.metrics.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- end }}
+      {{- end }}
       labels:
         {{- include "konk-operator.selectorLabels" . | nindent 8 }}
     spec:
