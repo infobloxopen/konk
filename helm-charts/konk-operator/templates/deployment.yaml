@@ -33,10 +33,27 @@ spec:
       {{- include "konk-operator.selectorLabels" . | nindent 6 }}
   template:
     metadata:
-    {{- with .Values.podAnnotations }}
+      {{- /*
+      Never emit prometheus.io scrape annotations while the PodMonitor is
+      collecting. Alloy's annotation discovery and its
+      prometheus.operator.podmonitors component both run with no selector, so a
+      pod carrying both is scraped TWICE and every series is duplicated, the two
+      copies differing only in job/instance. Same gate the etcd chart uses
+      (#689/#699); konk-operator previously had none, which is why DC had to
+      null podAnnotations per cluster by hand.
+      */}}
+      {{- $scrapeAnnotations := and .Values.metrics.enabled (not .Values.metrics.podMonitor.enabled) .Values.metrics.podAnnotations }}
+      {{- if or .Values.podAnnotations $scrapeAnnotations }}
       annotations:
+        {{- with .Values.podAnnotations }}
         {{- toYaml . | nindent 8 }}
-    {{- end }}
+        {{- end }}
+        {{- if $scrapeAnnotations }}
+        {{- with .Values.metrics.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- end }}
+      {{- end }}
       labels:
         {{- include "konk-operator.selectorLabels" . | nindent 8 }}
     spec:
@@ -50,7 +67,7 @@ spec:
       {{- if .Values.initOrphanFix.enabled }}
       initContainers:
         - name: fix-helm-orphans
-          image: "{{ .Values.relatedImages.kindRepository }}:{{ .Values.relatedImages.kind }}"
+          image: "{{ include "konk-operator.imageRepo" (dict "ctx" . "repo" .Values.relatedImages.kindRepository) }}:{{ .Values.relatedImages.kind | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           command: ["/usr/local/bin/konk-service", "fix-helm-orphans-init"]
           {{- if .Values.initOrphanFix.skip }}
@@ -77,7 +94,7 @@ spec:
         - name: {{ .Chart.Name }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          image: "{{ include "konk-operator.imageRepo" (dict "ctx" . "repo" .Values.image.repository) }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             # operator-sdk framework metrics, plain HTTP. Named so the
@@ -95,17 +112,17 @@ spec:
             - name: VAULT_PATH
               value: {{ .Values.vaultCommon.imagepullsecret.path | default "" }}
             - name: RELATED_IMAGE_APISERVER
-              value: {{ .Values.relatedImages.apiserver | default "" | quote }}
+              value: {{ .Values.relatedImages.apiserver | default .Chart.AppVersion | quote }}
             - name: RELATED_IMAGE_PROVISION
-              value: {{ .Values.relatedImages.provision | default "" | quote }}
+              value: {{ .Values.relatedImages.provision | default .Chart.AppVersion | quote }}
             - name: RELATED_IMAGE_KIND
-              value: {{ .Values.relatedImages.kind | default "" | quote }}
+              value: {{ .Values.relatedImages.kind | default .Chart.AppVersion | quote }}
             - name: RELATED_IMAGE_APISERVER_REPO
-              value: {{ .Values.relatedImages.apiserverRepository | default "" | quote }}
+              value: {{ include "konk-operator.imageRepo" (dict "ctx" . "repo" .Values.relatedImages.apiserverRepository) | quote }}
             - name: RELATED_IMAGE_PROVISION_REPO
-              value: {{ .Values.relatedImages.provisionRepository | default "" | quote }}
+              value: {{ include "konk-operator.imageRepo" (dict "ctx" . "repo" .Values.relatedImages.provisionRepository) | quote }}
             - name: RELATED_IMAGE_KIND_REPO
-              value: {{ .Values.relatedImages.kindRepository | default "" | quote }}
+              value: {{ include "konk-operator.imageRepo" (dict "ctx" . "repo" .Values.relatedImages.kindRepository) | quote }}
           livenessProbe:
             httpGet:
               path: /healthz
