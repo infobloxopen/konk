@@ -7,6 +7,33 @@ metadata:
     {{- include "konk-operator.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
+  {{- /*
+  Recreate, not the default RollingUpdate. With replicas: 1 the defaults are
+  maxUnavailable: 25% (floor -> 0) and maxSurge: 25% (ceil -> 1), so one pod
+  must stay Available and the new pod is required to become Ready BEFORE the
+  old one is removed. That guarantees a window where two operators reconcile
+  the same Konk/Etcd CRs at once, with no leader election to arbitrate: both
+  drive Helm releases for the same CR and corrupt each other's release
+  history ("release: already exists", "sh.helm.release.v1.<rel>.vN not found",
+  "rollback failed: release has no N version").
+
+  Observed on gov-stg-2 2026-09-17 promoting this line: the overlap wedged the
+  etcd release in pending-upgrade with its StatefulSet already deleted, and on
+  us-dev-5 the same churn re-minted bulk-konk-ca while each KonkService kept a
+  client cert signed by the old one, taking every bulk APIService down with
+  x509 errors while all CR statuses still read Deployed=True.
+
+  Until now the workaround was DC-side: scale replicaCount to 0, land the
+  version bump, scale back to 1 -- three PRs per promotion, and stranding the
+  operator at 0 if any of them is reverted wholesale. This removes the need
+  for that.
+
+  Recreate costs a few seconds with no operator running. Reconciliation
+  resumes on startup and nothing is lost, which is the right trade for a
+  singleton that owns Helm releases.
+  */}}
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       {{- include "konk-operator.selectorLabels" . | nindent 6 }}
