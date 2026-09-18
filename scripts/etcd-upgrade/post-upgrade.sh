@@ -84,6 +84,67 @@ printf "║  Date    : %-50s║\n" "$(date)"
 echo "╚══════════════════════════════════════════════════════════════╝"
 
 # ── 1. Operator image ─────────────────────────────────────────────────────────
+# ── konk API surface helpers ──────────────────────────────────────────────────
+# The objects that matter live INSIDE konk's etcd, not in the parent cluster.
+# KonkService CRs report Deployed=True even when the whole API surface is gone,
+# because their Helm releases really are installed in the parent cluster while
+# the registered APIServices/namespaces/services live in konk's etcd — which an
+# etcd claimName migration wipes and nothing reconciles. Count them directly.
+#
+# Baseline file lets pre-upgrade record the surface and post-upgrade diff it.
+BASELINE_FILE="${BASELINE_FILE:-/tmp/konk-surface-${CTX//[^a-zA-Z0-9]/_}.baseline}"
+# Optional second cluster to compare against (e.g. CONTROL_CTX=us-dev-2).
+CONTROL_CTX="${CONTROL_CTX:-}"
+
+# Echo "<total> <apiservices> <bulkapis> <namespaces> <services>" for a cluster.
+konk_surface_counts() {
+  local ctx="$1"
+  local ns="${2:-$NS}"
+  local sts="${3:-$STS}"
+  local cdir ep tls t a b n s
+  # Derive the cert dir from the live StatefulSet: Chainguard etcd mounts at
+  # /etc/etcd/certs/client, the retired Bitnami image used /opt/bitnami/...
+  cdir=$(kubectl --context "$ctx" get sts "$sts" -n "$ns" \
+    -o jsonpath='{range .spec.template.spec.containers[0].env[*]}{.name}={.value}{"\n"}{end}' \
+    2>/dev/null | awk -F= '/^ETCD_CERT_FILE=/{print $2}')
+  if [[ -n "$cdir" ]]; then cdir=$(dirname "$cdir"); else cdir="/etc/etcd/certs/client"; fi
+  ep="--endpoints=https://localhost:2379"
+  tls="--cacert=$cdir/ca.crt --cert=$cdir/server.crt --key=$cdir/server.key"
+  _kq() { kubectl --context "$ctx" exec -n "$ns" "$sts-0" -- \
+    etcdctl get "$1" --prefix --keys-only $ep $tls 2>/dev/null; }
+  # NOTE: grep -c prints 0 AND exits 1 on empty input, so `|| echo 0` would emit
+  # "0\n0" and break [[ -eq ]]. Use `|| true` with a :-0 default.
+  t=$(_kq ""                                | grep -c . || true)
+  a=$(_kq /registry/apiregistration.k8s.io  | grep -c . || true)
+  b=$(_kq /registry/apiregistration.k8s.io  | grep -c 'bulk.infoblox.com' || true)
+  n=$(_kq /registry/namespaces              | grep -c . || true)
+  s=$(_kq /registry/services                | grep -c . || true)
+  echo "${t:-0} ${a:-0} ${b:-0} ${n:-0} ${s:-0}"
+}
+
+# Print the comparison table. $1..$5 = this cluster's counts.
+konk_surface_table() {
+  local t="$1" a="$2" b="$3" n="$4" s="$5"
+  local bt ba bb bn bs ct ca cb cn cs
+  bt="-"; ba="-"; bb="-"; bn="-"; bs="-"
+  if [[ -f "$BASELINE_FILE" ]]; then
+    # shellcheck disable=SC1090
+    source "$BASELINE_FILE" 2>/dev/null || true
+    bt="${BASE_TOTAL:--}"; ba="${BASE_APISERVICES:--}"; bb="${BASE_BULK:--}"
+    bn="${BASE_NAMESPACES:--}"; bs="${BASE_SERVICES:--}"
+  fi
+  ct="-"; ca="-"; cb="-"; cn="-"; cs="-"
+  if [[ -n "$CONTROL_CTX" ]]; then
+    read -r ct ca cb cn cs <<<"$(konk_surface_counts "$CONTROL_CTX")"
+  fi
+  printf "  %-14s %-10s %-10s %s\n" "metric" "this" "baseline" "control"
+  printf "  %-14s %-10s %-10s %s\n" "total keys"  "$t" "$bt" "$ct"
+  printf "  %-14s %-10s %-10s %s\n" "APIServices" "$a" "$ba" "$ca"
+  printf "  %-14s %-10s %-10s %s\n" "bulk APIs"   "$b" "$bb" "$cb"
+  printf "  %-14s %-10s %-10s %s\n" "namespaces"  "$n" "$bn" "$cn"
+  printf "  %-14s %-10s %-10s %s\n" "services"    "$s" "$bs" "$cs"
+}
+
 section "1. konk-operator version"
 OPERATOR_IMAGE=$(kubectl --context "$CTX" get deploy -n "$OPERATOR_NS" \
   -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.template.spec.containers[0].image}{"\n"}{end}' \
@@ -866,8 +927,49 @@ else
 fi
 
 # ── Summary ───────────────────────────────────────────────────────────────────
+# ── 34. konk API surface vs pre-upgrade baseline ──────────────────────────────
+# This is the check that catches a "green but empty" konk: every KonkService CR
+# can report Deployed=True while the entire bulk API surface is missing from
+# konk's etcd. Compare counts, not statuses.
+section "34. konk API surface (inside konk etcd)"
+read -r SURF_T SURF_A SURF_B SURF_N SURF_S <<<"$(konk_surface_counts "$CTX")"
+konk_surface_table "$SURF_T" "$SURF_A" "$SURF_B" "$SURF_N" "$SURF_S"
+
+if [[ ! -f "$BASELINE_FILE" ]]; then
+  info "No baseline at $BASELINE_FILE — run pre-upgrade.sh before the upgrade to enable comparison"
+  if [[ "$SURF_B" -gt 0 ]]; then
+    pass "$SURF_B bulk APIServices registered (no baseline to compare against)"
+  else
+    fail "0 bulk APIServices registered inside konk — the API surface is down"
+  fi
+else
+  # shellcheck disable=SC1090
+  source "$BASELINE_FILE" 2>/dev/null || true
+  SURF_OK=1
+  for pair in "total keys:$SURF_T:${BASE_TOTAL:-0}" \
+              "APIServices:$SURF_A:${BASE_APISERVICES:-0}" \
+              "bulk APIs:$SURF_B:${BASE_BULK:-0}" \
+              "namespaces:$SURF_N:${BASE_NAMESPACES:-0}" \
+              "services:$SURF_S:${BASE_SERVICES:-0}"; do
+    _name="${pair%%:*}"; _rest="${pair#*:}"; _now="${_rest%%:*}"; _was="${_rest#*:}"
+    if [[ "$_now" -lt "$_was" ]]; then
+      fail "$_name regressed: $_was before the upgrade -> $_now now"
+      SURF_OK=0
+    fi
+  done
+  if [[ "$SURF_OK" -eq 1 ]]; then
+    pass "konk API surface matches or exceeds the pre-upgrade baseline (bulk APIs $SURF_B, keys $SURF_T)"
+  else
+    info "Recovery: scripts/fix-ca-mismatch.sh re-issues the per-KonkService certs against the"
+    info "current bulk-konk CA and restarts the kubeconfig + kubectl-apiservice deployments."
+    info "It skips any KonkService missing its -konk-service-kubeconfig deployment (e.g. ipam v3),"
+    info "so re-check this count afterwards rather than trusting its final PASS line."
+  fi
+fi
+
 TOTAL_CHECKS=$(( PASS_COUNT + FAIL_COUNT ))
 echo
+
 echo "╔══════════════════════════════════════════════════════════════╗"
 echo "║                        SUMMARY                              ║"
 echo "╠══════════════════════════════════════════════════════════════╣"

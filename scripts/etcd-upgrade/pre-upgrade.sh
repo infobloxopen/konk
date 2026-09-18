@@ -14,8 +14,28 @@ if [[ -z "$CTX" ]]; then
 fi
 NS="${NS:-aggregate}"
 STS="${STS:-bulk-konk-etcd}"
-EXPECTED_OPERATOR_VERSION="${EXPECTED_OPERATOR_VERSION:-v0.2.1-138-g8b64bf7-j170}"
-ETCD_CERTS_DIR="${ETCD_CERTS_DIR:-/opt/bitnami/etcd/certs/client}"
+# Expected pre-upgrade konk-operator build. Defaults to the j203 baseline that
+# us-dev-5 and the gov clusters run before the claimName migration.
+# NOTE: the DC chart version carries a -jNNN suffix (v0.2.1-164-gbd3f28a-j203)
+# but the IMAGE tag does not (v0.2.1-164-gbd3f28a), so the suffix is stripped
+# before matching -- either form can be passed in.
+EXPECTED_OPERATOR_VERSION="${EXPECTED_OPERATOR_VERSION:-v0.2.1-164-gbd3f28a}"
+EXPECTED_OPERATOR_VERSION_MATCH="${EXPECTED_OPERATOR_VERSION%-j[0-9]*}"
+# etcd cert mount path. The chart sets ETCD_CERT_FILE on the container, and the
+# path differs by image family: Chainguard (cgr.dev/infoblox.com/etcd, used by
+# BOTH j33 and j203) mounts at /etc/etcd/certs/client, while the retired Bitnami
+# image used /opt/bitnami/etcd/certs/client. Derive it from the live StatefulSet
+# so this works on either, and on gov (also Chainguard).
+if [[ -z "${ETCD_CERTS_DIR:-}" ]]; then
+  _cert_file=$(kubectl --context "$CTX" get sts "$STS" -n "$NS" \
+    -o jsonpath='{range .spec.template.spec.containers[0].env[*]}{.name}={.value}{"\n"}{end}' \
+    2>/dev/null | awk -F= '/^ETCD_CERT_FILE=/{print $2}')
+  if [[ -n "$_cert_file" ]]; then
+    ETCD_CERTS_DIR=$(dirname "$_cert_file")
+  else
+    ETCD_CERTS_DIR="/etc/etcd/certs/client"
+  fi
+fi
 ETCD_TLS="--cacert=$ETCD_CERTS_DIR/ca.crt --cert=$ETCD_CERTS_DIR/server.crt --key=$ETCD_CERTS_DIR/server.key"
 ETCD_EP="--endpoints=https://localhost:2379"
 KARPENTER_NS="${KARPENTER_NS:-ib-system}"
@@ -50,12 +70,74 @@ printf "║  Date    : %-50s║\n" "$(date)"
 echo "╚══════════════════════════════════════════════════════════════╝"
 
 # ── 1. Operator ───────────────────────────────────────────────────────────────
+# ── konk API surface helpers ──────────────────────────────────────────────────
+# The objects that matter live INSIDE konk's etcd, not in the parent cluster.
+# KonkService CRs report Deployed=True even when the whole API surface is gone,
+# because their Helm releases really are installed in the parent cluster while
+# the registered APIServices/namespaces/services live in konk's etcd — which an
+# etcd claimName migration wipes and nothing reconciles. Count them directly.
+#
+# Baseline file lets pre-upgrade record the surface and post-upgrade diff it.
+BASELINE_FILE="${BASELINE_FILE:-/tmp/konk-surface-${CTX//[^a-zA-Z0-9]/_}.baseline}"
+# Optional second cluster to compare against (e.g. CONTROL_CTX=us-dev-2).
+CONTROL_CTX="${CONTROL_CTX:-}"
+
+# Echo "<total> <apiservices> <bulkapis> <namespaces> <services>" for a cluster.
+konk_surface_counts() {
+  local ctx="$1"
+  local ns="${2:-$NS}"
+  local sts="${3:-$STS}"
+  local cdir ep tls t a b n s
+  # Derive the cert dir from the live StatefulSet: Chainguard etcd mounts at
+  # /etc/etcd/certs/client, the retired Bitnami image used /opt/bitnami/...
+  cdir=$(kubectl --context "$ctx" get sts "$sts" -n "$ns" \
+    -o jsonpath='{range .spec.template.spec.containers[0].env[*]}{.name}={.value}{"\n"}{end}' \
+    2>/dev/null | awk -F= '/^ETCD_CERT_FILE=/{print $2}')
+  if [[ -n "$cdir" ]]; then cdir=$(dirname "$cdir"); else cdir="/etc/etcd/certs/client"; fi
+  ep="--endpoints=https://localhost:2379"
+  tls="--cacert=$cdir/ca.crt --cert=$cdir/server.crt --key=$cdir/server.key"
+  _kq() { kubectl --context "$ctx" exec -n "$ns" "$sts-0" -- \
+    etcdctl get "$1" --prefix --keys-only $ep $tls 2>/dev/null; }
+  # NOTE: grep -c prints 0 AND exits 1 on empty input, so `|| echo 0` would emit
+  # "0\n0" and break [[ -eq ]]. Use `|| true` with a :-0 default.
+  t=$(_kq ""                                | grep -c . || true)
+  a=$(_kq /registry/apiregistration.k8s.io  | grep -c . || true)
+  b=$(_kq /registry/apiregistration.k8s.io  | grep -c 'bulk.infoblox.com' || true)
+  n=$(_kq /registry/namespaces              | grep -c . || true)
+  s=$(_kq /registry/services                | grep -c . || true)
+  echo "${t:-0} ${a:-0} ${b:-0} ${n:-0} ${s:-0}"
+}
+
+# Print the comparison table. $1..$5 = this cluster's counts.
+konk_surface_table() {
+  local t="$1" a="$2" b="$3" n="$4" s="$5"
+  local bt ba bb bn bs ct ca cb cn cs
+  bt="-"; ba="-"; bb="-"; bn="-"; bs="-"
+  if [[ -f "$BASELINE_FILE" ]]; then
+    # shellcheck disable=SC1090
+    source "$BASELINE_FILE" 2>/dev/null || true
+    bt="${BASE_TOTAL:--}"; ba="${BASE_APISERVICES:--}"; bb="${BASE_BULK:--}"
+    bn="${BASE_NAMESPACES:--}"; bs="${BASE_SERVICES:--}"
+  fi
+  ct="-"; ca="-"; cb="-"; cn="-"; cs="-"
+  if [[ -n "$CONTROL_CTX" ]]; then
+    read -r ct ca cb cn cs <<<"$(konk_surface_counts "$CONTROL_CTX")"
+  fi
+  printf "  %-14s %-10s %-10s %s\n" "metric" "this" "baseline" "control"
+  printf "  %-14s %-10s %-10s %s\n" "total keys"  "$t" "$bt" "$ct"
+  printf "  %-14s %-10s %-10s %s\n" "APIServices" "$a" "$ba" "$ca"
+  printf "  %-14s %-10s %-10s %s\n" "bulk APIs"   "$b" "$bb" "$cb"
+  printf "  %-14s %-10s %-10s %s\n" "namespaces"  "$n" "$bn" "$cn"
+  printf "  %-14s %-10s %-10s %s\n" "services"    "$s" "$bs" "$cs"
+}
+
 section "1. konk-operator"
 OPERATOR_IMAGE=$(kubectl --context "$CTX" get deploy -n konk \
   -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.template.spec.containers[0].image}{"\n"}{end}' \
   2>/dev/null | grep -i operator | awk '{print $2}' || true)
 OPERATOR_RUNNING=$(kubectl --context "$CTX" get pods -n konk \
-  -l app.kubernetes.io/name=konk-operator --no-headers 2>/dev/null | grep -c "Running" || echo 0)
+  -l app.kubernetes.io/name=konk-operator --no-headers 2>/dev/null | grep -c "Running" || true)
+OPERATOR_RUNNING="${OPERATOR_RUNNING:-0}"
 
 info "Image: ${OPERATOR_IMAGE:-(not found)}"
 if [[ "$OPERATOR_RUNNING" -gt 0 ]]; then
@@ -63,7 +145,7 @@ if [[ "$OPERATOR_RUNNING" -gt 0 ]]; then
 else
   fail "konk-operator pod is NOT Running"
 fi
-if echo "$OPERATOR_IMAGE" | grep -q "$EXPECTED_OPERATOR_VERSION"; then
+if echo "$OPERATOR_IMAGE" | grep -q "$EXPECTED_OPERATOR_VERSION_MATCH"; then
   pass "konk-operator version is the expected prod baseline ($EXPECTED_OPERATOR_VERSION)"
 else
   fail "konk-operator version mismatch — expected '$EXPECTED_OPERATOR_VERSION', got '${OPERATOR_IMAGE:-(not found)}'"
@@ -164,9 +246,11 @@ fi
 # ── 7. StatefulSet replicas ready ────────────────────────────────────────────
 section "7. StatefulSet replicas"
 READY=$(kubectl --context "$CTX" get sts "$STS" -n "$NS" \
-  -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo 0)
+  -o jsonpath='{.status.readyReplicas}' 2>/dev/null || true)
+READY="${READY:-0}"
 TOTAL=$(kubectl --context "$CTX" get sts "$STS" -n "$NS" \
-  -o jsonpath='{.status.replicas}' 2>/dev/null || echo 0)
+  -o jsonpath='{.status.replicas}' 2>/dev/null || true)
+TOTAL="${TOTAL:-0}"
 ETCD_IMAGE=$(kubectl --context "$CTX" get sts "$STS" -n "$NS" \
   -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null || true)
 
@@ -212,7 +296,8 @@ section "10. etcd cluster members"
 MEMBER_OUT=$(kubectl --context "$CTX" exec -n "$NS" "$STS-0" -- \
   etcdctl member list -w table $ETCD_EP $ETCD_TLS 2>&1 || true)
 MEMBER_COUNT=$(kubectl --context "$CTX" exec -n "$NS" "$STS-0" -- \
-  etcdctl member list $ETCD_EP $ETCD_TLS 2>/dev/null | grep -c . || echo 0)
+  etcdctl member list $ETCD_EP $ETCD_TLS 2>/dev/null | grep -c . || true)
+MEMBER_COUNT="${MEMBER_COUNT:-0}"
 info "$MEMBER_OUT"
 if [[ "$MEMBER_COUNT" -eq "$TOTAL" ]]; then
   pass "etcd member count ($MEMBER_COUNT) matches StatefulSet replicas ($TOTAL)"
@@ -223,7 +308,8 @@ fi
 # ── 11. etcd baseline key count (informational) ───────────────────────────────
 section "11. etcd baseline (informational)"
 KEY_COUNT=$(kubectl --context "$CTX" exec -n "$NS" "$STS-0" -- \
-  etcdctl get "" --prefix --keys-only $ETCD_EP $ETCD_TLS 2>/dev/null | grep -c . || echo 0)
+  etcdctl get "" --prefix --keys-only $ETCD_EP $ETCD_TLS 2>/dev/null | grep -c . || true)
+KEY_COUNT="${KEY_COUNT:-0}"
 ETCD_STATUS=$(kubectl --context "$CTX" exec -n "$NS" "$STS-0" -- \
   etcdctl endpoint status -w table $ETCD_EP $ETCD_TLS 2>&1 || true)
 info "Key count: $KEY_COUNT (record this as baseline)"
@@ -275,7 +361,8 @@ NODEPOOL_LINE=$(kubectl --context "$CTX" get nodepools.karpenter.sh --no-headers
 NODEPOOL_READY=$(kubectl --context "$CTX" get nodepools.karpenter.sh "$STABLE_NODEPOOL" \
   -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || true)
 NODEPOOL_NODES=$(kubectl --context "$CTX" get nodes \
-  -l karpenter.sh/nodepool="$STABLE_NODEPOOL" --no-headers 2>/dev/null | grep -c . || echo 0)
+  -l karpenter.sh/nodepool="$STABLE_NODEPOOL" --no-headers 2>/dev/null | grep -c . || true)
+NODEPOOL_NODES="${NODEPOOL_NODES:-0}"
 
 if [[ -n "$NODEPOOL_LINE" ]]; then
   info "nodepool/$NODEPOOL_LINE"
@@ -291,8 +378,28 @@ else
 fi
 
 # ── Summary ───────────────────────────────────────────────────────────────────
+# ── 14. konk API surface (baseline for post-upgrade comparison) ───────────────
+section "14. konk API surface (inside konk etcd)"
+read -r SURF_T SURF_A SURF_B SURF_N SURF_S <<<"$(konk_surface_counts "$CTX")"
+konk_surface_table "$SURF_T" "$SURF_A" "$SURF_B" "$SURF_N" "$SURF_S"
+cat > "$BASELINE_FILE" <<BASELINE
+# konk API surface baseline — $CTX — $(date -u +%Y-%m-%dT%H:%M:%SZ)
+BASE_TOTAL=$SURF_T
+BASE_APISERVICES=$SURF_A
+BASE_BULK=$SURF_B
+BASE_NAMESPACES=$SURF_N
+BASE_SERVICES=$SURF_S
+BASELINE
+info "Baseline written to $BASELINE_FILE"
+if [[ "$SURF_T" -gt 0 && "$SURF_B" -gt 0 ]]; then
+  pass "konk API surface recorded ($SURF_B bulk APIServices, $SURF_T keys) — post-upgrade must match"
+else
+  fail "konk API surface looks empty before the upgrade (keys=$SURF_T, bulk APIs=$SURF_B) — fix this first, there is nothing to compare against"
+fi
+
 TOTAL_CHECKS=$(( PASS_COUNT + FAIL_COUNT ))
 echo
+
 echo "╔══════════════════════════════════════════════════════════════╗"
 echo "║                     SUMMARY                                 ║"
 echo "╠══════════════════════════════════════════════════════════════╣"
