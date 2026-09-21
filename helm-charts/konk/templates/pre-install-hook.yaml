@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: {{ include "konk.fullname" . | trunc 47 | trimSuffix "-" }}-fix-helm-orphans
+  name: {{ include "konk.fullname" . | trunc 46 | trimSuffix "-" }}-fix-helm-orphans
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "konk.labels" . | nindent 4 }}
@@ -14,7 +14,7 @@ metadata:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ include "konk.fullname" . | trunc 47 | trimSuffix "-" }}-fix-helm-orphans
+  name: {{ include "konk.fullname" . | trunc 46 | trimSuffix "-" }}-fix-helm-orphans
   labels:
     {{- include "konk.labels" . | nindent 4 }}
   annotations:
@@ -50,7 +50,7 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ include "konk.fullname" . | trunc 47 | trimSuffix "-" }}-fix-helm-orphans
+  name: {{ include "konk.fullname" . | trunc 46 | trimSuffix "-" }}-fix-helm-orphans
   labels:
     {{- include "konk.labels" . | nindent 4 }}
   annotations:
@@ -60,16 +60,16 @@ metadata:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: {{ include "konk.fullname" . | trunc 47 | trimSuffix "-" }}-fix-helm-orphans
+  name: {{ include "konk.fullname" . | trunc 46 | trimSuffix "-" }}-fix-helm-orphans
 subjects:
 - kind: ServiceAccount
-  name: {{ include "konk.fullname" . | trunc 47 | trimSuffix "-" }}-fix-helm-orphans
+  name: {{ include "konk.fullname" . | trunc 46 | trimSuffix "-" }}-fix-helm-orphans
   namespace: {{ .Release.Namespace }}
 ---
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ include "konk.fullname" . | trunc 47 | trimSuffix "-" }}-fix-helm-orphans
+  name: {{ include "konk.fullname" . | trunc 46 | trimSuffix "-" }}-fix-helm-orphans
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "konk.labels" . | nindent 4 }}
@@ -86,7 +86,7 @@ spec:
         {{- include "konk.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: fix-helm-orphans
     spec:
-      serviceAccountName: {{ include "konk.fullname" . | trunc 47 | trimSuffix "-" }}-fix-helm-orphans
+      serviceAccountName: {{ include "konk.fullname" . | trunc 46 | trimSuffix "-" }}-fix-helm-orphans
       restartPolicy: OnFailure
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
