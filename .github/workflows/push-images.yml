@@ -75,28 +75,28 @@ jobs:
         done
 
     - name: Attest provenance — konk
-      uses: actions/attest-build-provenance@v2
+      uses: actions/attest-build-provenance@v4
       with:
         subject-name: ghcr.io/infobloxopen/konk
         subject-digest: ${{ steps.digests.outputs.konk }}
         push-to-registry: true
 
     - name: Attest provenance — konk-app
-      uses: actions/attest-build-provenance@v2
+      uses: actions/attest-build-provenance@v4
       with:
         subject-name: ghcr.io/infobloxopen/konk-app
         subject-digest: ${{ steps.digests.outputs.konk-app }}
         push-to-registry: true
 
     - name: Attest provenance — konk-provision
-      uses: actions/attest-build-provenance@v2
+      uses: actions/attest-build-provenance@v4
       with:
         subject-name: ghcr.io/infobloxopen/konk-provision
         subject-digest: ${{ steps.digests.outputs.konk-provision }}
         push-to-registry: true
 
     - name: Attest provenance — konk-service
-      uses: actions/attest-build-provenance@v2
+      uses: actions/attest-build-provenance@v4
       with:
         subject-name: ghcr.io/infobloxopen/konk-service
         subject-digest: ${{ steps.digests.outputs.konk-service }}
