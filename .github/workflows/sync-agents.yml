@@ -15,7 +15,7 @@ jobs:
     steps:
       - name: Generate app token
         id: app-token
-        uses: actions/create-github-app-token@v1
+        uses: actions/create-github-app-token@v3
         with:
           app-id: ${{ secrets.AGENTS_SYNC_APP_ID }}
           private-key: ${{ secrets.AGENTS_SYNC_APP_KEY }}
