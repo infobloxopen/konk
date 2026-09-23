@@ -255,7 +255,7 @@ jobs:
           ref: ${{ github.head_ref }}
       - run: make chart-readmes
       - name: commit changes
-        uses: EndBug/add-and-commit@v9
+        uses: EndBug/add-and-commit@v11
         with:
           message: update chart readme
           add: helm-charts
