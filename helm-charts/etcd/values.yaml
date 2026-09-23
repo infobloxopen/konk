@@ -143,8 +143,20 @@ pdb:
 
 ## @section Scheduling parameters
 nodeSelector: {}
-tolerations: []
-affinity: {}
+tolerations:
+  - key: infoblox.com/do-not-disrupt
+    operator: Exists
+    effect: NoSchedule
+affinity:
+  nodeAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        preference:
+          matchExpressions:
+            - key: node-group-type
+              operator: In
+              values:
+                - stable
 priorityClassName: ""
 
 ## @section Cluster parameters
