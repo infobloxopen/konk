@@ -7,7 +7,7 @@ require (
 	github.com/go-openapi/spec v0.21.0
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.19.0
-	github.com/spf13/pflag v1.0.5
+	github.com/spf13/pflag v1.0.10
 	golang.org/x/net v0.47.0
 	k8s.io/apimachinery v0.19.2
 	k8s.io/apiserver v0.19.2
