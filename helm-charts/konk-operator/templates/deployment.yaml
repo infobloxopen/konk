@@ -28,6 +28,7 @@ spec:
   */}}
   strategy:
     type: Recreate
+    rollingUpdate: null
   selector:
     matchLabels:
       {{- include "konk-operator.selectorLabels" . | nindent 6 }}
