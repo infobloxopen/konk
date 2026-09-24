@@ -1,25 +1,26 @@
 #!/usr/bin/env bash
-# fix-ca-mismatch.sh — Fix x509 CA mismatch after konk CA rotation
+# fix-ca-mismatch.sh — Detect (and optionally fix) x509 CA mismatch after konk CA rotation
 #
 # When the konk provision container regenerates the CA (e.g. during upgrades where
 # the apiserver-cert secret was missing), the kubeconfig-cert secrets issued by
 # cert-manager still embed the old CA. This script:
-#   1. Detects stale kubeconfig-cert secrets (CA doesn't match bulk-konk-ca)
-#   2. Deletes them (cert-manager re-issues with the new CA via ClusterIssuer)
-#   3. Restarts reconcile-kubeconfig pods (propagates new CA to kubeconfig secrets)
-#   4. Restarts kubectl-apiservice deployments (pods cache CA at startup)
-#   5. Verifies CA matches across all namespaces
+#   1. Detects stale kubeconfig-cert secrets (CA doesn't match bulk-konk-ca)  [always]
+#   2. Deletes them (cert-manager re-issues with the new CA via ClusterIssuer) [--apply]
+#   3. Restarts reconcile-kubeconfig pods (propagates new CA to kubeconfig secrets) [--apply]
+#   4. Restarts kubectl-apiservice deployments (pods cache CA at startup)      [--apply]
+#   5. Verifies CA matches across all namespaces                               [--apply]
 #
 # Usage:
-#   ./fix-ca-mismatch.sh --context teleport.services.sdp.infoblox.com-us-dev-4
-#   ./fix-ca-mismatch.sh --context us-dev-4 --dry-run
-#   ./fix-ca-mismatch.sh                     # uses current kubectl context
+#   ./fix-ca-mismatch.sh                                    # check only, no changes
+#   ./fix-ca-mismatch.sh --context us-stg-1                # check only, explicit context
+#   ./fix-ca-mismatch.sh --apply                            # check + fix
+#   ./fix-ca-mismatch.sh --context us-stg-1 --apply        # check + fix, explicit context
 #
 set -euo pipefail
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 CTX=""
-DRY_RUN=false
+APPLY=false
 AGGREGATE_NS="aggregate"
 CA_SECRET="bulk-konk-ca"
 
@@ -35,13 +36,15 @@ warn()  { echo -e "${YELLOW}[WARN]${NC} $*"; }
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --context) CTX="$2"; shift 2 ;;
-    --dry-run) DRY_RUN=true; shift ;;
+    --apply) APPLY=true; shift ;;
     -h|--help)
-      echo "Usage: $0 [--context <ctx>] [--dry-run]"
+      echo "Usage: $0 [--context <ctx>] [--apply]"
       echo ""
-      echo "Fixes x509 CA mismatch in KonkService kubeconfig-cert secrets."
-      echo "After a konk CA rotation, cert-manager-issued certs still embed"
-      echo "the old CA. This script forces re-issuance and restarts affected pods."
+      echo "By default: check-only. Prints which kubeconfig-cert secrets have a"
+      echo "stale CA (CA fingerprint does not match bulk-konk-ca). No changes made."
+      echo ""
+      echo "With --apply: deletes stale secrets, restarts reconcile-kubeconfig and"
+      echo "kubectl-apiservice deployments, then verifies CA matches fleet-wide."
       exit 0 ;;
     *) echo "Unknown arg: $1"; exit 1 ;;
   esac
@@ -51,17 +54,15 @@ if [[ -z "$CTX" ]]; then
   CTX=$(kubectl config current-context)
 fi
 info "Using context: $CTX"
-if $DRY_RUN; then
-  warn "DRY-RUN mode — no changes will be made"
+if ! $APPLY; then
+  warn "Check-only mode — pass --apply to delete stale secrets and restart pods"
 fi
 
 # ── Helper ────────────────────────────────────────────────────────────────────
 kc() { kubectl --context "$CTX" "$@"; }
 
-run_or_dry() {
-  if $DRY_RUN; then
-    warn "[DRY-RUN] kubectl --context $CTX $*"
-  else
+run_if_apply() {
+  if $APPLY; then
     kc "$@"
   fi
 }
@@ -124,21 +125,35 @@ if $ALL_MATCH; then
   exit 0
 fi
 
+if ! $APPLY; then
+  echo
+  warn "─── ${#STALE_PAIRS[@]} stale secret(s) found ───"
+  if [[ -t 0 ]]; then
+    printf "${YELLOW}[WARN]${NC} Apply the fix now? (deletes stale secrets, restarts pods) [y/N] "
+    read -r answer
+    case "$answer" in
+      [yY]|[yY][eE][sS]) APPLY=true ;;
+      *) warn "Aborted — re-run with --apply to fix"; exit 1 ;;
+    esac
+  else
+    warn "Non-interactive — re-run with --apply to fix"
+    exit 1
+  fi
+fi
+
 # ── Step 2: Delete stale kubeconfig-cert secrets ──────────────────────────────
 echo
 info "═══ Step 2: Deleting stale kubeconfig-cert secrets (cert-manager will re-issue) ═══"
 for pair in "${STALE_PAIRS[@]}"; do
   ns=${pair%% *}; secret=${pair##* }
   info "  Deleting $ns/$secret"
-  run_or_dry delete secret "$secret" -n "$ns"
+  run_if_apply delete secret "$secret" -n "$ns"
 done
 
 # ── Step 3: Wait for cert-manager to re-issue ─────────────────────────────────
 echo
 info "═══ Step 3: Waiting for cert-manager to re-issue certificates (25s) ═══"
-if ! $DRY_RUN; then
-  sleep 25
-fi
+sleep 25
 
 # Verify re-issue
 REISSUE_OK=true
@@ -159,18 +174,15 @@ done
 
 if ! $REISSUE_OK; then
   fail "Some certs not re-issued. Waiting 30s more..."
-  if ! $DRY_RUN; then
-    sleep 30
-    # retry check
-    for pair in "${STALE_PAIRS[@]}"; do
-      ns=${pair%% *}; secret=${pair##* }
-      new_ca=$(kc get secret "$secret" -n "$ns" -o jsonpath='{.data.ca\.crt}' 2>/dev/null | base64 -d | \
-        openssl x509 -fingerprint -sha256 -noout 2>/dev/null | sed 's/sha256 Fingerprint=//')
-      if [[ "$new_ca" != "$CURRENT_CA_FP" ]]; then
-        fail "  $ns/$secret: STILL stale after 55s — cert-manager issue?"
-      fi
-    done
-  fi
+  sleep 30
+  for pair in "${STALE_PAIRS[@]}"; do
+    ns=${pair%% *}; secret=${pair##* }
+    new_ca=$(kc get secret "$secret" -n "$ns" -o jsonpath='{.data.ca\.crt}' 2>/dev/null | base64 -d | \
+      openssl x509 -fingerprint -sha256 -noout 2>/dev/null | sed 's/sha256 Fingerprint=//')
+    if [[ "$new_ca" != "$CURRENT_CA_FP" ]]; then
+      fail "  $ns/$secret: STILL stale after 55s — cert-manager issue?"
+    fi
+  done
 fi
 
 # ── Step 4: Restart reconcile-kubeconfig pods ─────────────────────────────────
@@ -180,16 +192,14 @@ for ns in "${STALE_NS[@]}"; do
   deploys=$(kc get deploy -n "$ns" --no-headers 2>/dev/null | grep 'konk-service-kubeconfig' | awk '{print $1}')
   for d in $deploys; do
     info "  Restarting $ns/$d"
-    run_or_dry rollout restart deploy "$d" -n "$ns"
+    run_if_apply rollout restart deploy "$d" -n "$ns"
   done
 done
 
 # ── Step 5: Wait for kubeconfig secrets to be updated ─────────────────────────
 echo
 info "═══ Step 5: Waiting for kubeconfig secrets to be updated (35s) ═══"
-if ! $DRY_RUN; then
-  sleep 35
-fi
+sleep 35
 
 # Verify kubeconfig secrets
 KC_OK=true
@@ -218,16 +228,14 @@ for ns in "${STALE_NS[@]}"; do
     grep -E 'apiservice.*konk|konk.*apiservice' | grep -v test | grep -v kubeconfig | awk '{print $1}')
   for d in $deploys; do
     info "  Restarting $ns/$d"
-    run_or_dry rollout restart deploy "$d" -n "$ns"
+    run_if_apply rollout restart deploy "$d" -n "$ns"
   done
 done
 
 # ── Step 7: Final verification ────────────────────────────────────────────────
 echo
 info "═══ Step 7: Waiting for pods to restart (45s) ═══"
-if ! $DRY_RUN; then
-  sleep 45
-fi
+sleep 45
 
 echo
 info "═══ Final verification ═══"
