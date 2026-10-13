@@ -81,6 +81,12 @@ spec:
                   name:
                     description: The name of your extension API service
                     type: string
+                  caSecretName:
+                    description: Optional name of an existing Secret containing ca.crt
+                      to use as the APIService caBundle. When set, no new CA or server
+                      certificate is generated. Use this when multiple KonkService
+                      versions share the same backend pod and must trust the same CA.
+                    type: string
                 required:
                 - name
                 x-kubernetes-preserve-unknown-fields: true
