@@ -10,8 +10,7 @@ global:
 image:
   registry: cgr.dev
   repository: infoblox.com/etcd
-  # Defaults to the chart appVersion when empty
-  tag: ""
+  tag: "3.7.2"
   pullPolicy: IfNotPresent
   pullSecrets: []
 

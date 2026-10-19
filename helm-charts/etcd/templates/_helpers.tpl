@@ -56,7 +56,7 @@ Return the proper etcd image name
 {{- define "etcd.image" -}}
 {{- $registryName := .Values.image.registry -}}
 {{- $repositoryName := .Values.image.repository -}}
-{{- $tag := .Values.image.tag | default .Chart.AppVersion | toString -}}
+{{- $tag := .Values.image.tag | toString -}}
 {{- if .Values.global }}
     {{- if .Values.global.imageRegistry }}
         {{- printf "%s/%s:%s" .Values.global.imageRegistry $repositoryName $tag -}}
