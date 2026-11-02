@@ -10,7 +10,7 @@ require (
 	github.com/spf13/pflag v1.0.10
 	golang.org/x/net v0.61.0
 	k8s.io/apimachinery v0.37.2
-	k8s.io/apiserver v0.37.1
+	k8s.io/apiserver v0.37.2
 	k8s.io/client-go v0.37.2
 	k8s.io/klog v1.0.0
 	k8s.io/kube-openapi v0.0.0-20260721132016-d427ff9ee9ad
@@ -114,9 +114,9 @@ require (
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 	k8s.io/api v0.37.2 // indirect
 	k8s.io/apiextensions-apiserver v0.37.0 // indirect
-	k8s.io/component-base v0.37.1 // indirect
+	k8s.io/component-base v0.37.2 // indirect
 	k8s.io/klog/v2 v2.140.0 // indirect
-	k8s.io/kms v0.37.1 // indirect
+	k8s.io/kms v0.37.2 // indirect
 	k8s.io/kube-aggregator v0.19.2 // indirect
 	k8s.io/streaming v0.37.2 // indirect
 	k8s.io/utils v0.0.0-20260626114624-be93311217bd // indirect
