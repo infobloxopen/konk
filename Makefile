@@ -136,7 +136,7 @@ undeploy: kustomize
 	$(KUSTOMIZE) build config/default | kubectl delete -f -
 
 .image-${GIT_VERSION}:
-	DOCKER_BUILDKIT=1 docker build . -t ${IMG}
+	DOCKER_BUILDKIT=1 docker build --provenance=false . -t ${IMG}
 	touch $@
 
 # Build the docker image
@@ -148,7 +148,7 @@ docker-push:
 
 # Build patched kubernetes (kubeadm + kube-apiserver) from source with upgraded deps
 .kubernetes-image-${GIT_VERSION}:
-	DOCKER_BUILDKIT=1 docker build \
+	DOCKER_BUILDKIT=1 docker build --provenance=false \
 		--build-arg K8S_VERSION=$(K8S_RELEASE) \
 		-t ${KUBERNETES_IMG} \
 		build/kubernetes/
@@ -167,7 +167,7 @@ docker-push-kubernetes:
 
 # Build the provision docker image (depends on kubernetes build)
 .provision-image-${GIT_VERSION}: .kubernetes-image-${GIT_VERSION}
-	DOCKER_BUILDKIT=1 docker build \
+	DOCKER_BUILDKIT=1 docker build --provenance=false \
 		--build-arg KUBERNETES_IMG=${KUBERNETES_IMG} \
 		-f Dockerfile.provision . -t ${PROVISION_IMG}
 	touch $@
@@ -180,7 +180,7 @@ docker-push-provision:
 
 # Build the konk-service docker image (Go binary replacing shell-based konk-tools for konk-service chart)
 .konk-service-image-${GIT_VERSION}:
-	DOCKER_BUILDKIT=1 docker build \
+	DOCKER_BUILDKIT=1 docker build --provenance=false \
 		-f Dockerfile.konk-service . -t ${KONK_SERVICE_IMG}
 	touch $@
 
