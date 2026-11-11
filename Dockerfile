@@ -1,5 +1,5 @@
 # Multi-stage build: Build helm-operator with updated Go version
-FROM golang:1.26.6-alpine AS go-builder
+FROM golang:1.27.3-alpine AS go-builder
 
 # Install necessary build tools
 RUN apk add --no-cache git make bash
@@ -13,12 +13,15 @@ RUN git clone --depth 1 --branch v1.42.0 https://github.com/operator-framework/o
     go get golang.org/x/crypto@v0.57.0 \
            golang.org/x/net@v0.58.0 \
            google.golang.org/grpc@v1.83.2 \
-           go.opentelemetry.io/otel@v1.44.0 \
-           go.opentelemetry.io/otel/sdk@v1.44.0 \
-           go.opentelemetry.io/otel/trace@v1.44.0 \
-           go.opentelemetry.io/otel/metric@v1.44.0 \
+           go.opentelemetry.io/otel@v1.45.0 \
+           go.opentelemetry.io/otel/sdk@v1.45.0 \
+           go.opentelemetry.io/otel/trace@v1.45.0 \
+           go.opentelemetry.io/otel/metric@v1.45.0 \
+           go.opentelemetry.io/otel/exporters/otlp/otlptrace@v1.45.0 \
+           go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc@v1.45.0 \
            github.com/moby/spdystream@v0.5.1 \
-           github.com/containerd/containerd@v1.7.33 \
+           github.com/containerd/containerd@v1.7.36 \
+           github.com/klauspost/compress@v1.18.7 \
            helm.sh/helm/v3@v3.20.2 \
            oras.land/oras-go/v2@v2.6.2 \
            github.com/google/cel-go@v0.29.0 && \
