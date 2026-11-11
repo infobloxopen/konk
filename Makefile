@@ -277,8 +277,12 @@ ETCD_CHART_IMG ?= cgr.dev/infoblox.com/etcd:3.7.2
 kind-load-konk: $(KIND) docker-build docker-build-kubernetes docker-build-provision docker-build-konk-service
 	@# All images use GIT_VERSION tag, no extra tagging needed
 	docker pull $(ETCD_IMG)
-	@# Retag public etcd image to match the chart's private registry reference
-	docker tag $(ETCD_IMG) $(ETCD_CHART_IMG)
+	@# Re-publish the public etcd image under the chart's private registry reference.
+	@# Rebuild instead of `docker tag`: with Docker's containerd image store (default
+	@# on Docker 29+), a pulled multi-arch image is saved with an index whose other
+	@# platforms' content is absent, and `kind load` (ctr import --all-platforms)
+	@# fails with "content digest ... not found". A local build is single-platform.
+	echo "FROM $(ETCD_IMG)" | docker build -t $(ETCD_CHART_IMG) -
 	$(KIND) load docker-image ${IMG} ${KUBERNETES_IMG} ${PROVISION_IMG} ${KONK_SERVICE_IMG} \
 		$(ETCD_CHART_IMG) \
 		--name ${KIND_NAME}
